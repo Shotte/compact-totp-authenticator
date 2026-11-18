@@ -1,7 +1,7 @@
 # Architecture
 
-Status: approved with conditions (CTA-001-B0); amendments B0-1…B0-4 incorporated.
-Product code is not implemented yet.
+Status: B0 approved; Phase B (functional baseline) implemented on `feature/phase-b`
+with synthetic in-memory data. Evidence: [evidence/phase-b](evidence/phase-b/README.md).
 
 ## 1. Upstream analysis
 
@@ -89,7 +89,28 @@ storage.local:   { vault, vault_backup, settings: { theme, colors, autoLockMin, 
 ```
 
 The whole account list (names, secrets, URLs) is one AES-GCM ciphertext. Settings are
-plaintext and contain no secrets. Message handlers validate their input; the background
+plaintext and contain no secrets.
+
+Phase B state: instead of `vault`/`vault_backup` in `storage.local`, an encrypted working
+copy `{ revision, iv, ct }` lives in `storage.session` (B0-3). Page helpers live in
+`lib/ui.js`; pages import only `ui.js`, `settings.js`, `accounts.js` (pure view helpers)
+and `legacy.js` (size limit constant).
+
+Background message API (all from own pages only; errors reduced to `locked`, `conflict`,
+`invalid`, `malformed` or `internal`):
+
+| Command | Gate | Qualifying activity | Returns |
+|---|---|---|---|
+| `status` | no | no | `{ unlocked, startedAt }` |
+| `devUnlock {count}` (Phase B only) | – | starts session | `{ unlocked }` |
+| `lock` | no | – | `{ unlocked: false }` |
+| `activity` | yes | yes | `{}` |
+| `getCodes` | yes | no | `{ revision, codes: [{ id, name, url, period, code, validUntil }] }` |
+| `listAccounts` | yes | no | `{ revision, accounts: [{ id, name, url, algorithm, digits, period }] }` |
+| `addAccount`, `updateAccount`, `deleteAccount`, `moveAccount` (+`revision`) | yes | yes | `{ revision }` |
+| `importPreview {text}` | yes | no | `{ format, rows, counts }` (no secrets) |
+
+Message handlers validate their input; the background
 answers only messages from its own extension pages (`sender.id`, no external messaging).
 
 ### 2.3 Data model (inside the vault)

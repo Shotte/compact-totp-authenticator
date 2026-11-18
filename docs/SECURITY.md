@@ -122,6 +122,29 @@ Session record in `storage.session`:
 - **Clock:** wall-clock time (`Date.now()`) is required because the deadline must survive
   event page restarts. A backwards jump locks; a forward jump locks early (safe direction).
 
+### 5.1 Implementation (Phase B, `src/lib/service.js`)
+
+- `requireSession()` at the start of every sensitive command; `recheck()` after async work
+  (decryption, code generation, encryption) and before any result is returned or written.
+- An in-memory **epoch** is incremented synchronously by lock and unlock. An operation that
+  started under an older epoch is rejected even if storage looks valid, and the epoch is
+  checked again immediately before `storage.session.set` with no `await` in between.
+  Storage calls from one context are assumed to execute in call order.
+- The session record carries a random `id`; a re-unlock during an operation is detected.
+- Regression tests: [test/service.test.mjs](../test/service.test.mjs) (expiry and lock
+  during reads and writes, re-unlock, restart, clock rollback, alarm handler) and browser
+  tests B6-1…B6-5 ([evidence](evidence/phase-b/README.md)).
+
+### 5.2 Concurrent writes
+
+- Read-modify-write sequences are serialized in the event page (promise chain).
+- Every mutation carries the revision the UI last saw; a different current revision is
+  rejected with `conflict` (the options page reloads and asks the user to retry).
+- `writeVault` re-reads the stored revision right before writing (compare-and-set), so a
+  write that happened in between is never overwritten silently.
+- The revision is part of the AES-GCM AAD; a manipulated revision fails decryption.
+- Phase C applies the same rules to the persistent vault in `storage.local`.
+
 ## 6. Vault format (version 1)
 
 `storage.local` keys: `vault` (current), `vault_backup` (previous revision, see §7),
@@ -203,7 +226,10 @@ with fault injection where possible.
 - Synthetic secrets only. Never log accounts, secrets, codes, keys or passwords. Gate before
   each phase: `console.` grep reviewed, fixtures checked.
 - **B0-3:** until Phase C is complete, builds use synthetic fixture accounts only; no
-  account persistence and no legacy import apply step.
+  account persistence and no legacy import apply step. Phase B implementation: `devUnlock`
+  creates a fresh non-extractable key and an AES-GCM encrypted working copy of the
+  fixtures in `storage.session` (memory only); lock or browser exit discards both.
+  `devUnlock` is removed when the master password arrives in Phase C.
 
 Sources (checked 2026-11-18):
 

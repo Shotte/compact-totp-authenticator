@@ -9,9 +9,13 @@ replaces storage, encryption and import/export.
 
 ## Status
 
-Architecture approved with conditions; B0 security spike done
-([spikes/b0-cryptokey/RESULTS.md](spikes/b0-cryptokey/RESULTS.md)). No product code yet.
-`npm test` runs the unit tests, `npm run spike:b0` the Firefox spike. See:
+Phase B (functional baseline) on `feature/phase-b`: compact popup, account management,
+TOTP, legacy import preview, background-only key boundary. Development build with
+synthetic in-memory demo data only; nothing is persisted until Phase C.
+
+`npm test` (unit/regression/static), `npm run lint` (web-ext), `npm run test:browser`
+(Firefox via WebDriver BiDi), `npm start` (run in Firefox), `npm run spike:b0`.
+Evidence: [docs/evidence/phase-b](docs/evidence/phase-b/README.md). See:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – upstream analysis, target architecture, plan
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
