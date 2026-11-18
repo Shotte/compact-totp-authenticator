@@ -46,6 +46,13 @@ test("only background.js hands out storage.session (pages would receive the key)
   for (const [f, src] of pages) assert.doesNotMatch(src, /service\.js|crypto\.js|fixtures\.js|totp\.js/, f);
 });
 
+test("release gate: the development-only demo unlock cannot ship in a 1.x release", () => {
+  const major = Number(json("manifest.json").version.split(".")[0]);
+  const users = stripped.filter(([, src]) => /devUnlock|unlockDemo/.test(src)).map(([f]) => f);
+  if (major >= 1) assert.deepEqual(users, [], "remove devUnlock (Phase C master password) before 1.0.0");
+  else assert.ok(major === 0, "pre-release versions only");
+});
+
 test("locales: identical keys, every referenced key exists", () => {
   const en = json("_locales/en/messages.json"), de = json("_locales/de/messages.json");
   assert.deepEqual(Object.keys(de).sort(), Object.keys(en).sort());
