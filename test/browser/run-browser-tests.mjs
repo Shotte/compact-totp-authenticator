@@ -56,6 +56,10 @@ const PREFS = {
   // Restart tests: keep extension storage and UUID when the temporary add-on is reinstalled.
   "extensions.webextensions.keepStorageOnUninstall": true,
   "extensions.webextensions.keepUuidOnUninstall": true,
+  // Repeated hard kills must not trigger the startup safe-mode prompt or session restore
+  // (that prompt blocks a restarted browser after about three crashes).
+  "toolkit.startup.max_resumed_crashes": -1,
+  "browser.sessionstore.resume_from_crash": false,
 };
 let ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS });
 const call = (method, params) => ff.call(method, params);
@@ -750,9 +754,12 @@ try {
     await open(opt, "options/options.html");
     const setupShown = await waitFor(opt, "document.body.dataset.locked === 'setup'");
     // minlength only constrains user typing; the service enforces 12+ characters regardless.
+    // Messages are compared with the extension's own strings (CI browsers run in English).
+    const i18n = (key) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(key)})`);
+    const msgShort = await i18n("reason_password_short"), msgMismatch = await i18n("reason_password_mismatch");
     await fill(opt, "setupForm", { password: "eleven chrs", confirm: "eleven chrs" });
-    await waitFor(opt, `document.getElementById("message").textContent.includes("12 Zeichen")`, 10000);
-    const shortBlocked = await evalJson(opt, `async () => document.getElementById("message").textContent.includes("12 Zeichen")`);
+    await waitFor(opt, `document.getElementById("message").textContent.includes(${JSON.stringify(msgShort)})`, 10000);
+    const shortBlocked = await evalJson(opt, `async () => document.getElementById("message").textContent.includes(${JSON.stringify(msgShort)})`);
     await fill(opt, "setupForm", { password: PW, confirm: PW + "!" });
     await waitFor(opt, `document.getElementById("message").dataset.kind === "error"`, 10000);
     const mismatch = await evalJson(opt, `async () => document.getElementById("message").textContent`);
@@ -762,7 +769,7 @@ try {
     const cleared = await evalJson(opt, `async () => [...document.querySelectorAll("input[type=password]")].every((i) => i.value === "")`);
     const st = (await msg(opt, "status")).result;
     record("C2-1", "setup via UI: 12+ characters, confirmation required, vault created and unlocked, inputs cleared",
-      setupShown && shortBlocked && /stimmen nicht/.test(mismatch) && noVault && unlocked && cleared && st.initialized && st.unlocked,
+      setupShown && shortBlocked && mismatch.includes(msgMismatch) && noVault && unlocked && cleared && st.initialized && st.unlocked,
       { setupShown, shortBlocked, mismatch, noVaultAfterRejected: noVault, unlocked, inputsCleared: cleared });
   }
 
@@ -775,7 +782,8 @@ try {
     const before = await localSnap();
     await evalJson(pop, `async () => { document.getElementById("password").value = "definitely the wrong password";
       document.getElementById("unlockForm").requestSubmit(); return true; }`);
-    const failShown = await waitFor(pop, `document.getElementById("lockedMsg").textContent.includes("fehlgeschlagen")`, 15000);
+    const msgFailed = await evalJson(pop, `async () => browser.i18n.getMessage("unlockFailed")`);
+    const failShown = await waitFor(pop, `document.getElementById("lockedMsg").textContent === ${JSON.stringify(msgFailed)}`, 15000);
     const wrong = [], wrongMs = [];
     for (const p of [PW + " ", PW.toUpperCase(), "x".repeat(1025), ""]) {
       const t0 = Date.now(); wrong.push((await msg(opt, "unlock", { password: p })).ok); wrongMs.push(Date.now() - t0);

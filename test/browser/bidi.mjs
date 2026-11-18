@@ -15,7 +15,7 @@ export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
     `--remote-debugging-port=${port}`], { stdio: "ignore",
     // Test harness only: allows BiDi to evaluate scripts in moz-extension:// pages of
     // this throwaway profile. It does not change extension privileges.
-    env: { ...process.env, MOZ_REMOTE_ALLOW_SYSTEM_ACCESS: "1" } });
+    env: { ...process.env, MOZ_REMOTE_ALLOW_SYSTEM_ACCESS: "1", MOZ_CRASHREPORTER_DISABLE: "1" } });
 
   let ws, nextId = 0;
   const pending = new Map();
