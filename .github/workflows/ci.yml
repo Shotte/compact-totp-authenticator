@@ -1,6 +1,12 @@
-# CI for pull requests and main: unit/regression/static tests, web-ext lint, package build.
-# Runs on `pull_request` (never `pull_request_target`), so workflows from forks get a
-# read-only token and no secrets. Actions are pinned to commit SHAs.
+# CI for pull requests and main.
+# - test (required check, Ubuntu): unit/regression/static/crypto/portability tests, web-ext
+#   lint with warnings as errors, package build.
+# - unit (Windows, macOS): the same tests and lint on the other desktop platforms.
+# - browser: Firefox WebDriver BiDi integration tests, HEADLESS. Headless runs do not prove
+#   toolbar popup behaviour; those checks are reported as NOT_TESTED in the results artifact
+#   and covered by the Windows desktop run with real mouse input (npm run test:browser:os).
+# Runs on `pull_request` (never `pull_request_target`): fork workflows get a read-only token
+# and no secrets. Actions are GitHub-owned and pinned to commit SHAs.
 name: CI
 
 on:
@@ -32,3 +38,73 @@ jobs:
       - run: npm test
       - run: npm run lint -- --warnings-as-errors
       - run: npm run build
+
+  unit:
+    name: unit (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run lint -- --warnings-as-errors
+
+  browser:
+    name: browser (${{ matrix.os }}, firefox ${{ matrix.firefox }}, headless)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, firefox: release }
+          - { os: ubuntu-latest, firefox: esr140 }
+          - { os: windows-latest, firefox: release }
+          - { os: macos-latest, firefox: release }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      MOZ_HEADLESS: "1"
+      RESULTS_DIR: browser-results
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Firefox ESR 140 (official Mozilla download)
+        if: matrix.firefox == 'esr140'
+        shell: bash
+        run: |
+          curl -fsSL -o firefox-esr.tar.xz "https://download.mozilla.org/?product=firefox-esr140-latest-ssl&os=linux64&lang=en-US"
+          mkdir -p "$RUNNER_TEMP/firefox-esr" && tar -xJf firefox-esr.tar.xz -C "$RUNNER_TEMP/firefox-esr"
+          echo "FIREFOX_BIN=$RUNNER_TEMP/firefox-esr/firefox/firefox" >> "$GITHUB_ENV"
+      - name: Firefox version
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Windows) FF="${FIREFOX_BIN:-C:/Program Files/Mozilla Firefox/firefox.exe}" ;;
+            macOS)   FF="${FIREFOX_BIN:-/Applications/Firefox.app/Contents/MacOS/firefox}" ;;
+            *)       FF="${FIREFOX_BIN:-firefox}" ;;
+          esac
+          "$FF" --version
+      - run: node test/browser/run-browser-tests.mjs
+      - name: Upload browser test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-results-${{ matrix.os }}-${{ matrix.firefox }}
+          path: browser-results/
+          retention-days: 14
+          if-no-files-found: warn

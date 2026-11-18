@@ -12,8 +12,13 @@ import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js"
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = join(root, "docs/evidence/phase-b");
-const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "C:/Program Files/Mozilla Firefox/firefox.exe";
+const OUT = process.env.RESULTS_DIR ? resolve(process.env.RESULTS_DIR) : join(root, "docs/evidence/phase-b");
+const DEFAULT_FIREFOX = { win32: "C:/Program Files/Mozilla Firefox/firefox.exe",
+  darwin: "/Applications/Firefox.app/Contents/MacOS/firefox", linux: "firefox" }[process.platform];
+const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? process.env.FIREFOX_BIN ?? DEFAULT_FIREFOX;
+// MOZ_HEADLESS=1 (CI): no graphical desktop. Tests that need real browser UI are reported
+// as NOT_TESTED, never skipped silently and never counted as passed.
+const HEADLESS = process.env.MOZ_HEADLESS === "1";
 // --os-input: real Windows mouse input for the toolbar popup (moves the cursor briefly).
 const OS_INPUT = process.argv.includes("--os-input") && process.platform === "win32";
 const EXT_ID = "{f587432b-b553-483e-b08d-4feac6378113}";
@@ -27,6 +32,10 @@ const SECRETS = [...syntheticAccounts(100).map((a) => a.secret),
 const leaks = (text) => SECRETS.filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
 
 const results = [];
+function notTested(id, name, reason) {
+  results.push({ id, name, verdict: "NOT_TESTED", details: { reason } });
+  console.log(`NOT_TESTED  ${id}  ${name} (${reason})`);
+}
 function record(id, name, pass, details) {
   results.push({ id, name, verdict: pass ? "PASS" : "FAIL", details });
   console.log(`${pass ? "PASS" : "FAIL"}  ${id}  ${name}`);
@@ -423,6 +432,12 @@ try {
         storageLocalUnchanged: localAfter === localBefore, malformed });
   }
 
+  if (HEADLESS) {
+    for (const [id, name] of [["B3-real-1", "real toolbar popup size and rows"], ["B3-real-2", "active-site highlight via toolbar click"],
+      ["B3-real-3", "real popup scrolling"], ["B3-real-4", "real popup click-to-copy"], ["B8-real", "real popup hover"]]) {
+      notTested(id, name, "headless run: no toolbar popup panel");
+    }
+  } else
   // B3: the REAL toolbar popup, opened by a native click on the toolbar button (grants
   // activeTab like a user click). The popup DOM is read via extension.getViews() from the
   // options page; panel geometry and the clipboard are read in the browser chrome.
@@ -653,9 +668,11 @@ try {
 }
 
 evidence.results = results;
+evidence.environment = { platform: process.platform, arch: process.arch, node: process.version, headless: HEADLESS };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "browser-results.json"), JSON.stringify(evidence, null, 2) + "\n");
 const failed = results.filter((r) => r.verdict === "FAIL").length;
 const manual = results.filter((r) => r.verdict === "MANUAL").length;
-console.log(`${results.length - failed - manual}/${results.length} passed, ${manual} manual, ${failed} failed${evidence.fatal ? " (fatal error)" : ""}`);
+const untested = results.filter((r) => r.verdict === "NOT_TESTED").length;
+console.log(`${results.length - failed - manual - untested}/${results.length} passed, ${manual} manual, ${untested} not tested, ${failed} failed${evidence.fatal ? " (fatal error)" : ""}`);
 process.exit(failed || evidence.fatal ? 1 : 0);
