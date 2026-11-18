@@ -31,6 +31,8 @@ const SECRETS = [...syntheticAccounts(100).map((a) => a.secret),
   ...JSON.parse(LEGACY_TEXT).otp_list.map((e) => e?.key).filter((k) => typeof k === "string" && k.length >= 16)];
 const leaks = (text) => SECRETS.filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
 
+// Chrome-scope access to Services: a global in current Firefox, a module import in ESR 140.
+const SVC = "(typeof Services !== \"undefined\" ? Services : ChromeUtils.importESModule(\"resource://gre/modules/Services.sys.mjs\").Services)";
 const results = [];
 function notTested(id, name, reason) {
   results.push({ id, name, verdict: "NOT_TESTED", details: { reason } });
@@ -213,7 +215,7 @@ try {
     await open(pop, "popup/popup.html");
     await waitFor(pop, `document.body.dataset.rendered === "100"`);
     const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-    const setScheme = (v) => evalJson(chrome, `async () => Services.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
+    const setScheme = (v) => evalJson(chrome, `async () => ${SVC}.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
     const seen = [];
     for (const v of [0, 1, 0]) { // 0 = dark, 1 = light
       await setScheme(v);
@@ -221,7 +223,7 @@ try {
       seen.push({ want, ok: await waitFor(pop, `document.documentElement.dataset.theme === "${want}"`, 3000),
         bg: await evalJson(pop, `async () => getComputedStyle(document.body).backgroundColor`) });
     }
-    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
     record("B7-auto", "theme auto follows live prefers-color-scheme changes", seen.every((s) => s.ok) &&
       seen[0].bg !== seen[1].bg, { transitions: seen });
 
@@ -259,14 +261,14 @@ try {
         clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
       writeFileSync(join(OUT, `options-appearance-auto-${scheme}-de.png`), Buffer.from(shot.data, "base64"));
     }
-    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
   }
 
   // B8: subtle row hover (trusted BiDi pointer input in the popup document)
   {
     const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
     const pref = (name, v) => evalJson(chrome, v === null
-      ? `async () => Services.prefs.clearUserPref("${name}")` : `async () => Services.prefs.setIntPref("${name}", ${v})`);
+      ? `async () => ${SVC}.prefs.clearUserPref("${name}")` : `async () => ${SVC}.prefs.setIntPref("${name}", ${v})`);
     const rgbHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
     // Hosted CI runners (Windows, macOS) report prefers-reduced-motion: reduce system-wide;
     // pin "no preference" for the transition check (B8-3 covers the reduced case).
@@ -457,7 +459,7 @@ try {
       const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
       // --os-input: real Windows mouse input via os-input.ps1 at CSS coordinates of the
       // browser chrome viewport; refused unless the target window belongs to this Firefox.
-      const ffPid = await evalJson(chrome, `async () => Services.appinfo.processID`);
+      const ffPid = await evalJson(chrome, `async () => ${SVC}.appinfo.processID`);
       const scr = await evalJson(chrome, `async () => ({ sx: window.mozInnerScreenX, sy: window.mozInnerScreenY, dpr: window.devicePixelRatio })`);
       const osInput = OS_INPUT ? await startOsInput(join(root, "test/browser/os-input.ps1"), ffPid) : null;
       const osAt = async (action, x = 0, y = 0, delta = 0) => {
@@ -516,7 +518,7 @@ try {
       const readClipboard = () => evalJson(chrome, `async () => {
         const t = Cc["@mozilla.org/widget/transferable;1"].createInstance(Ci.nsITransferable);
         t.init(null); t.addDataFlavor("text/plain");
-        Services.clipboard.getData(t, Services.clipboard.kGlobalClipboard, null);
+        ${SVC}.clipboard.getData(t, ${SVC}.clipboard.kGlobalClipboard, null);
         const o = {}; t.getTransferData("text/plain", o); return o.value.QueryInterface(Ci.nsISupportsString).data; }`);
       const setClipboard = (text) => evalJson(chrome, `async () => Cc["@mozilla.org/widget/clipboardhelper;1"]
         .getService(Ci.nsIClipboardHelper).copyString(${JSON.stringify(text)})`);
@@ -654,12 +656,22 @@ try {
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { autoLockMinutes: 1 } })`);
     await msg(opt, "devUnlock", { count: 3 });
     const before = await msg(opt, "status");
-    await sleep(65_000);
-    const sess = await evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
-    const after = await msg(opt, "status");
+    const t0 = Date.now();
+    await sleep(61_000);
+    // Fail-closed right after the deadline, independent of the alarm (status does not wipe).
+    const atDeadline = await msg(opt, "status");
+    // Alarm cleanup: polled without touching the extension. Firefox may wake an idle event
+    // page late (seen on ESR 153), so the delay is measured, bounded at 120 s.
+    let wipedAfterMs = null;
+    while (Date.now() - t0 < 120_000) {
+      const keys = await evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
+      if (!keys.includes("session")) { wipedAfterMs = Date.now() - t0; break; }
+      await sleep(5_000);
+    }
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
-    record("B6-5", "auto-lock after 1 min idle wipes the session (alarm path)", before.result.unlocked &&
-      !after.result.unlocked && !sess.includes("session"), { before: before.result, after: after.result, sessionKeys: sess });
+    record("B6-5", "auto-lock after 1 min: locked at the deadline; alarm wipes the idle session", before.result.unlocked &&
+      !atDeadline.result.unlocked && wipedAfterMs !== null,
+    { before: before.result, atDeadline: atDeadline.result, alarmWipedAfterSeconds: wipedAfterMs && Math.round(wipedAfterMs / 1000) });
   }
   evidence.layouts = layouts;
 } catch (e) {
