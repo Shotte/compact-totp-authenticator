@@ -161,12 +161,25 @@ Session record in `storage.session`:
 }
 ```
 
+Implemented in C1: [`src/lib/vault.js`](../src/lib/vault.js), tests in
+[`test/vault.test.mjs`](../test/vault.test.mjs).
+
 - **AAD:** UTF-8 of `JSON.stringify([format, version, revision, kdf.name, kdf.hash,
-  kdf.iterations, kdf.salt, cipher.name, cipher.iv, cipher.tagLength])`. A fixed array, not
-  object serialization, so the encoding is unambiguous. Any change to these fields makes
-  decryption fail.
-- **Reader rules:** unknown `format`/`version`, iterations below 600,000 or above a sanity
-  cap, wrong salt/IV length → reject before decrypting.
+  kdf.iterations, kdf.salt, cipher.name, cipher.tagLength])`. A fixed array, not object
+  serialization, so the encoding is unambiguous. Any change to these fields makes
+  decryption fail (tested per field). The IV is not repeated in the AAD: AES-GCM already
+  authenticates it, and a changed IV fails the tag check (tested).
+- **Reader rules (`validateVault`, before any decryption):** exact key sets at every level
+  (unknown or missing keys rejected), `format === "cta-vault"`, `version === 1`, revision a
+  safe integer ≥ 1, PBKDF2/SHA-256, iterations in [600,000, 10,000,000], salt exactly 16
+  and IV exactly 12 bytes of valid base64, `AES-GCM` with a 128-bit tag, non-empty
+  ciphertext. Errors are `VaultError` with a reason (`format`, `version`, `header`,
+  `decrypt`, `payload`, `conflict`, `write`, `corrupt`); no error carries data.
+- **Nonce:** `sealVault` draws a fresh 96-bit IV from `crypto.getRandomValues` on every
+  call (via `crypto.js`). 10,000 seals of the same payload produce 10,000 distinct IVs and
+  ciphertexts (tested). Expected volume is a few thousand saves per key over its lifetime,
+  far below the SP 800-38D limit of 2^32 random-IV encryptions; the key changes with every
+  password change (C2).
 - **Plaintext payload:** `{ "accounts": [ { id, name, secret, url, algorithm, digits, period } ] }`.
   Names and URLs are encrypted too.
 - **Encrypted export** (`format: "cta-export"`) uses the same structure and AAD rule with its
@@ -197,8 +210,26 @@ crash point leaves at least one decryptable vault. On unlock: if `vault` fails t
 - **Password change:** requires the current password (re-derive and decrypt, not just a
   valid session); the new vault is verified with the new key before the old one is dropped.
 
-To verify in Phase C: behaviour of `storage.local` write failures (quota, profile errors)
-with fault injection where possible.
+Implemented in C1 as `createVaultStore(area)` (`commit`, `load`, `dropBackup`), serialized
+by an in-memory promise chain and guarded by compare-and-set on the revision (stale or
+concurrent commits → `conflict`, nothing written). Fault-injection tests:
+
+| Failure | Result |
+|---|---|
+| `set` throws while writing the backup | nothing changed |
+| `set` throws while writing the new vault (quota) | rolled back, old vault intact |
+| new vault silently corrupted on disk | read-back verification fails, rolled back |
+| storage dies before the new vault is written | next load returns the old vault |
+| corrupted new vault reaches disk, then storage dies (rollback impossible) | next load restores the backup (`restored: true`) |
+| current vault corrupted at rest | backup restored and written back |
+| both copies unreadable, or wrong key | `corrupt`, storage untouched, nothing deleted |
+
+Assumptions (not provable in Node; to verify in the browser in C2/C6): a single
+`storage.local.set` of one key is atomic (old or new value, never a mix); a resolved `set`
+is readable by the next `get`; only one event page instance writes at a time (the promise
+chain does not cross instances; compare-and-set limits the damage to a `conflict`).
+C1 does not touch `storage.local` in the product: the module is wired up together with the
+master password in C2 (B0-3).
 
 ## 8. Import and export
 

@@ -201,13 +201,17 @@ B ends without a release.
 
 ### Phase C – Security modernization
 
+Approved sequence (CTA-001-C-PLAN): one reviewed pull request per milestone; encrypted
+export and recovery come before production legacy import.
+
 | # | Milestone | Acceptance criteria |
 |---|---|---|
-| C1 | `vault.js` (format v1, AAD, fresh nonce, commit/rollback per SECURITY.md §6–7) | Round trip; wrong password; each tampered field (ciphertext, IV, salt, iterations, revision, version) rejected; nonces unique across 10,000 saves; simulated failed verification restores the previous vault |
-| C2 | Mandatory master password, unlock, lock, change password; persistence and import apply enabled | No plaintext secret in `storage.local` (storage dump after every operation); failed password change leaves the old vault usable |
-| C3 | Auto-lock via deadline gate + alarms, `onStartup` clear, optional system lock | Spike checks B0-2a/b repeated against the product; every sensitive message rejected after expiry |
-| C4 | Encrypted export/import (`.cta.json`); plaintext export with warning + confirmation | Export → import round trip identical; tampered file rejected; plaintext export impossible without confirmation |
-| C5 | Security regression tests | grep gate: no `console.*` with account data; CSP/manifest check in CI script |
+| C1 ✔ | `vault.js`: format v1, authenticated metadata, fresh nonce, commit/backup/verify/rollback (SECURITY.md §6–7); not yet wired to storage | Round trip; wrong key; each tampered field rejected; strict header validation; 10,000 seals without IV repeat; fault injection for every write step (see SECURITY.md §7) |
+| C2 | Master-password setup and unlock (PBKDF2-SHA-256), password change, persistence enabled, development unlock removed | No plaintext secret in `storage.local` after any operation; failed password change leaves the old vault usable; unlock time measured |
+| C3 | Session lifecycle on the persistent vault: deadline gate, alarms, `onStartup` clear, optional system-lock, re-authentication for sensitive actions | B0-2/B6 checks against the real vault; every sensitive message rejected after expiry or lock |
+| C4 | Encrypted backup export (`cta-export`), verified re-import and recovery; plaintext export only after warning and confirmation | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |
+| C5 | Production legacy `totp.json` import: preview, validation, duplicates, append-only atomic commit | Duplicates skipped; failed or interrupted import changes nothing |
+| C6 | Comprehensive security, regression and browser testing incl. the real toolbar popup | All suites green; evidence refreshed; release gate passes without demo code |
 
 ### Phase D – Release preparation
 
