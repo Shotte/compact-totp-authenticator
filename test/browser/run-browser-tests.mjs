@@ -626,6 +626,8 @@ try {
         // over the current-site row; background must be the hover / current-hover token.
         const hoverRow = async (rowIndex) => {
           const tgt = await part(rowIndex, "name");
+          // Two real moves (like a user approaching the row): Firefox updates :hover on mouse-move events.
+          await os("hover", tgt.x - 4, tgt.y);
           const input = await os("hover", tgt.x, tgt.y);
           await sleep(200);
           return { input, ...(await pv(`const row = [...d.querySelectorAll("#list .row")].at(${rowIndex}), root = d.documentElement.style;
