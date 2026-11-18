@@ -206,7 +206,7 @@ export and recovery come before production legacy import.
 
 | # | Milestone | Acceptance criteria |
 |---|---|---|
-| C1 ✔ | `vault.js`: format v1, authenticated metadata, fresh nonce, commit/backup/verify/rollback (SECURITY.md §6–7); not yet wired to storage | Round trip; wrong key; each tampered field rejected; strict header validation; 10,000 seals without IV repeat; fault injection for every write step (see SECURITY.md §7) |
+| C1 ✔ | `vault.js`: format v1, authenticated metadata, fresh nonce; `create`/`commit`/`rotate` authenticate the key before writing, read-only `load`, explicit same-generation `restoreBackup`, staged rotation (SECURITY.md §6–7); not yet wired to storage | Tampering, wrong keys, different salts, stale/damaged copies, concurrency; fault injection at every step of commit and rotation; at least one password always opens the data |
 | C2 | Master-password setup and unlock (PBKDF2-SHA-256), password change, persistence enabled, development unlock removed | No plaintext secret in `storage.local` after any operation; failed password change leaves the old vault usable; unlock time measured |
 | C3 | Session lifecycle on the persistent vault: deadline gate, alarms, `onStartup` clear, optional system-lock, re-authentication for sensitive actions | B0-2/B6 checks against the real vault; every sensitive message rejected after expiry or lock |
 | C4 | Encrypted backup export (`cta-export`), verified re-import and recovery; plaintext export only after warning and confirmation | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |

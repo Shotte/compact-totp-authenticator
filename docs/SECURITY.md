@@ -187,49 +187,86 @@ Implemented in C1: [`src/lib/vault.js`](../src/lib/vault.js), tests in
 
 ## 7. Writes, backup and rollback
 
-Goal: no failed import, password change or write may destroy the existing vault.
+Goal: no failed write, password change or import may destroy the vault, lock the user out,
+or let a wrong or old password change storage. Implemented in C1 as
+`createVaultStore(area)` in [`src/lib/vault.js`](../src/lib/vault.js) (background only; wired
+to `storage.local` together with the master password in C2, B0-3).
 
-Commit protocol (background only, under the gate):
+Storage keys: `vault` (current), `vault_backup` (a verified earlier copy, normally the
+previous revision of the same key generation), `vault_next` (staged new-generation vault,
+only while a rotation is in progress). Every step is a single-key write; operations are
+serialized by an in-memory promise chain.
 
-1. Build the complete new vault in memory (`revision + 1`, fresh IV). Any error up to here
-   writes nothing.
-2. `storage.local.set({ vault_backup: <current vault> })`.
-3. `storage.local.set({ vault: <new vault> })`.
-4. Verify: read `vault` back, decrypt with the intended key, compare revision and payload
-   digest.
-5. On verification failure: `storage.local.set({ vault: <backup> })` and report an error.
-6. Password change only: after successful verification, remove `vault_backup` (it is
-   encrypted with the old password) and replace the session key.
+### 7.1 Key generations
 
-Two separate single-key writes are used instead of relying on multi-key atomicity, so every
-crash point leaves at least one decryptable vault. On unlock: if `vault` fails to decrypt and
-`vault_backup` succeeds, CTA restores the backup and tells the user.
+The KDF salt identifies a **key generation**: every password (`create`, `rotate`) gets a new
+salt, and the salt is authenticated in the header. The salt is only an identifier; a key
+counts as verified solely after it has authenticated a ciphertext of that generation. An
+AES-GCM failure alone never distinguishes "wrong key" from "damaged ciphertext", so a
+failure alone never changes storage.
 
-- **Import:** parsed, validated and previewed without touching storage; committed only after
-  confirmation, append-only, via the protocol above.
-- **Password change:** requires the current password (re-derive and decrypt, not just a
-  valid session); the new vault is verified with the new key before the old one is dropped.
+### 7.2 Operations
 
-Implemented in C1 as `createVaultStore(area)` (`commit`, `load`, `dropBackup`), serialized
-by an in-memory promise chain and guarded by compare-and-set on the revision (stale or
-concurrent commits → `conflict`, nothing written). Fault-injection tests:
-
-| Failure | Result |
+| Operation | Guarantee |
 |---|---|
-| `set` throws while writing the backup | nothing changed |
-| `set` throws while writing the new vault (quota) | rolled back, old vault intact |
-| new vault silently corrupted on disk | read-back verification fails, rolled back |
-| storage dies before the new vault is written | next load returns the old vault |
-| corrupted new vault reaches disk, then storage dies (rollback impossible) | next load restores the backup (`restored: true`) |
-| current vault corrupted at rest | backup restored and written back |
-| both copies unreadable, or wrong key | `corrupt`, storage untouched, nothing deleted |
+| `create(key, payload, {kdf})` | First vault only (revision 1); refused (`exists`) if any vault copy exists. |
+| `commit(key, payload, {expectedRevision})` | Compare-and-set on the revision (`conflict`), then the key must **open the current vault** (`auth`) – an unrelated key or a damaged vault is never overwritten. The new vault reuses the current KDF parameters, so a commit can never change the key. Steps: backup = current → vault = new → read-back verify → rollback on failure. A leftover `vault_next` is removed. |
+| `rotate(oldKey, newKey, {expectedRevision, kdf})` | Password change. Old key must open the current vault; the new generation needs a new salt (`generation`). Steps below (7.3). |
+| `load(key)` | **Read-only.** `ok` if the current vault opens. `recoverable` (with `source`, `revision`, `damage`, `generationVerified`) if the current vault does not open but a copy of the **same generation** does – the key is thereby verified, so the current copy is damaged. Otherwise `decrypt` (current header intact) or `corrupt` (header unreadable); nothing is written. |
+| `restoreBackup(key, {allowUnverifiedGeneration})` | Explicit recovery after user confirmation. All checks are repeated at write time: refused while the current vault opens (`current-valid`, so a valid newer vault is never rolled back), never from a copy of another generation, and the newest verified same-generation copy wins. If the current vault's header is unreadable, its generation is unknown; recovery then additionally requires `allowUnverifiedGeneration: true` (separate, explicitly authorized confirmation). |
 
-Assumptions (not provable in Node; to verify in the browser in C2/C6): a single
-`storage.local.set` of one key is atomic (old or new value, never a mix); a resolved `set`
-is readable by the next `get`; only one event page instance writes at a time (the promise
-chain does not cross instances; compare-and-set limits the damage to a `conflict`).
-C1 does not touch `storage.local` in the product: the module is wired up together with the
-master password in C2 (B0-3).
+### 7.3 Password rotation and interruption
+
+1. `vault_next` = new vault (new key, new salt), read-back verified – *stage*
+2. `vault_backup` = current vault (old generation) – *rollback copy*
+3. `vault` = new vault, read-back verified – *switch; completion point*
+4. `vault_backup` = new vault – *old generation dropped*
+5. remove `vault_next`
+
+Which password opens the vault after an interruption (tested, "restart" = fresh store over
+the remaining storage):
+
+| Interruption | Old password | New password |
+|---|---|---|
+| before/while staging (step 1 fails or crashes) | opens | – |
+| after staging, before the rollback copy | opens | – |
+| after the rollback copy, before the switch | opens | – |
+| switch write fails, storage usable (rolled back) | opens | – |
+| switch write damaged, then crash (rollback impossible) | – | recoverable from `vault_next` (explicit restore) |
+| crash after the switch write, before verification | – | opens |
+| crash after verification, before the backup update | – | opens |
+| backup update fails or is damaged | – | opens (`backupRefreshed: false`) |
+| after successful rotation | – | opens |
+
+In every case at least one password reaches the intact data. Once the switch (step 3) has
+written the new vault, the old password can no longer restore anything: the remaining
+old-generation backup belongs to another generation than the current vault, so recovery
+refuses it even with `allowUnverifiedGeneration`. A leftover old-generation backup
+(`backupRefreshed: false`) is replaced by the next regular commit.
+
+### 7.4 Fault-injection and negative tests
+
+[`test/vault.test.mjs`](../test/vault.test.mjs): wrong keys (intact and damaged vault),
+different salts, valid primary with stale backup, damaged primary with valid same-generation
+backup, damaged backup, both copies unreadable, structurally destroyed primary,
+concurrent commit/rotate on one revision (exactly one wins), storage failures at every
+step of commit and rotation (`set` throws, value lands damaged, storage dies before or after
+a write). Mutation checks: removing the generation check fails 8 tests; removing the
+"current vault still valid" check fails 1; ignoring the staged copy fails 1 (lock-out case).
+
+### 7.5 Trade-offs and assumptions
+
+- No automatic recovery: a damaged vault needs an explicit, confirmed restore. This costs a
+  dialog but guarantees that no password attempt or decryption failure writes storage.
+- A structurally destroyed current vault (header unreadable) cannot prove its generation.
+  Recovery is still possible, but only with the separate `allowUnverifiedGeneration`
+  consent. Residual edge: if that happens exactly after a rotation whose backup update
+  failed, the confirmed restore could use the old-generation backup; it requires a storage
+  failure at step 4, later structural destruction of the vault, and a double confirmation.
+- Not provable in Node, to verify in the browser (C2/C6): a single `storage.local.set` of
+  one key is atomic; a resolved `set` is visible to the next `get`; one event page instance
+  writes at a time (compare-and-set limits a violation to `conflict`).
+- Import (C5) and export recovery (C4) build on these operations.
 
 ## 8. Import and export
 
