@@ -176,8 +176,8 @@ docs/
 package.json             scripts: test, lint, start, build, spike:b0
 ```
 
-Repository: private Forgejo is the development authority (protected `main`, review before
-merge); a public GitHub mirror is optional.
+Repository: the public GitHub repository is authoritative (protected `main`, pull requests,
+CI); a private Forgejo pull mirror is the backup. See [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 3. Implementation plan
 
