@@ -1,0 +1,12 @@
+{
+  "name": "compact-totp-authenticator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Compact Firefox TOTP authenticator",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"spikes/**/*.test.mjs\"",
+    "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs"
+  }
+}
