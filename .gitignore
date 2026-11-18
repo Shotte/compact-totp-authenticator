@@ -1,0 +1,8 @@
+node_modules/
+web-ext-artifacts/
+*.xpi
+.env
+# Never commit real exports or API credentials
+totp.json
+*.cta.json
+.amo-credentials*
