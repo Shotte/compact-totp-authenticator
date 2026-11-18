@@ -94,6 +94,12 @@ try {
   const opt = (await call("browsingContext.create", { type: "tab" })).context;
   const pop = (await call("browsingContext.create", { type: "tab" })).context;
   await call("browsingContext.setViewport", { context: pop, viewport: { width: 270, height: 600 } });
+  // Harness capability: privileged chrome-scope evaluation (used to flip Firefox prefs at
+  // runtime). Not available in Firefox ESR 140; dependent checks are then NOT_TESTED.
+  const chromeTop = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0]?.context;
+  const CHROME_OK = chromeTop ? await evalJson(chromeTop, `async () => typeof Services !== "undefined" || typeof ChromeUtils !== "undefined"`).catch(() => false) : false;
+  const NO_CHROME = "harness: privileged chrome scope unavailable in this Firefox version";
+  evidence.chromeScopePrivileged = CHROME_OK;
   await open(opt, "options/options.html");
 
   // B6: locked by default, every sensitive command fails closed
@@ -211,11 +217,13 @@ try {
     }
 
     // Auto follows a live change of the Firefox color scheme (no reload)
+    const chrome = chromeTop;
+    const setScheme = (v) => evalJson(chrome, `async () => ${SVC}.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
+    if (!CHROME_OK) notTested("B7-auto", "theme auto follows live prefers-color-scheme changes", NO_CHROME);
+    else {
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { theme: "auto" } })`);
     await open(pop, "popup/popup.html");
     await waitFor(pop, `document.body.dataset.rendered === "100"`);
-    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-    const setScheme = (v) => evalJson(chrome, `async () => ${SVC}.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
     const seen = [];
     for (const v of [0, 1, 0]) { // 0 = dark, 1 = light
       await setScheme(v);
@@ -226,6 +234,7 @@ try {
     await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
     record("B7-auto", "theme auto follows live prefers-color-scheme changes", seen.every((s) => s.ok) &&
       seen[0].bg !== seen[1].bg, { transitions: seen });
+    }
 
     // Options page: live preview, persistence, contrast hint, reset to defaults
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { sort: "alpha", autoLockMinutes: 7 } })`);
@@ -252,7 +261,7 @@ try {
       r.rowHeight === "auto" && r.customColors === false && r.sort === "alpha" && r.autoLockMinutes === 7 &&
       ui.previewAfterReset === "16px", ui);
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
-    for (const [scheme, v] of [["dark", 0], ["light", 1]]) {
+    for (const [scheme, v] of CHROME_OK ? [["dark", 0], ["light", 1]] : []) {
       await setScheme(v);
       await sleep(300);
       const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
@@ -261,13 +270,13 @@ try {
         clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
       writeFileSync(join(OUT, `options-appearance-auto-${scheme}-de.png`), Buffer.from(shot.data, "base64"));
     }
-    await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
   }
 
   // B8: subtle row hover (trusted BiDi pointer input in the popup document)
   {
-    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-    const pref = (name, v) => evalJson(chrome, v === null
+    const chrome = chromeTop;
+    const pref = async (name, v) => CHROME_OK && evalJson(chrome, v === null
       ? `async () => ${SVC}.prefs.clearUserPref("${name}")` : `async () => ${SVC}.prefs.setIntPref("${name}", ${v})`);
     const rgbHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
     // Hosted CI runners (Windows, macOS) report prefers-reduced-motion: reduce system-wide;
@@ -282,7 +291,9 @@ try {
     const parts = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});
       const r = row.getBoundingClientRect(), c = (s) => { const e = row.querySelector(s).getBoundingClientRect(); return [e.x + e.width / 2, r.y + r.height / 2]; };
       return { name: c(".name"), code: c(".code"), free: [r.x + 4, r.y + r.height / 2], icon: c(".icon") }; }`);
-    const cases = [["dark", null], ["light", null], ["auto", 0], ["auto", 1]];
+    // The auto cases need a runtime color-scheme override (privileged chrome scope).
+    const cases = CHROME_OK ? [["dark", null], ["light", null], ["auto", 0], ["auto", 1]] : [["dark", null], ["light", null]];
+    if (!CHROME_OK) notTested("B8-1-auto", "hover in theme auto (dark/light system scheme)", NO_CHROME);
     const out = [];
     for (const [theme, override] of cases) {
       if (override !== null) await pref("layout.css.prefers-color-scheme.content-override", override);
@@ -333,12 +344,15 @@ try {
       focus.outline === "solid 2px" && focus.offset === "-2px" && JSON.stringify(focus.rect) === JSON.stringify(before.rect), focus);
 
     // prefers-reduced-motion: no transition
+    if (!CHROME_OK) notTested("B8-3", "prefers-reduced-motion disables the hover transition", NO_CHROME);
+    else {
     await pref("ui.prefersReducedMotion", 1);
     await open(pop, "popup/popup.html");
     await waitFor(pop, `document.body.dataset.rendered === "100"`);
     const reduced = (await state(0)).transition;
     await pref("ui.prefersReducedMotion", null);
     record("B8-3", "prefers-reduced-motion disables the hover transition", reduced === "0s", { transitionDuration: reduced });
+    }
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
   }
 
