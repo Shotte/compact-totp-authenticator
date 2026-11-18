@@ -1,0 +1,170 @@
+# Architecture
+
+Status: Phase A proposal (CTA-001-A), awaiting review. Nothing here is implemented yet.
+
+## 1. Upstream analysis
+
+Source: `https://github.com/Rayquaza01/authenticator`, commit
+`fd07df3da3eccfdc0dda9d21aadacf57290e27f6` (2025-03-21, deprecation notice). Last functional
+change 2019, last version `1.3.3pre2`, Manifest V2, ID `authenticator@r01`.
+
+### 1.1 Files
+
+| File | Lines | Role | Reuse |
+|---|---|---|---|
+| `browserAction.html/.css`, `loader.js` | 33/155/194 | Popup: unlock overlay, account table, ticker, copy | UI concept and CSS measurements only |
+| `options.html/.css/.js`, `dragdrop.css` | 73/107/453 | Account CRUD, drag-and-drop order, sort order, colors, import/export, change password | Feature list only |
+| `authenticator-bg.js` | 52 | Defaults, pre-1.0.4 storage format conversion | Legacy format knowledge only |
+| `crypt.js`, `crypt, decrypt from JSON.js` | 48/13 | Vigenère-style "encryption" | **Discard** |
+| `sha256.js` (jsSHA) | minified | Password hash | **Discard** (Web Crypto) |
+| `otplib-browser.js` (otplib 10.0.1) | 10,421 | TOTP | **Discard** (≈60 lines of Web Crypto replace it) |
+| `reset.js/.html` | 18/19 | "Forgot password" – resets hash, leaves keys garbled | **Discard** |
+| `icons/*.svg` | – | Material Design Icons + own icon | Reuse MDI glyphs with attribution; new extension icon |
+
+### 1.2 UI reference (the part we keep)
+
+Measured from `browserAction.css` and `loader.js`:
+
+- Popup width 270 px after unlock, `font-family: monospace; font-size: 16px`.
+- Row: `display:flex; height:25px; padding: 0 12px`; name grows with ellipsis, code right,
+  16 px copy icon column. Hover `#f0f0f0`, active `#e8e8e8`.
+- Whole row is the click target → copies the code, copy icon turns into a check mark for 1 s.
+- Row background highlighted when the active tab URL contains the account's `url`.
+- Footer: seconds-remaining ticker and a settings gear (opens options page).
+- Colors are user-configurable (font + background color, applied to every element). Default is
+  black on white; the "dark minimal" look is a user color choice. CTA ships it as a built-in
+  **Dark** theme plus **Light**.
+- Sort orders: created (manual drag-and-drop), A–Z, Z–A.
+- No scroll container: the document grows and Firefox clips/scrolls the popup at its maximum
+  size (800×600 px).
+
+### 1.3 Functional defects found (besides security, see SECURITY.md)
+
+- Codes refresh only when `epoch % 30 === 0` is hit exactly; a throttled timer skips the
+  refresh and shows stale codes.
+- Import calls `storage.local.clear()` and stores the file as-is: silent overwrite, no
+  validation, can inject arbitrary storage keys (including `hash`).
+- Only SHA-1 / 6 digits / 30 s; no `otpauth://` parameters.
+- `tabs` permission requested only for the URL highlight.
+- Uses deprecated `document.execCommand("copy")`, `applications` key, `browser_style`.
+
+## 2. Target architecture
+
+### 2.1 Decisions
+
+| Topic | Decision | Reason |
+|---|---|---|
+| Manifest | **MV3**, `background.scripts` (event page) | Mozilla's maintained path; MV2 still supported but no new investment. Firefox MV3 uses event pages, not service workers. |
+| Min. Firefox | `strict_min_version: "140.0"` (ESR 140), primary target 160 | `data_collection_permissions` needs 140+. |
+| Language | Plain JavaScript ES modules, no framework, no bundler | Smallest attack surface, no source-code submission to AMO, code runs unchanged in Node tests. |
+| Runtime deps | **None** | TOTP (RFC 6238), Base32 (RFC 4648), AES-GCM, PBKDF2 all from Web Crypto + ≈100 lines. |
+| Dev deps | `web-ext` (lint/run/build/sign) only | Node 24 has `node:test` and `crypto.subtle` built in. |
+| Crypto | AES-256-GCM, PBKDF2-HMAC-SHA-256 (600,000 iterations, configurable, stored in header) | See SECURITY.md §3. |
+| Session key | Derived key kept in `browser.storage.session` (memory only), cleared by auto-lock | See SECURITY.md §4. |
+| Permissions | `storage`, `alarms`, `activeTab`; optional `idle` | No install warnings. Clipboard write from a click needs no permission. |
+| i18n | `_locales/{en,de}/messages.json`, `browser.i18n` | Built-in, no library. |
+
+### 2.2 Components
+
+```
+popup (popup.html/js)          options (options.html/js)
+  unlock form, account rows      account CRUD, ordering, theme,
+  copy, ticker                   auto-lock, import/export, password change
+        │                                 │
+        └────────── lib/ (pure ES modules, unit-tested in Node) ──────────┐
+            totp.js     RFC 6238/4226 via crypto.subtle HMAC              │
+            base32.js   RFC 4648 decode + normalization                   │
+            vault.js    PBKDF2 → AES-GCM encrypt/decrypt vault & exports  │
+            session.js  storage.session key get/set/clear                 │
+            legacy.js   parse/validate totp.json, duplicate detection     │
+                                                                          │
+background.js (event page): alarms → auto-lock (clear storage.session),  │
+  optional idle "locked" → lock                                           │
+storage.local: { vault: <encrypted blob>, settings: {theme, autoLockMin, sort} }
+```
+
+The whole account list (names, secrets, URLs) is one AES-GCM ciphertext. Settings are
+plaintext and contain no secrets.
+
+### 2.3 Data model (inside the vault)
+
+```json
+{ "accounts": [ { "id": "uuid", "name": "Example", "secret": "BASE32",
+                  "url": "example.com", "algorithm": "SHA-1", "digits": 6, "period": 30 } ] }
+```
+
+`algorithm`, `digits`, `period` default to SHA-1/6/30 and are optional; the UI exposes only
+name, secret and URL in the first release. Array order is the manual order.
+
+### 2.4 Popup layout
+
+- Same measurements as upstream (270 px, 25 px rows, monospace 16 px).
+- List is a scroll container: `max-height: calc(600px - footer)`, `overflow-y: auto`, so the
+  footer stays visible and all rows remain reachable. Plain DOM rows; 100–500 rows need no
+  virtualization.
+- One 1 s interval: updates the ticker; recomputes codes only when the period counter changes
+  (fixes the stale-code bug).
+- Locked state: compact password field inside the same popup width.
+
+### 2.5 Repository structure
+
+```
+src/                     extension root (web-ext --source-dir src)
+  manifest.json
+  _locales/en/messages.json, _locales/de/messages.json
+  background.js
+  popup/  popup.html popup.css popup.js
+  options/ options.html options.css options.js
+  lib/    totp.js base32.js vault.js session.js legacy.js i18n.js
+  icons/
+test/
+  totp.test.js base32.test.js vault.test.js legacy.test.js
+  fixtures/legacy-synthetic.json   (synthetic secrets only)
+docs/
+package.json             scripts: test, lint, start, build
+```
+
+## 3. Implementation plan
+
+Each phase ends with the quality gates of the task (tests, secret-leak grep, permission
+check, layout check, round trips, diff review, commit).
+
+### Phase B – Functional baseline
+
+| # | Milestone | Acceptance criteria |
+|---|---|---|
+| B1 | Skeleton: manifest, `package.json`, `web-ext lint` clean | `web-ext lint` 0 errors/warnings; loads via `about:debugging` in Firefox 160 |
+| B2 | `base32.js`, `totp.js` | All RFC 6238 Appendix B vectors (SHA-1/256/512, 8 digits) and RFC 4226 Appendix D vectors pass in `node --test` |
+| B3 | Popup with compact rows, copy, ticker, Dark/Light theme | Row height 25 px measured in DevTools; 100 synthetic accounts scroll fully, footer visible, no freeze; click copies code |
+| B4 | Options: add/edit/delete, drag order, sort | CRUD persists; order survives restart |
+| B5 | Legacy import with preview and duplicates | Synthetic fixture with valid, invalid and duplicate entries shows correct preview; nothing overwritten without confirmation |
+| B6 | Spike: can Firefox `storage.session` hold a non-extractable `CryptoKey`? | Documented result in SECURITY.md §4 |
+
+Storage in Phase B is temporary development storage; B ends without a release.
+
+### Phase C – Security modernization
+
+| # | Milestone | Acceptance criteria |
+|---|---|---|
+| C1 | `vault.js` (PBKDF2 + AES-GCM, versioned header) | Round-trip, wrong password, tampered ciphertext/IV/header all tested |
+| C2 | Mandatory master password, unlock, lock, change password | No plaintext secret in `storage.local` (test dumps storage after every operation) |
+| C3 | Auto-lock (alarms, browser restart, optional system lock) | Key gone from `storage.session` after timeout; popup shows unlock form |
+| C4 | Encrypted export/import (`.cta.json`) | Export → import round trip identical; import of tampered file rejected |
+| C5 | Security regression tests | grep gate: no `console.*` with account data; CSP/manifest check in CI script |
+
+### Phase D – Release preparation
+
+| # | Milestone | Acceptance criteria |
+|---|---|---|
+| D1 | Full German/English localization | No hard-coded UI strings; both locales complete |
+| D2 | Manual test protocol on Firefox 160 (Windows) and ESR 140 | Signed-off checklist in RELEASE.md |
+| D3 | Package validation | `web-ext build` + `web-ext lint` clean, XPI contains only `src/` |
+| D4 | Signing preparation | RELEASE.md runbook complete; submission only after operator approval |
+
+## 4. Open questions for the operator
+
+1. Extension ID format (GUID vs. `name@domain`), see RELEASE.md §2.
+2. Allow a plaintext export (for moving to other apps) behind a warning, or encrypted only?
+3. Keep custom font/background colors in addition to Dark/Light?
+4. Default auto-lock timeout (proposal: 15 min, plus lock on browser restart).
+5. Self-hosted update URL (e.g. GitHub Releases/Pages) or manual updates?
