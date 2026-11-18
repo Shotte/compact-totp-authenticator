@@ -1,0 +1,339 @@
+{
+  "startedAt": "2026-11-18T20:48:20.561Z",
+  "browser": {
+    "version": "160.0.1",
+    "platform": "windows"
+  },
+  "install": {
+    "extension": "{f587432b-b553-483e-b08d-4feac6378113}"
+  },
+  "layouts": {
+    "1": {
+      "rows": 1,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 56,
+      "docScrollWidth": 270,
+      "listClientHeight": 31,
+      "listScrollHeight": 31,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "8",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 199
+    },
+    "25": {
+      "rows": 25,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 631,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "7",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 193
+    },
+    "50": {
+      "rows": 50,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 1256,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "7",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 71
+    },
+    "100": {
+      "rows": 100,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 2506,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "7",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 85
+    }
+  },
+  "finishedAt": "2026-11-18T20:49:39.639Z",
+  "results": [
+    {
+      "id": "B6-1",
+      "name": "locked by default; sensitive commands rejected",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "ok": true,
+          "result": {
+            "unlocked": false,
+            "startedAt": 1795034902585
+          }
+        },
+        "responses": [
+          {
+            "ok": false,
+            "error": "locked"
+          },
+          {
+            "ok": false,
+            "error": "locked"
+          },
+          {
+            "ok": false,
+            "error": "locked"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B3-1",
+      "name": "popup layout with 1 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 1,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 56,
+        "docScrollWidth": 270,
+        "listClientHeight": 31,
+        "listScrollHeight": 31,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "8",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 199
+      }
+    },
+    {
+      "id": "B3-25",
+      "name": "popup layout with 25 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 25,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 631,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "7",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 193
+      }
+    },
+    {
+      "id": "B3-50",
+      "name": "popup layout with 50 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 50,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 1256,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "7",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 71
+      }
+    },
+    {
+      "id": "B3-100",
+      "name": "popup layout with 100 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 2506,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "7",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 85
+      }
+    },
+    {
+      "id": "B3-copy",
+      "name": "click copies (writeText resolved), indicator shown and reset",
+      "verdict": "PASS",
+      "details": {
+        "copied": true,
+        "announce": "Code kopiert",
+        "indicatorReset": true
+      }
+    },
+    {
+      "id": "B6-2",
+      "name": "no secrets in responses, DOM or storage; key non-extractable",
+      "verdict": "PASS",
+      "details": {
+        "leaksFound": {
+          "responses": [],
+          "popupDom": [],
+          "optionsDom": [],
+          "storageLocal": [],
+          "sessionVault": []
+        },
+        "keyType": "[object CryptoKey]",
+        "extractable": false,
+        "exportKey": "InvalidAccessError",
+        "sessionKeys": [
+          "session",
+          "vault"
+        ],
+        "previewCounts": {
+          "new": 4,
+          "duplicate": 1,
+          "name-conflict": 1,
+          "invalid": 5
+        }
+      }
+    },
+    {
+      "id": "B4-1",
+      "name": "create, edit, reorder, delete via options UI; stale revision rejected",
+      "verdict": "PASS",
+      "details": {
+        "before": [
+          "Example Mail 01",
+          "Demo Cloud 02",
+          "Test Bank 03"
+        ],
+        "after": [
+          "Demo Cloud 02",
+          "UI Renamed",
+          "Test Bank 03"
+        ],
+        "added": true,
+        "secretFieldClearedAfterSave": true,
+        "renamed": true,
+        "moved": true,
+        "deleted": true,
+        "staleWrite": {
+          "ok": false,
+          "error": "conflict"
+        }
+      }
+    },
+    {
+      "id": "B5-1",
+      "name": "legacy preview via file upload; no persistence; apply disabled; malformed rejected",
+      "verdict": "PASS",
+      "details": {
+        "statuses": [
+          "new",
+          "new",
+          "new",
+          "duplicate",
+          "name-conflict",
+          "new",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid"
+        ],
+        "summary": "4 neu, 1 Duplikate, 1 Namenskonflikte, 5 ungültig",
+        "applyDisabled": true,
+        "revisionUnchanged": true,
+        "storageLocalUnchanged": true,
+        "malformed": {
+          "ok": false,
+          "error": "malformed",
+          "reason": "json"
+        }
+      }
+    },
+    {
+      "id": "B6-3",
+      "name": "lock wipes key and vault; popup shows locked view",
+      "verdict": "PASS",
+      "details": {
+        "getCodes": {
+          "ok": false,
+          "error": "locked"
+        },
+        "sessionKeys": [],
+        "lockedView": true
+      }
+    },
+    {
+      "id": "B6-4",
+      "name": "works after event page suspension and restart",
+      "verdict": "PASS",
+      "details": {
+        "startedAtBefore": 1795034902585,
+        "startedAtAfter": 1795034914595,
+        "restarted": true,
+        "revision": 1
+      }
+    },
+    {
+      "id": "B6-5",
+      "name": "auto-lock after 1 min idle wipes the session (alarm path)",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "unlocked": true,
+          "startedAt": 1795034914595
+        },
+        "after": {
+          "unlocked": false,
+          "startedAt": 1795034979632
+        },
+        "sessionKeys": []
+      }
+    }
+  ]
+}
