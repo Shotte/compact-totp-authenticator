@@ -43,10 +43,16 @@ included; anything else is rejected.
    imports are only appended.
 7. After import, CTA reminds the user to delete the plaintext `totp.json`.
 
-## 3. CTA export format
+Availability (B0-3): parser and preview are built in Phase B; the apply step is enabled
+only once the encrypted vault works (Phase C). Applying uses the commit protocol in
+SECURITY.md §7, so a failed import never alters the existing vault.
 
-Encrypted (`cta-export`, see SECURITY.md §3), with its own export password or the master
-password. Import of a `cta-export` file decrypts, then runs steps 3–6.
+## 3. CTA export formats
+
+- Encrypted (`cta-export`, SECURITY.md §6), with its own export password or the master
+  password. Import decrypts, then runs steps 3–6.
+- Plaintext, legacy-compatible `{ "otp_list": [ { name, key, url } ] }`, only after an
+  explicit warning and confirmation (SECURITY.md §8). Re-importable via the legacy path.
 
 ## 4. Test data
 

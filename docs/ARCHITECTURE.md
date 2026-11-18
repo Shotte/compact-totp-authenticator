@@ -1,6 +1,7 @@
 # Architecture
 
-Status: Phase A proposal (CTA-001-A), awaiting review. Nothing here is implemented yet.
+Status: approved with conditions (CTA-001-B0); amendments B0-1…B0-4 incorporated.
+Product code is not implemented yet.
 
 ## 1. Upstream analysis
 
@@ -60,31 +61,36 @@ Measured from `browserAction.css` and `loader.js`:
 | Runtime deps | **None** | TOTP (RFC 6238), Base32 (RFC 4648), AES-GCM, PBKDF2 all from Web Crypto + ≈100 lines. |
 | Dev deps | `web-ext` (lint/run/build/sign) only | Node 24 has `node:test` and `crypto.subtle` built in. |
 | Crypto | AES-256-GCM, PBKDF2-HMAC-SHA-256 (600,000 iterations, configurable, stored in header) | See SECURITY.md §3. |
-| Session key | Derived key kept in `browser.storage.session` (memory only), cleared by auto-lock | See SECURITY.md §4. |
+| Session key | Non-extractable `CryptoKey` in `browser.storage.session`, read only by the background through a fail-closed deadline gate | B0-1 PASS on Firefox 160.0.1; SECURITY.md §4–5. |
+| Secrets vs. codes | Background decrypts and generates codes; popup/options never receive secrets or the key | SECURITY.md §9; spike observation: held key copies survive a lock. |
 | Permissions | `storage`, `alarms`, `activeTab`; optional `idle` | No install warnings. Clipboard write from a click needs no permission. |
 | i18n | `_locales/{en,de}/messages.json`, `browser.i18n` | Built-in, no library. |
 
 ### 2.2 Components
 
 ```
-popup (popup.html/js)          options (options.html/js)
-  unlock form, account rows      account CRUD, ordering, theme,
-  copy, ticker                   auto-lock, import/export, password change
-        │                                 │
-        └────────── lib/ (pure ES modules, unit-tested in Node) ──────────┐
-            totp.js     RFC 6238/4226 via crypto.subtle HMAC              │
-            base32.js   RFC 4648 decode + normalization                   │
-            vault.js    PBKDF2 → AES-GCM encrypt/decrypt vault & exports  │
-            session.js  storage.session key get/set/clear                 │
-            legacy.js   parse/validate totp.json, duplicate detection     │
-                                                                          │
-background.js (event page): alarms → auto-lock (clear storage.session),  │
-  optional idle "locked" → lock                                           │
-storage.local: { vault: <encrypted blob>, settings: {theme, autoLockMin, sort} }
+popup (popup.html/js)               options (options.html/js)
+  unlock form, rows (name+code),      account CRUD (secrets write-only), ordering,
+  copy, ticker                        theme, auto-lock, import preview, export
+        │  runtime.sendMessage               │
+        │  getCodes / unlock / touch         │  listAccounts / addAccount / import / export
+        ▼                                    ▼
+background.js (event page) – the only context that touches key, vault and secrets
+  every sensitive call → requireSession() gate (deadline, fail closed)
+  lib/ (pure ES modules, unit-tested in Node):
+    totp.js            RFC 6238/4226 via crypto.subtle HMAC
+    base32.js          RFC 4648 decode + normalization
+    vault.js           PBKDF2 → AES-GCM, versioned format, AAD, commit/rollback
+    session-policy.js  deadline rules (from B0 spike)
+    legacy.js          parse/validate totp.json, duplicate detection
+  alarms → auto-lock; runtime.onStartup → storage.session.clear(); optional idle "locked"
+storage.session: { session: { key: CryptoKey, timeoutMs, lastActivity, deadline } }
+storage.local:   { vault, vault_backup, settings: { theme, colors, autoLockMin, sort } }
 ```
 
 The whole account list (names, secrets, URLs) is one AES-GCM ciphertext. Settings are
-plaintext and contain no secrets.
+plaintext and contain no secrets. Message handlers validate their input; the background
+answers only messages from its own extension pages (`sender.id`, no external messaging).
 
 ### 2.3 Data model (inside the vault)
 
@@ -102,8 +108,9 @@ name, secret and URL in the first release. Array order is the manual order.
 - List is a scroll container: `max-height: calc(600px - footer)`, `overflow-y: auto`, so the
   footer stays visible and all rows remain reachable. Plain DOM rows; 100–500 rows need no
   virtualization.
-- One 1 s interval: updates the ticker; recomputes codes only when the period counter changes
-  (fixes the stale-code bug).
+- One 1 s interval: updates the ticker; requests fresh codes from the background only when
+  the period counter changes (fixes the stale-code bug). Refreshes do not extend the
+  lock deadline; a `locked` answer switches the popup to the unlock form.
 - Locked state: compact password field inside the same popup width.
 
 ### 2.5 Repository structure
@@ -115,14 +122,18 @@ src/                     extension root (web-ext --source-dir src)
   background.js
   popup/  popup.html popup.css popup.js
   options/ options.html options.css options.js
-  lib/    totp.js base32.js vault.js session.js legacy.js i18n.js
+  lib/    totp.js base32.js vault.js session-policy.js legacy.js i18n.js
   icons/
 test/
   totp.test.js base32.test.js vault.test.js legacy.test.js
   fixtures/legacy-synthetic.json   (synthetic secrets only)
+spikes/b0-cryptokey/     B0 test extension, BiDi driver, evidence (not shipped)
 docs/
-package.json             scripts: test, lint, start, build
+package.json             scripts: test, lint, start, build, spike:b0
 ```
+
+Repository: private Forgejo is the development authority (protected `main`, review before
+merge); a public GitHub mirror is optional.
 
 ## 3. Implementation plan
 
@@ -137,19 +148,21 @@ check, layout check, round trips, diff review, commit).
 | B2 | `base32.js`, `totp.js` | All RFC 6238 Appendix B vectors (SHA-1/256/512, 8 digits) and RFC 4226 Appendix D vectors pass in `node --test` |
 | B3 | Popup with compact rows, copy, ticker, Dark/Light theme | Row height 25 px measured in DevTools; 100 synthetic accounts scroll fully, footer visible, no freeze; click copies code |
 | B4 | Options: add/edit/delete, drag order, sort | CRUD persists; order survives restart |
-| B5 | Legacy import with preview and duplicates | Synthetic fixture with valid, invalid and duplicate entries shows correct preview; nothing overwritten without confirmation |
-| B6 | Spike: can Firefox `storage.session` hold a non-extractable `CryptoKey`? | Documented result in SECURITY.md §4 |
+| B5 | Legacy import parser and preview (no apply step) | Synthetic fixture with valid, invalid and duplicate entries shows correct preview; unit tests for parser and duplicate detection |
+| ~~B6~~ | CryptoKey spike | Done as B0-1: PASS ([RESULTS.md](../spikes/b0-cryptokey/RESULTS.md)) |
 
-Storage in Phase B is temporary development storage; B ends without a release.
+**B0-3:** Phase B runs on synthetic fixture accounts held in memory only. No account
+persistence and no import apply step exist until authenticated encryption (C1–C2) works.
+B ends without a release.
 
 ### Phase C – Security modernization
 
 | # | Milestone | Acceptance criteria |
 |---|---|---|
-| C1 | `vault.js` (PBKDF2 + AES-GCM, versioned header) | Round-trip, wrong password, tampered ciphertext/IV/header all tested |
-| C2 | Mandatory master password, unlock, lock, change password | No plaintext secret in `storage.local` (test dumps storage after every operation) |
-| C3 | Auto-lock (alarms, browser restart, optional system lock) | Key gone from `storage.session` after timeout; popup shows unlock form |
-| C4 | Encrypted export/import (`.cta.json`) | Export → import round trip identical; import of tampered file rejected |
+| C1 | `vault.js` (format v1, AAD, fresh nonce, commit/rollback per SECURITY.md §6–7) | Round trip; wrong password; each tampered field (ciphertext, IV, salt, iterations, revision, version) rejected; nonces unique across 10,000 saves; simulated failed verification restores the previous vault |
+| C2 | Mandatory master password, unlock, lock, change password; persistence and import apply enabled | No plaintext secret in `storage.local` (storage dump after every operation); failed password change leaves the old vault usable |
+| C3 | Auto-lock via deadline gate + alarms, `onStartup` clear, optional system lock | Spike checks B0-2a/b repeated against the product; every sensitive message rejected after expiry |
+| C4 | Encrypted export/import (`.cta.json`); plaintext export with warning + confirmation | Export → import round trip identical; tampered file rejected; plaintext export impossible without confirmation |
 | C5 | Security regression tests | grep gate: no `console.*` with account data; CSP/manifest check in CI script |
 
 ### Phase D – Release preparation
@@ -161,10 +174,12 @@ Storage in Phase B is temporary development storage; B ends without a release.
 | D3 | Package validation | `web-ext build` + `web-ext lint` clean, XPI contains only `src/` |
 | D4 | Signing preparation | RELEASE.md runbook complete; submission only after operator approval |
 
-## 4. Open questions for the operator
+## 4. Operator decisions (CTA-001-B0)
 
-1. Extension ID format (GUID vs. `name@domain`), see RELEASE.md §2.
-2. Allow a plaintext export (for moving to other apps) behind a warning, or encrypted only?
-3. Keep custom font/background colors in addition to Dark/Light?
-4. Default auto-lock timeout (proposal: 15 min, plus lock on browser restart).
-5. Self-hosted update URL (e.g. GitHub Releases/Pages) or manual updates?
+1. Extension ID: project-owned GUID `{f587432b-b553-483e-b08d-4feac6378113}`.
+2. Export: encrypted and plaintext; plaintext requires explicit warning and confirmation.
+3. Appearance: Light and Dark themes plus optional custom colors.
+4. Auto-lock: 15 minutes default; always lock on browser restart.
+5. Updates: manual installation during development; self-hosted `update_url` before stable
+   distribution.
+6. Repository: private Forgejo as authority; optional public GitHub mirror.

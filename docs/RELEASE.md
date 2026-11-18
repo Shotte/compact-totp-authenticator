@@ -18,13 +18,10 @@ without explicit operator approval.
 
 ## 2. Extension ID
 
-Must be unique on AMO and never change after the first signing (updates are matched by ID).
-Two accepted formats:
-
-- GUID: `{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}` – no ownership implied. **Recommended.**
-- Email-like: `compact-totp@example.org` – should use a domain the project controls.
-
-The old ID `authenticator@r01` must not be reused.
+**Decided: `{f587432b-b553-483e-b08d-4feac6378113}`** (GUID, generated 2026-11-18 with
+`crypto.randomUUID()`). It must never change after the first signing (updates are matched
+by ID). The old ID `authenticator@r01` is not reused. The B0 spike uses its own ID
+`{5821226e-579a-404a-9336-5ad61995f89c}` and is never signed.
 
 ## 3. Distribution: signed, unlisted
 
@@ -43,8 +40,18 @@ The old ID `authenticator@r01` must not be reused.
 Unlisted add-ons do not update automatically unless the manifest contains
 `browser_specific_settings.gecko.update_url` pointing to an HTTPS `updates.json`
 (for example on GitHub Pages or Releases). Each new version must be signed via AMO first.
-Without `update_url`, users install each new XPI manually. The decision is open
-(ARCHITECTURE.md §4).
+Without `update_url`, users install each new XPI manually.
+
+Decided: manual installation during development; a self-hosted HTTPS `update_url` is added
+before stable distribution (host to be chosen; the manifest key cannot be added
+retroactively to already installed versions, so it must be present in the first stable
+release).
+
+## 4a. Repository
+
+Private Forgejo is the development authority; `main` is protected and changes arrive via
+reviewed feature branches. A public GitHub mirror is optional. Signing credentials never
+enter either repository.
 
 ## 5. Release checklist (Phase D)
 

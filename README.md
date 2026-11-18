@@ -9,7 +9,9 @@ replaces storage, encryption and import/export.
 
 ## Status
 
-Phase A (analysis) – no extension code yet. See:
+Architecture approved with conditions; B0 security spike done
+([spikes/b0-cryptokey/RESULTS.md](spikes/b0-cryptokey/RESULTS.md)). No product code yet.
+`npm test` runs the unit tests, `npm run spike:b0` the Firefox spike. See:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – upstream analysis, target architecture, plan
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
