@@ -10,7 +10,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 
 button, input, select {
   font: inherit; color: inherit; background: var(--bg);
-  border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px;
 }
 button { cursor: pointer; background: var(--hover); }
 button:hover:not(:disabled) { background: var(--active); }
@@ -23,7 +23,7 @@ th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line
 td.name, td.site { overflow-wrap: anywhere; }
 td.type { font-family: monospace; white-space: nowrap; color: var(--muted); }
 td.actions { white-space: nowrap; text-align: right; }
-td.actions button { padding: 1px 6px; }
+td.actions button { padding: 4px 10px; }
 
 #accountForm label, #settingsForm section > label, .colors label {
   display: grid; grid-template-columns: 12em 1fr; align-items: center; gap: 8px; margin: 6px 0;
