@@ -2,10 +2,11 @@
 // Usage: node test/browser/run-browser-tests.mjs [path-to-firefox.exe]
 // Writes docs/evidence/phase-b/browser-results.json and popup screenshots.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createServer } from "node:http";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
-import { syntheticAccounts } from "../../src/lib/fixtures.js";
+import { syntheticAccounts, syntheticSecret } from "../../src/lib/fixtures.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = join(root, "docs/evidence/phase-b");
@@ -229,6 +230,91 @@ try {
         storageLocalUnchanged: localAfter === localBefore, malformed });
   }
 
+  // B3: the REAL toolbar popup, opened by a native click on the toolbar button (grants
+  // activeTab like a user click). The popup DOM is read via extension.getViews() from the
+  // options page; panel geometry and the clipboard are read in the browser chrome.
+  {
+    const srv = createServer((q, s) => { s.setHeader("content-type", "text/html"); s.end("<title>local</title>local test page"); });
+    await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+    try {
+      await msg(opt, "devUnlock", { count: 24 });
+      const { result: { revision } } = await msg(opt, "listAccounts");
+      await msg(opt, "addAccount", { revision, account: { name: "Local Test Site", secret: syntheticSecret(500), url: "localhost" } });
+      const site = (await call("browsingContext.create", { type: "tab" })).context;
+      await call("browsingContext.navigate", { context: site, url: `http://localhost:${srv.address().port}/`, wait: "complete" });
+      await call("browsingContext.activate", { context: site });
+      const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
+      // Native pointer input in the browser chrome: a real click on our toolbar button.
+      const mouse = (actions) => call("input.performActions", { context: chrome,
+        actions: [{ type: "pointer", id: "m", parameters: { pointerType: "mouse" }, actions }] });
+      const btn = await evalJson(chrome, `async () => { const r = document.getElementById(
+        "_f587432b-b553-483e-b08d-4feac6378113_-BAP").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+      await mouse([{ type: "pointerMove", x: Math.round(btn.x + btn.w / 2), y: Math.round(btn.y + btn.h / 2) },
+        { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }]);
+      const opened = await waitFor(opt, `browser.extension.getViews({ type: "popup" })[0]?.document.body.dataset.rendered === "25"`, 5000) &&
+        await waitFor(chrome, `[...document.querySelectorAll("browser")].find((x) => x.currentURI?.spec?.endsWith("/popup/popup.html"))
+          ?.closest("panel")?.state === "open"`, 5000); // wait for the open animation to finish
+      const panel = await evalJson(chrome, `async () => { const b = [...document.querySelectorAll("browser")]
+        .find((x) => x.currentURI?.spec?.endsWith("/popup/popup.html")); const r = b.getBoundingClientRect();
+        return { x: r.x, y: r.y, w: r.width, h: r.height, panelState: b.closest("panel")?.state }; }`);
+      const pv = (body) => evalJson(opt, `async () => { const w = browser.extension.getViews({ type: "popup" })[0];
+        const d = w.document; ${body} }`);
+      const geo = await pv(`const list = d.getElementById("list"), rows = [...d.querySelectorAll("#list .row")];
+        return { inner: [w.innerWidth, w.innerHeight], rows: rows.length,
+          rowHeights: [...new Set(rows.map((r) => r.getBoundingClientRect().height))],
+          current: [...d.querySelectorAll("#list li.current .name")].map((n) => n.textContent),
+          scrollable: list.scrollHeight > list.clientHeight };`);
+      record("B3-real-1", "real toolbar popup: 25 accounts, 25 px rows, within Firefox max 800×600",
+        opened && geo.rows === 25 && geo.rowHeights.length === 1 && geo.rowHeights[0] === 25 &&
+        geo.inner[0] === 270 && geo.inner[0] <= 800 && geo.inner[1] <= 600 && panel.panelState === "open" &&
+        panel.w === geo.inner[0] && panel.h === geo.inner[1] && geo.scrollable, { geo, panel });
+      record("B3-real-2", "active-site highlight after a real toolbar click (activeTab)",
+        JSON.stringify(geo.current) === JSON.stringify(["Local Test Site"]), { highlighted: geo.current });
+
+
+      // Scroll to the end inside the real popup geometry. BiDi pointer/wheel input does not
+      // reach the popup panel (separate native widget), so the list is scrolled via scrollTop;
+      // real wheel/touchpad scrolling is a manual check.
+      await pv(`const list = d.getElementById("list"); list.scrollTop = list.scrollHeight;
+        await new Promise((r) => w.requestAnimationFrame(r)); return true;`);
+      const sc = await pv(`const list = d.getElementById("list"), rows = [...d.querySelectorAll("#list .row")];
+        const lr = list.getBoundingClientRect(), last = rows.at(-1).getBoundingClientRect(), f = d.querySelector("footer").getBoundingClientRect();
+        return { scrollTop: list.scrollTop, maxScroll: list.scrollHeight - list.clientHeight,
+          lastRowVisible: last.top >= lr.top - 0.5 && last.bottom <= lr.bottom + 0.5,
+          footerVisible: f.top >= lr.bottom - 1 && f.bottom <= w.innerHeight + 0.5,
+          lastName: rows.at(-1).querySelector(".name").textContent };`);
+      record("B3-real-3", "real popup: list scrolls to the last account; footer stays visible",
+        sc.scrollTop > 0 && Math.abs(sc.scrollTop - sc.maxScroll) <= 1 && sc.lastRowVisible && sc.footerVisible, sc);
+
+      // Click the last (now visible) row inside the real popup, then read the system
+      // clipboard in chrome. The click is synthetic (element.click()) because native input
+      // does not reach the panel; a trusted click was verified in B3-copy, a real mouse
+      // click in the toolbar popup is a manual check.
+      const target = await pv(`const row = [...d.querySelectorAll("#list .row")].at(-1);
+        const code = row.querySelector(".code").textContent; row.click(); return { code };`);
+      await sleep(300);
+      const after = await pv(`const row = [...d.querySelectorAll("#list .row")].at(-1);
+        return { copied: row.dataset.copied ?? null, code: row.querySelector(".code").textContent };`);
+      const clip = await evalJson(chrome, `async () => {
+        const t = Cc["@mozilla.org/widget/transferable;1"].createInstance(Ci.nsITransferable);
+        t.init(null); t.addDataFlavor("text/plain");
+        Services.clipboard.getData(t, Services.clipboard.kGlobalClipboard, null);
+        const o = {}; t.getTransferData("text/plain", o); return o.value.QueryInterface(Ci.nsISupportsString).data; }`);
+      // Expected: Firefox refuses clipboard.writeText without user activation, so the
+      // synthetic click must show the error indicator and must not write the clipboard.
+      // A copy with a real mouse click in the toolbar popup is therefore MANUAL.
+      const expectedRefusal = after.copied === "error" && clip !== target.code;
+      results.push({ id: "B3-real-4", name: "real popup click-to-copy with a real mouse click",
+        verdict: expectedRefusal ? "MANUAL" : "FAIL",
+        details: { syntheticClickIndicator: after.copied, clipboardWritten: clip === target.code,
+          note: "synthetic click correctly refused (no user activation); trusted click verified in B3-copy" } });
+      console.log(`${expectedRefusal ? "MANUAL" : "FAIL"}  B3-real-4  real popup click-to-copy with a real mouse click`);
+      await call("browsingContext.close", { context: site });
+    } finally {
+      srv.close();
+    }
+  }
+
   // B6: lock wipes session; popup falls back to the locked view
   {
     await msg(opt, "devUnlock", { count: 25 });
@@ -280,6 +366,7 @@ try {
 evidence.results = results;
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "browser-results.json"), JSON.stringify(evidence, null, 2) + "\n");
-const failed = results.filter((r) => r.verdict !== "PASS").length;
-console.log(`${results.length - failed}/${results.length} passed${evidence.fatal ? " (fatal error)" : ""}`);
+const failed = results.filter((r) => r.verdict === "FAIL").length;
+const manual = results.filter((r) => r.verdict === "MANUAL").length;
+console.log(`${results.length - failed - manual}/${results.length} passed, ${manual} manual, ${failed} failed${evidence.fatal ? " (fatal error)" : ""}`);
 process.exit(failed || evidence.fatal ? 1 : 0);
