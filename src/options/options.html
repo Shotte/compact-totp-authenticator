@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compact TOTP Authenticator</title>
+  <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="options.css">
+  <script type="module" src="options.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1 data-i18n="optionsTitle"></h1>
+      <button id="lockBtn" type="button" data-i18n="lock" hidden></button>
+    </header>
+    <p id="message" role="status"></p>
+
+    <section id="lockedView" hidden>
+      <p data-i18n="errLocked"></p>
+      <button id="unlockDemo" type="button" data-i18n="unlockDemo"></button>
+      <p class="note" data-i18n="demoNote"></p>
+    </section>
+
+    <div id="unlockedView" hidden>
+      <section>
+        <h2 data-i18n="accounts"></h2>
+        <p class="note" data-i18n="demoNote"></p>
+        <table id="accounts">
+          <thead><tr>
+            <th data-i18n="colName"></th><th data-i18n="colSite"></th>
+            <th data-i18n="colType"></th><th><span class="sr-only" data-i18n="colActions"></span></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2 id="formTitle" data-i18n="addAccount"></h2>
+        <form id="accountForm" autocomplete="off">
+          <label><span data-i18n="fieldName"></span><input name="name" required maxlength="100"></label>
+          <label><span data-i18n="fieldSecret"></span>
+            <input name="secret" type="password" spellcheck="false" autocomplete="off">
+            <small id="secretHint" class="note" data-i18n="fieldSecretKeep" hidden></small>
+          </label>
+          <label><span data-i18n="fieldUrl"></span><input name="url" maxlength="200" placeholder="example.com"></label>
+          <details>
+            <summary data-i18n="advanced"></summary>
+            <label><span data-i18n="fieldAlgorithm"></span>
+              <select name="algorithm"><option>SHA-1</option><option>SHA-256</option><option>SHA-512</option></select></label>
+            <label><span data-i18n="fieldDigits"></span>
+              <select name="digits"><option>6</option><option>7</option><option>8</option></select></label>
+            <label><span data-i18n="fieldPeriod"></span><input name="period" type="number" min="10" max="300" value="30"></label>
+          </details>
+          <div class="actions">
+            <button type="submit" class="primary" data-i18n="save"></button>
+            <button type="button" id="cancelEdit" data-i18n="cancel" hidden></button>
+          </div>
+        </form>
+      </section>
+
+      <section>
+        <h2 data-i18n="importTitle"></h2>
+        <p class="note" data-i18n="importPreviewNote"></p>
+        <input id="importFile" type="file" accept=".json,application/json">
+        <p id="importSummary"></p>
+        <table id="preview" hidden>
+          <thead><tr><th data-i18n="colName"></th><th data-i18n="colSite"></th><th data-i18n="colStatus"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button id="importApply" type="button" data-i18n="importApply" disabled></button>
+      </section>
+    </div>
+
+    <section>
+      <h2 data-i18n="display"></h2>
+      <form id="settingsForm">
+        <label><span data-i18n="sortOrder"></span>
+          <select name="sort">
+            <option value="manual" data-i18n="sortManual"></option>
+            <option value="alpha" data-i18n="sortAlpha"></option>
+            <option value="revalpha" data-i18n="sortRevalpha"></option>
+          </select></label>
+        <label><span data-i18n="theme"></span>
+          <select name="theme">
+            <option value="dark" data-i18n="themeDark"></option>
+            <option value="light" data-i18n="themeLight"></option>
+            <option value="custom" data-i18n="themeCustom"></option>
+          </select></label>
+        <label><span data-i18n="colorFg"></span><input name="fg" type="color"></label>
+        <label><span data-i18n="colorBg"></span><input name="bg" type="color"></label>
+        <label><span data-i18n="autoLock"></span><input name="autoLockMinutes" type="number" min="1" max="240"></label>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
