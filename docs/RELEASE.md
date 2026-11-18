@@ -43,15 +43,27 @@ Unlisted add-ons do not update automatically unless the manifest contains
 Without `update_url`, users install each new XPI manually.
 
 Decided: manual installation during development; a self-hosted HTTPS `update_url` is added
-before stable distribution (host to be chosen; the manifest key cannot be added
-retroactively to already installed versions, so it must be present in the first stable
-release).
+before stable distribution. Natural host: the public GitHub repository (an `updates.json`
+served via GitHub Pages, signed XPIs attached to GitHub Releases). The manifest key cannot
+be added retroactively to already installed versions, so it must be present in the first
+stable release.
 
-## 4a. Repository
+## 4a. Repository and ownership
 
-Private Forgejo is the development authority; changes reach `main` only via reviewed feature
-branches. A public GitHub mirror is optional. Signing credentials never enter either
-repository. Address and Git conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
+The public GitHub repository is authoritative (development, pull requests, issues, CI,
+releases); a private Forgejo pull mirror is the backup. Changes reach `main` only via
+reviewed pull requests. The operator owns releases and AMO submissions; AMO API
+credentials are kept outside both repositories and outside CI until signing automation
+is explicitly approved. Conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## 4b. Future AMO distribution
+
+The project is open source (MIT, attribution to Rayquaza01/authenticator kept in
+`LICENSE`). Initial distribution stays signed and unlisted. A listed AMO release later
+needs: listing texts and screenshots (synthetic data only), the privacy declaration
+matching `data_collection_permissions: none`, and a source link to the public repository.
+Because the source is published unminified and without a build step, no separate source
+upload is required.
 
 ## 5. Release checklist (Phase D)
 

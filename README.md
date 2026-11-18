@@ -22,7 +22,13 @@ Evidence: [docs/evidence/phase-b](docs/evidence/phase-b/README.md). See:
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
 - [docs/MIGRATION.md](docs/MIGRATION.md) – legacy `totp.json` import
 - [docs/RELEASE.md](docs/RELEASE.md) – Manifest version, extension ID, signing, updates
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – repository (private Forgejo), Git conventions
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – repositories, pull-request workflow, CI, Git conventions
+
+## Contributing and security reports
+
+Development happens on GitHub via pull requests; CI runs tests, lint and a package build.
+Please report security issues privately via GitHub's "Report a vulnerability" (Security
+tab), not in public issues. Never include real TOTP secrets in issues or pull requests.
 
 ## Principles
 

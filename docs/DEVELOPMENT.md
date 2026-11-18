@@ -1,54 +1,102 @@
 # Development and Git conventions
 
-## Repository
+## Repositories
 
-| Role | Location |
-|---|---|
-| Authority (private) | Forgejo `shotte/compact-totp-authenticator` – private Forgejo backup (address not published) |
-| Remote `origin` | `private Forgejo backup (SSH address not published)` |
-| Public mirror | optional, GitHub, not configured yet |
+| Role | Location | Visibility |
+|---|---|---|
+| **Primary (authoritative)** – development, pull requests, issues, CI, releases | [github.com/Shotte/compact-totp-authenticator](https://github.com/Shotte/compact-totp-authenticator) | public |
+| Backup – read-only pull mirror of GitHub | private Forgejo backup (address not published) | private |
 
-Forgejo is the single source of truth. A GitHub mirror, if added, receives only `main` and
-release tags from Forgejo and never accepts direct changes.
+Local remotes: `origin` → GitHub, `forgejo` → private Forgejo backup. Changes are only ever
+pushed to GitHub. The backup never accepts direct changes; there is no bidirectional sync.
 
-## Branches
+## Pull-request workflow
 
-- `main`: reviewed state only. No direct commits, no automatic merges, no force pushes.
-  Changes arrive through a reviewed pull request on Forgejo.
-  Server-side protection rule `main` (since 2026-11-18): `enable_push=false`, no push
-  whitelist, `apply_to_admins=true` (no bypass), `required_approvals=0` (single operator),
-  no merge whitelist. Forgejo always blocks force pushes and deletion of protected branches.
-  Verified on a temporary branch: direct push, force push and deletion rejected; PR merge
-  by the operator succeeds.
-- `feature/<phase-or-topic>` (e.g. `feature/phase-b`), `fix/<topic>`: development branches,
-  pushed to `origin` with upstream tracking.
-- History is never rewritten on pushed branches (no `--force`, no rebase of pushed commits).
+- `main` holds reviewed state only. Every change arrives through a pull request from a
+  `feature/<topic>` or `fix/<topic>` branch.
+- Branch protection on GitHub `main`: pull request required (0 approvals while there is a
+  single operator), status check `test` required, applies to administrators, no force
+  pushes, no deletion.
+- History on pushed branches is never rewritten (no `--force`, no rebase of pushed commits).
+- Merging into `main` is done by the operator after review; agents never merge.
+
+## CI
+
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every pull request and
+on pushes to `main`: `npm ci`, `npm test` (unit, regression and static security gates),
+`npm run lint -- --warnings-as-errors` (web-ext) and `npm run build` (package validation).
+
+- Trigger is `pull_request`, never `pull_request_target`: workflows from forks run with a
+  read-only token and without secrets. Default workflow token permission is read-only.
+- Actions are pinned to commit SHAs; only GitHub-owned actions are allowed.
+- Fork pull requests from outside contributors need approval before workflows run.
+- Browser tests (`npm run test:browser`, `npm run test:browser:os`) need a local Firefox
+  and, for the real-popup checks, Windows desktop input; they run on the operator machine
+  before review and their evidence is committed under `docs/evidence/`.
+- No signing credentials exist in the repository or in CI. Mozilla signing is not
+  automated yet (see [RELEASE.md](RELEASE.md)).
+
+## Releases
+
+The operator owns releases: version bump, signed build via AMO (unlisted), GitHub Release
+with the signed XPI, and the self-hosted `update_url` before stable distribution. Details
+and checklist: [RELEASE.md](RELEASE.md).
 
 ## Commits
 
 - Atomic: one logical change per commit; tests and docs travel with the code they cover.
 - Subject in English, imperative, ≤ 72 characters; body explains why.
 - AI-assisted commits carry a `Co-Authored-By:` trailer.
+- Author identity: `Shotte <6080354+Shotte@users.noreply.github.com>` (repository-local
+  `git config`), so no private e-mail address enters the public history.
 - Line endings are normalized to LF (`.gitattributes`).
 
 ## Never commit
 
-Credentials, API tokens (Forgejo, AMO JWT), `.env` files, private keys, real TOTP secrets,
-real passwords or recovery codes, real `totp.json` / `*.cta.json` exports. Test data is
-synthetic only (RFC test keys, generated fixtures, the public demo key `JBSWY3DPEHPK3PXP`).
-`.gitignore` blocks the common file names; it is not a substitute for checking.
+Credentials, API tokens (GitHub, AMO JWT), `.env` files, private keys, real TOTP secrets,
+real passwords or recovery codes, real `totp.json` / `*.cta.json` exports, private
+infrastructure addresses, personal e-mail addresses. Test data is synthetic only (RFC test
+keys, generated `CTA-SYNTHETIC-*` fixtures, the public demo key `JBSWY3DPEHPK3PXP`).
 
 Pre-push check (Git Bash), run before every push:
 
 ```sh
-git grep -nIiE "(api[_-]?key|secret[_-]?key|token|passw(or)?d)\s*[:=]\s*['\"][^'\"]{6,}" -- . ':!*.md'
-git grep -nIoE "\b[A-Z2-7]{16,}\b" | grep -v JBSWY3DPEHPK3PXP
+git grep -nIiE "(api[_-]?key|secret[_-]?key|token|passw(or)?d)\s*[:=]\s*['\"][^'\"]{6,}" -- . ':!*.md' ':!package-lock.json'
+git grep -nIoE "\b[A-Z2-7]{16,}\b" -- . ':!package-lock.json' | grep -vE "JBSWY3DPEHPK3PXP|ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 git grep -nIE "BEGIN (RSA|OPENSSH|EC|PGP) PRIVATE"
+git log --format='%ae %ce' origin/main..HEAD | sort -u   # must show only the noreply address
 ```
 
 Every hit must be reviewed and proven synthetic before pushing.
 
-## Mirror note
+## History rewrite before publication (2026-11-18)
 
-Commit metadata contains the author e-mail from the local Git configuration. Review this
-before enabling a public mirror.
+Before the first public push, the history was rewritten once, with operator approval, in a
+separate clone: author and committer e-mail → noreply address, and the private Forgejo
+host/port in this file → neutral text. Names, dates, messages and all other content are
+unchanged (verified commit by commit). Branch heads, old → new:
+
+| Branch | Before (private) | Published |
+|---|---|---|
+| `main` | `158cf06` | `8cb3576` |
+| `feature/b0-security-spike` | `d82b8fd` | `6e9be00` |
+| `feature/phase-b` | `02ddd55` | `a773736` |
+
+The original history is archived privately by the operator (verified Git bundle); it is
+not published. Old SHAs mentioned in earlier reports refer to that archive.
+
+## Backup: GitHub → private Forgejo pull mirror
+
+The Forgejo backup is a **pull mirror** of the public GitHub repository: Forgejo fetches
+all branches and tags on a fixed interval. GitHub needs no credentials for this (public
+repository), and Forgejo never pushes anywhere.
+
+Verification (Git Bash, both remotes configured):
+
+```sh
+git fetch origin && git fetch forgejo
+diff <(git ls-remote --heads --tags origin | sort -k2) <(git ls-remote --heads --tags forgejo | sort -k2) && echo "in sync"
+```
+
+A difference shortly after a push is expected until the next mirror interval; Forgejo's
+"Synchronize now" triggers an immediate update.
