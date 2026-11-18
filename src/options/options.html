@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Compact TOTP Authenticator</title>
   <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../rows.css">
   <link rel="stylesheet" href="options.css">
   <script type="module" src="options.js"></script>
 </head>
@@ -72,26 +73,66 @@
       </section>
     </div>
 
-    <section>
-      <h2 data-i18n="display"></h2>
-      <form id="settingsForm">
+    <form id="settingsForm">
+      <section id="appearance">
+        <h2 data-i18n="appearance"></h2>
+        <p class="caption" data-i18n="previewLabel"></p>
+        <!-- Static sample rows (no account data), styled exactly like the popup. -->
+        <div class="preview" aria-hidden="true">
+          <ul class="rows" id="appearancePreview">
+            <li><div class="row"><span class="name">Example Mail 01</span><span class="code">719041</span><span class="icon"><svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span></div></li>
+            <li class="current"><div class="row"><span class="name">Demo Cloud 02</span><span class="code">226358</span><span class="icon"><svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span></div></li>
+            <li><div class="row"><span class="name">Placeholder Hosting with a long name 03</span><span class="code">46801892</span><span class="icon"><svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8.5" height="8.5" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 10.5V3a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span></div></li>
+          </ul>
+        </div>
+
+        <fieldset>
+          <legend data-i18n="colorScheme"></legend>
+          <div class="segmented">
+            <label><input type="radio" name="theme" value="auto"><span data-i18n="themeAuto"></span></label>
+            <label><input type="radio" name="theme" value="light"><span data-i18n="themeLight"></span></label>
+            <label><input type="radio" name="theme" value="dark"><span data-i18n="themeDark"></span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="plain">
+          <label class="check"><input type="checkbox" name="customColors"><span data-i18n="customColors"></span></label>
+          <div class="colors">
+            <label><span data-i18n="colorFg"></span><input name="fg" type="color"></label>
+            <label><span data-i18n="colorBg"></span><input name="bg" type="color"></label>
+          </div>
+          <p id="contrastNote" class="note" data-i18n="contrastAdjusted" hidden></p>
+        </fieldset>
+
+        <div class="slider">
+          <label for="fontSize" data-i18n="fontSize"></label>
+          <output id="fontSizeOut" for="fontSize"></output>
+          <input id="fontSize" name="fontSize" type="range" min="12" max="20" step="1">
+        </div>
+
+        <fieldset class="radios">
+          <legend data-i18n="rowHeight"></legend>
+          <label><input type="radio" name="rowHeight" value="auto"><span data-i18n="rowAuto"></span></label>
+          <label><input type="radio" name="rowHeight" value="22"><span data-i18n="row22"></span></label>
+          <label><input type="radio" name="rowHeight" value="25"><span data-i18n="row25"></span></label>
+          <label><input type="radio" name="rowHeight" value="30"><span data-i18n="row30"></span></label>
+        </fieldset>
+        <p id="rowNote" class="note" hidden></p>
+
+        <button id="resetAppearance" type="button" data-i18n="resetAppearance"></button>
+      </section>
+
+      <section>
+        <h2 data-i18n="behavior"></h2>
         <label><span data-i18n="sortOrder"></span>
           <select name="sort">
             <option value="manual" data-i18n="sortManual"></option>
             <option value="alpha" data-i18n="sortAlpha"></option>
             <option value="revalpha" data-i18n="sortRevalpha"></option>
           </select></label>
-        <label><span data-i18n="theme"></span>
-          <select name="theme">
-            <option value="dark" data-i18n="themeDark"></option>
-            <option value="light" data-i18n="themeLight"></option>
-            <option value="custom" data-i18n="themeCustom"></option>
-          </select></label>
-        <label><span data-i18n="colorFg"></span><input name="fg" type="color"></label>
-        <label><span data-i18n="colorBg"></span><input name="bg" type="color"></label>
         <label><span data-i18n="autoLock"></span><input name="autoLockMinutes" type="number" min="1" max="240"></label>
-      </form>
-    </section>
+      </section>
+    </form>
   </main>
 </body>
 </html>

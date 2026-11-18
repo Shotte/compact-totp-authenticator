@@ -1,5 +1,6 @@
-import { call, t, localize, applyTheme, errorText } from "../lib/ui.js";
-import { loadSettings, validateSettings } from "../lib/settings.js";
+import { call, t, localize, applyAppearance, followSystemScheme, errorText } from "../lib/ui.js";
+import { loadSettings, validateSettings, DEFAULT_SETTINGS, APPEARANCE_KEYS } from "../lib/settings.js";
+import { rowHeightPx } from "../lib/appearance.js";
 import { MAX_IMPORT_BYTES } from "../lib/legacy.js";
 
 const $ = (id) => document.getElementById(id);
@@ -159,21 +160,64 @@ async function previewFile() {
   $("preview").hidden = false;
 }
 
-async function initSettings() {
-  const s = await loadSettings(browser.storage.local);
-  applyTheme(s);
+// Appearance and behaviour settings (storage.local "settings", never vault data).
+let settings;
+
+function fillSettingsForm(s) {
   const f = $("settingsForm").elements;
-  for (const k of ["sort", "theme", "fg", "bg", "autoLockMinutes"]) f[k].value = String(s[k]);
-  const sync = () => { f.fg.disabled = f.bg.disabled = f.theme.value !== "custom"; };
-  sync();
-  $("settingsForm").addEventListener("change", async () => {
-    const next = validateSettings({ sort: f.sort.value, theme: f.theme.value, fg: f.fg.value,
-      bg: f.bg.value, autoLockMinutes: Number(f.autoLockMinutes.value) });
-    await browser.storage.local.set({ settings: next });
-    f.autoLockMinutes.value = String(next.autoLockMinutes);
-    applyTheme(next);
-    sync();
-    say(t("saved"));
+  f.theme.value = s.theme;
+  f.customColors.checked = s.customColors;
+  f.fg.value = s.fg;
+  f.bg.value = s.bg;
+  f.fontSize.value = String(s.fontSize);
+  f.rowHeight.value = String(s.rowHeight);
+  f.sort.value = s.sort;
+  f.autoLockMinutes.value = String(s.autoLockMinutes);
+}
+
+function readSettingsForm() {
+  const f = $("settingsForm").elements;
+  return validateSettings({ theme: f.theme.value, customColors: f.customColors.checked, fg: f.fg.value,
+    bg: f.bg.value, fontSize: Number(f.fontSize.value), rowHeight: f.rowHeight.value, sort: f.sort.value,
+    autoLockMinutes: Number(f.autoLockMinutes.value) });
+}
+
+// Applies to this page (the preview uses the same rows.css as the popup) and shows hints.
+function showAppearance(s) {
+  const tokens = applyAppearance(s);
+  const f = $("settingsForm").elements;
+  f.fg.disabled = f.bg.disabled = !s.customColors;
+  $("fontSizeOut").textContent = `${s.fontSize} px`;
+  $("contrastNote").hidden = !tokens.fgAdjusted;
+  const px = rowHeightPx(s.fontSize, s.rowHeight);
+  $("rowNote").hidden = s.rowHeight === "auto" || px === s.rowHeight;
+  $("rowNote").textContent = t("rowRaised", [String(px)]);
+}
+
+async function saveSettings(next) {
+  settings = next;
+  showAppearance(settings);
+  await browser.storage.local.set({ settings });
+  say(t("saved"));
+}
+
+async function initSettings() {
+  settings = await loadSettings(browser.storage.local);
+  fillSettingsForm(settings);
+  showAppearance(settings);
+  followSystemScheme(() => settings);
+  const form = $("settingsForm");
+  form.addEventListener("input", () => showAppearance(readSettingsForm())); // live preview while dragging
+  form.addEventListener("change", async () => {
+    const next = readSettingsForm();
+    fillSettingsForm(next); // normalizes rejected values
+    await saveSettings(next);
+  });
+  $("resetAppearance").addEventListener("click", async () => {
+    const next = { ...settings };
+    for (const k of APPEARANCE_KEYS) next[k] = DEFAULT_SETTINGS[k];
+    fillSettingsForm(next);
+    await saveSettings(next);
   });
 }
 

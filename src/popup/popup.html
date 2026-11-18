@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <title>Compact TOTP Authenticator</title>
   <link rel="stylesheet" href="../theme.css">
+  <link rel="stylesheet" href="../rows.css">
   <link rel="stylesheet" href="popup.css">
   <script type="module" src="popup.js"></script>
 </head>
@@ -15,7 +16,7 @@
   </section>
 
   <section id="unlocked" hidden>
-    <ul id="list"></ul>
+    <ul id="list" class="rows" tabindex="-1"></ul>
     <footer>
       <span id="ticker" data-i18n-attr="title:secondsLeft"></span>
       <button id="lock" class="icon-btn" type="button" data-i18n-attr="title:lock;aria-label:lock">

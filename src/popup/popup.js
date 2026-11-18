@@ -1,4 +1,4 @@
-import { call, t, localize, applyTheme } from "../lib/ui.js";
+import { call, t, localize, applyAppearance, followSystemScheme } from "../lib/ui.js";
 import { loadSettings } from "../lib/settings.js";
 import { sortForView, matchesSite } from "../lib/accounts.js";
 
@@ -75,7 +75,12 @@ function render() {
   document.body.dataset.rendered = String(codes.length);
 }
 
+// One handler on the row button; name, code, free space and icon are inert children
+// (rows.css: pointer-events none), so every click fires exactly one copy. A click during
+// a running copy or its 1 s confirmation is ignored (no double writes on double-click).
 async function copy(btn, ico, c) {
+  if (btn.dataset.busy) return;
+  btn.dataset.busy = "1";
   let ok = true;
   try { await navigator.clipboard.writeText(c.code); } catch { ok = false; }
   btn.dataset.copied = ok ? "ok" : "error";
@@ -83,6 +88,7 @@ async function copy(btn, ico, c) {
   $("announce").textContent = t(ok ? "copied" : "copyFailed");
   setTimeout(() => {
     delete btn.dataset.copied;
+    delete btn.dataset.busy;
     ico.replaceChildren(icon("copyIcon"));
   }, 1000);
   if (ok) call("activity").catch((e) => { if (e.code === "locked") showLocked(); });
@@ -98,7 +104,8 @@ function tick() {
 async function init() {
   localize();
   settings = await loadSettings(browser.storage.local);
-  applyTheme(settings);
+  applyAppearance(settings);
+  followSystemScheme(() => settings);
   // URL is only available when the user opened the popup (activeTab).
   try { tabUrl = (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.url ?? null; }
   catch { tabUrl = null; }

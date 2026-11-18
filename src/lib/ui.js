@@ -1,4 +1,5 @@
-// Page helpers shared by popup and options: messaging, i18n, theme. No secrets here.
+// Page helpers shared by popup and options: messaging, i18n, appearance. No secrets here.
+import { themeTokens, rowHeightPx } from "./appearance.js";
 
 // Calls the background. Throws an Error whose .code is locked|conflict|invalid|malformed|internal.
 export async function call(cmd, args = {}) {
@@ -23,12 +24,25 @@ export function localize(root = document) {
   document.documentElement.lang = browser.i18n.getUILanguage();
 }
 
-export function applyTheme(settings, root = document.documentElement) {
-  root.dataset.theme = settings.theme;
-  for (const k of ["fg", "bg"]) {
-    if (settings.theme === "custom") root.style.setProperty(`--${k}`, settings[k]);
-    else root.style.removeProperty(`--${k}`);
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+
+// Applies colors (contrast-checked tokens), font size and row height. Returns the tokens.
+export function applyAppearance(settings, root = document.documentElement) {
+  const tokens = themeTokens(settings, darkQuery.matches);
+  for (const k of ["bg", "fg", "muted", "hover", "active", "line", "current", "ok", "err"]) {
+    root.style.setProperty(`--${k}`, tokens[k]);
   }
+  root.style.setProperty("--current-hover", tokens.currentHover);
+  root.style.setProperty("--font-size", `${settings.fontSize}px`);
+  root.style.setProperty("--row-height", `${rowHeightPx(settings.fontSize, settings.rowHeight)}px`);
+  root.style.colorScheme = tokens.scheme;
+  root.dataset.theme = tokens.mode;
+  return tokens;
+}
+
+// Re-applies when the Firefox/system color scheme changes (theme "auto").
+export function followSystemScheme(getSettings) {
+  darkQuery.addEventListener("change", () => applyAppearance(getSettings()));
 }
 
 // Localized text for an error thrown by call().

@@ -123,9 +123,6 @@
   "cancel": {
     "message": "Abbrechen"
   },
-  "display": {
-    "message": "Anzeige und Sperre"
-  },
   "sortOrder": {
     "message": "Sortierung"
   },
@@ -138,17 +135,11 @@
   "sortRevalpha": {
     "message": "Z–A"
   },
-  "theme": {
-    "message": "Design"
-  },
   "themeDark": {
     "message": "Dunkel"
   },
   "themeLight": {
     "message": "Hell"
-  },
-  "themeCustom": {
-    "message": "Eigene Farben"
   },
   "colorFg": {
     "message": "Textfarbe"
@@ -243,5 +234,55 @@
   },
   "reason_unknown_account": {
     "message": "Konto existiert nicht mehr"
+  },
+  "appearance": {
+    "message": "Darstellung"
+  },
+  "previewLabel": {
+    "message": "Vorschau"
+  },
+  "colorScheme": {
+    "message": "Farbschema"
+  },
+  "themeAuto": {
+    "message": "Automatisch"
+  },
+  "customColors": {
+    "message": "Eigene Farben verwenden"
+  },
+  "contrastAdjusted": {
+    "message": "Die Textfarbe wurde angepasst, damit der Kontrast zum Hintergrund ausreicht."
+  },
+  "fontSize": {
+    "message": "Schriftgröße"
+  },
+  "rowHeight": {
+    "message": "Zeilenhöhe"
+  },
+  "rowAuto": {
+    "message": "Automatisch passend zur Schrift"
+  },
+  "row22": {
+    "message": "Extra kompakt – 22 px"
+  },
+  "row25": {
+    "message": "Klassisch – 25 px"
+  },
+  "row30": {
+    "message": "Komfortabel – 30 px"
+  },
+  "rowRaised": {
+    "message": "Bei dieser Schriftgröße werden Zeilen $PX$ px hoch, damit kein Text abgeschnitten wird.",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
+  "resetAppearance": {
+    "message": "Darstellung auf Standard zurücksetzen"
+  },
+  "behavior": {
+    "message": "Verhalten"
   }
 }
