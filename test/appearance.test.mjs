@@ -120,6 +120,6 @@ test("row heights: auto scales; fixed heights never clip text", () => {
   assert.equal(rowHeightPx(20, 22), minRowHeight(20), "raised to the minimum");
   assert.equal(rowHeightPx(12, 30), 30);
   for (let f = 12; f <= 20; f++) {
-    for (const r of ROW_HEIGHTS) assert.ok(rowHeightPx(f, r) >= Math.ceil(f * 1.2) + 2, `${f}px/${r}`);
+    for (const r of ROW_HEIGHTS) assert.ok(rowHeightPx(f, r) >= Math.ceil(f * 1.25) + 2, `${f}px/${r}`);
   }
 });
