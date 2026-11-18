@@ -138,8 +138,11 @@ try {
       return out; }`);
     m.renderMs = ms;
     layouts[n] = m;
+    // Default appearance must keep the Phase B dimensions exactly (no unintended growth).
+    const expectedBody = n === 1 ? 56 : 591;
+    m.expectedBodyHeight = expectedBody;
     const pass = rendered && m.rows === n && m.rowHeights.length === 1 && m.rowHeights[0] === 25 &&
-      m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.lastRowReachable &&
+      m.bodyHeight === expectedBody && m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.lastRowReachable &&
       m.footerVisible && /monospace/.test(m.fontFamily) && m.codesOk && ms < 3000;
     record(`B3-${n}`, `popup layout with ${n} account(s)`, pass, m);
     if (n === 25) {
@@ -159,9 +162,13 @@ try {
 
   // B7: appearance extremes with 100 accounts — no clipping/overlap, uniform rows, contrast
   {
+    // Every supported layout configuration: font 12–20 px × row height auto/22/25/30, with
+    // the color modes rotating (dark, light, auto, custom) so each appears at every size band.
     const combos = [];
-    for (const fontSize of [12, 20]) for (const rowHeight of ["auto", 22, 30]) {
-      combos.push({ fontSize, rowHeight, theme: combos.length % 2 ? "light" : "dark" });
+    const colorModes = [{ theme: "dark" }, { theme: "light" }, { theme: "auto" },
+      { theme: "auto", customColors: true, fg: "#1a1a1a", bg: "#f0efe6" }];
+    for (let fontSize = 12; fontSize <= 20; fontSize++) for (const rowHeight of ["auto", 22, 25, 30]) {
+      combos.push({ fontSize, rowHeight, ...colorModes[combos.length % colorModes.length] });
     }
     combos.push({ fontSize: 20, rowHeight: 22, theme: "dark", customColors: true, fg: "#777777", bg: "#808080" });
     for (const c of combos) {
@@ -202,13 +209,13 @@ try {
       const toHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
       m.contrast = Math.round(contrast(toHex(m.fg), toHex(m.bg)) * 100) / 100;
       m.expectedRowHeight = rowHeightPx(c.fontSize, c.rowHeight);
-      const label = `${c.fontSize}px/${c.rowHeight}/${c.customColors ? "custom-low-contrast" : c.theme}`;
+      const label = `${c.fontSize}px/${c.rowHeight}/${c.customColors ? (c.fg === "#777777" ? "custom-low-contrast" : "custom") : c.theme}`;
       record(`B7-${label}`, `appearance ${label} with 100 accounts`, m.rows === 100 && m.rowHeights.length === 1 &&
         m.rowHeights[0] === m.expectedRowHeight && m.nameFont === `${c.fontSize}px` && m.codeFont === `${c.fontSize}px` &&
         m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.issues.length === 0 &&
         m.lastRowVisible && m.footerVisible && m.contrast >= 4.5, { settings: c, ...m });
       if ([["12", "auto"], ["20", "30"]].some(([f, r]) => String(c.fontSize) === f && String(c.rowHeight) === r) ||
-        c.customColors) {
+        c.fg === "#777777") {
         await evalJson(pop, `async () => { document.getElementById("list").scrollTop = 0; }`);
         const h = Math.ceil(m.bodyHeight);
         const shot = await call("browsingContext.captureScreenshot", { context: pop, clip: { type: "box", x: 0, y: 0, width: 270, height: h } });
