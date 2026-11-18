@@ -1,0 +1,20 @@
+/* First-paint defaults matching the default theme "auto". lib/ui.js applyAppearance()
+   then sets every token from lib/appearance.js, which guarantees WCAG contrast for
+   built-in and custom colors. Values below are that module's output for the built-ins. */
+:root {
+  color-scheme: dark;
+  --bg: #1c1b22; --fg: #e8e6e3; --muted: #9a999a; --hover: #302f35; --active: #414045;
+  --line: #414045; --current: #584717; --current-hover: #645427; --ok: #3fb950; --err: #f85149;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --fg: #0c0c0d; --muted: #686869; --hover: #e7e7e7; --active: #d3d3d3;
+    --line: #d3d3d3; --current: #f3e2ad; --current-hover: #e1d1a0; --ok: #1a7f37; --err: #cf222e;
+  }
+}
+html, body { background: var(--bg); color: var(--fg); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}

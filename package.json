@@ -1,0 +1,20 @@
+{
+  "name": "compact-totp-authenticator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Compact Firefox TOTP authenticator",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\" \"spikes/**/*.test.mjs\"",
+    "test:browser": "node test/browser/run-browser-tests.mjs",
+    "test:browser:os": "node test/browser/run-browser-tests.mjs --os-input",
+    "lint": "web-ext lint --source-dir src",
+    "start": "web-ext run --source-dir src",
+    "build": "web-ext build --source-dir src --overwrite-dest",
+    "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs"
+  },
+  "devDependencies": {
+    "web-ext": "10.8.0"
+  }
+}

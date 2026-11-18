@@ -1,0 +1,49 @@
+{
+  "otp_list": [
+    {
+      "name": "Example Mail",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBR",
+      "url": "example.com"
+    },
+    {
+      "name": "Demo Cloud",
+      "key": "inke clkt lfhf iscf kreu gljq gayd cmbs "
+    },
+    {
+      "name": "Padded Key",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBT====",
+      "url": "example.org"
+    },
+    {
+      "name": "Duplicate of Example Mail",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBR",
+      "url": "example.com"
+    },
+    {
+      "name": "example mail",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBU"
+    },
+    {
+      "name": "Short Secret",
+      "key": "MZXW6YTBOI"
+    },
+    {
+      "name": "Bad Characters",
+      "key": "NOT-BASE32-189!"
+    },
+    {
+      "name": 42,
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBV"
+    },
+    {
+      "name": "Missing Key"
+    },
+    "not an object",
+    {
+      "name": "",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDCMBW"
+    }
+  ],
+  "fontColor": "#000000",
+  "backgroundColor": "#FFFFFF"
+}

@@ -1,0 +1,288 @@
+{
+  "extName": {
+    "message": "Compact TOTP Authenticator"
+  },
+  "extDescription": {
+    "message": "Compact, offline TOTP codes: one row per account, click to copy."
+  },
+  "lockedTitle": {
+    "message": "Locked"
+  },
+  "unlockDemo": {
+    "message": "Unlock with demo data"
+  },
+  "demoNote": {
+    "message": "Development build: synthetic demo accounts only, nothing is saved."
+  },
+  "secondsLeft": {
+    "message": "Seconds until the next 30-second code"
+  },
+  "lock": {
+    "message": "Lock"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "noAccounts": {
+    "message": "No accounts"
+  },
+  "copyCode": {
+    "message": "Copy code for $NAME$",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "copied": {
+    "message": "Code copied"
+  },
+  "copyFailed": {
+    "message": "Copying failed"
+  },
+  "optionsTitle": {
+    "message": "Compact TOTP Authenticator – Settings"
+  },
+  "accounts": {
+    "message": "Accounts"
+  },
+  "colName": {
+    "message": "Name"
+  },
+  "colSite": {
+    "message": "Website"
+  },
+  "colType": {
+    "message": "Type"
+  },
+  "colActions": {
+    "message": "Actions"
+  },
+  "colStatus": {
+    "message": "Status"
+  },
+  "moveUp": {
+    "message": "Up"
+  },
+  "moveDown": {
+    "message": "Down"
+  },
+  "edit": {
+    "message": "Edit"
+  },
+  "delete": {
+    "message": "Delete"
+  },
+  "confirmDelete": {
+    "message": "Delete \"$NAME$\"?",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "deleted": {
+    "message": "Deleted"
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "addAccount": {
+    "message": "Add account"
+  },
+  "editAccount": {
+    "message": "Edit account"
+  },
+  "fieldName": {
+    "message": "Name"
+  },
+  "fieldSecret": {
+    "message": "Secret key"
+  },
+  "fieldSecretKeep": {
+    "message": "Leave empty to keep the current key."
+  },
+  "fieldUrl": {
+    "message": "Website (optional)"
+  },
+  "advanced": {
+    "message": "Advanced"
+  },
+  "fieldAlgorithm": {
+    "message": "Algorithm"
+  },
+  "fieldDigits": {
+    "message": "Digits"
+  },
+  "fieldPeriod": {
+    "message": "Period (seconds)"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "sortOrder": {
+    "message": "Sort order"
+  },
+  "sortManual": {
+    "message": "Manual"
+  },
+  "sortAlpha": {
+    "message": "A–Z"
+  },
+  "sortRevalpha": {
+    "message": "Z–A"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "colorFg": {
+    "message": "Text color"
+  },
+  "colorBg": {
+    "message": "Background color"
+  },
+  "autoLock": {
+    "message": "Auto-lock after (minutes)"
+  },
+  "importTitle": {
+    "message": "Import from the original extension (totp.json)"
+  },
+  "importPreviewNote": {
+    "message": "Preview only. Importing is enabled once the encrypted vault is available."
+  },
+  "importApply": {
+    "message": "Import"
+  },
+  "importCounts": {
+    "message": "$NEW$ new, $DUP$ duplicates, $CONFLICT$ name conflicts, $INVALID$ invalid",
+    "placeholders": {
+      "new": {
+        "content": "$1"
+      },
+      "dup": {
+        "content": "$2"
+      },
+      "conflict": {
+        "content": "$3"
+      },
+      "invalid": {
+        "content": "$4"
+      }
+    }
+  },
+  "statusNew": {
+    "message": "New"
+  },
+  "statusDuplicate": {
+    "message": "Duplicate (skipped)"
+  },
+  "statusNameConflict": {
+    "message": "Name exists with a different key"
+  },
+  "statusInvalid": {
+    "message": "Invalid"
+  },
+  "warnShort": {
+    "message": "short key"
+  },
+  "errLocked": {
+    "message": "Locked. Please unlock."
+  },
+  "errConflict": {
+    "message": "The data changed in the meantime; the list was reloaded. Please try again."
+  },
+  "errInvalid": {
+    "message": "Invalid input: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "errMalformed": {
+    "message": "The file is not a valid totp.json."
+  },
+  "errInternal": {
+    "message": "Unexpected error."
+  },
+  "reason_name": {
+    "message": "name missing or too long"
+  },
+  "reason_url": {
+    "message": "website too long"
+  },
+  "reason_secret_format": {
+    "message": "secret key is not valid Base32"
+  },
+  "reason_secret_short": {
+    "message": "secret key is too short (at least 16 characters)"
+  },
+  "reason_algorithm": {
+    "message": "unsupported algorithm"
+  },
+  "reason_digits": {
+    "message": "digits must be 6, 7 or 8"
+  },
+  "reason_period": {
+    "message": "period must be 10–300 seconds"
+  },
+  "reason_unknown_account": {
+    "message": "account no longer exists"
+  },
+  "appearance": {
+    "message": "Appearance"
+  },
+  "previewLabel": {
+    "message": "Preview"
+  },
+  "colorScheme": {
+    "message": "Color scheme"
+  },
+  "themeAuto": {
+    "message": "Automatic"
+  },
+  "customColors": {
+    "message": "Use custom colors"
+  },
+  "contrastAdjusted": {
+    "message": "The text color was adjusted to keep enough contrast with the background."
+  },
+  "fontSize": {
+    "message": "Font size"
+  },
+  "rowHeight": {
+    "message": "Row height"
+  },
+  "rowAuto": {
+    "message": "Automatic, matching the font size"
+  },
+  "row22": {
+    "message": "Extra compact – 22 px"
+  },
+  "row25": {
+    "message": "Classic – 25 px"
+  },
+  "row30": {
+    "message": "Comfortable – 30 px"
+  },
+  "rowRaised": {
+    "message": "At this font size rows use $PX$ px so that no text is cut off.",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
+  "resetAppearance": {
+    "message": "Reset appearance to defaults"
+  },
+  "behavior": {
+    "message": "Behavior"
+  }
+}

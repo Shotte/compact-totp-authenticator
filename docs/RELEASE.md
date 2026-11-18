@@ -18,13 +18,10 @@ without explicit operator approval.
 
 ## 2. Extension ID
 
-Must be unique on AMO and never change after the first signing (updates are matched by ID).
-Two accepted formats:
-
-- GUID: `{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}` – no ownership implied. **Recommended.**
-- Email-like: `compact-totp@example.org` – should use a domain the project controls.
-
-The old ID `authenticator@r01` must not be reused.
+**Decided: `{f587432b-b553-483e-b08d-4feac6378113}`** (GUID, generated 2026-11-18 with
+`crypto.randomUUID()`). It must never change after the first signing (updates are matched
+by ID). The old ID `authenticator@r01` is not reused. The B0 spike uses its own ID
+`{5821226e-579a-404a-9336-5ad61995f89c}` and is never signed.
 
 ## 3. Distribution: signed, unlisted
 
@@ -43,8 +40,30 @@ The old ID `authenticator@r01` must not be reused.
 Unlisted add-ons do not update automatically unless the manifest contains
 `browser_specific_settings.gecko.update_url` pointing to an HTTPS `updates.json`
 (for example on GitHub Pages or Releases). Each new version must be signed via AMO first.
-Without `update_url`, users install each new XPI manually. The decision is open
-(ARCHITECTURE.md §4).
+Without `update_url`, users install each new XPI manually.
+
+Decided: manual installation during development; a self-hosted HTTPS `update_url` is added
+before stable distribution. Natural host: the public GitHub repository (an `updates.json`
+served via GitHub Pages, signed XPIs attached to GitHub Releases). The manifest key cannot
+be added retroactively to already installed versions, so it must be present in the first
+stable release.
+
+## 4a. Repository and ownership
+
+The public GitHub repository is authoritative (development, pull requests, issues, CI,
+releases); a private Forgejo pull mirror is the backup. Changes reach `main` only via
+reviewed pull requests. The operator owns releases and AMO submissions; AMO API
+credentials are kept outside both repositories and outside CI until signing automation
+is explicitly approved. Conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## 4b. Future AMO distribution
+
+The project is open source (MIT, attribution to Rayquaza01/authenticator kept in
+`LICENSE`). Initial distribution stays signed and unlisted. A listed AMO release later
+needs: listing texts and screenshots (synthetic data only), the privacy declaration
+matching `data_collection_permissions: none`, and a source link to the public repository.
+Because the source is published unminified and without a build step, no separate source
+upload is required.
 
 ## 5. Release checklist (Phase D)
 

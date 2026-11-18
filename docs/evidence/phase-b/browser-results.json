@@ -1,0 +1,982 @@
+{
+  "startedAt": "2026-11-18T21:27:48.572Z",
+  "browser": {
+    "version": "160.0.1",
+    "platform": "windows"
+  },
+  "install": {
+    "extension": "{f587432b-b553-483e-b08d-4feac6378113}"
+  },
+  "layouts": {
+    "1": {
+      "rows": 1,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 56,
+      "docScrollWidth": 270,
+      "listClientHeight": 31,
+      "listScrollHeight": 31,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "9",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 227
+    },
+    "25": {
+      "rows": 25,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 631,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "9",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 201
+    },
+    "50": {
+      "rows": 50,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 1256,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "9",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 79
+    },
+    "100": {
+      "rows": 100,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 2506,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "9",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 74
+    }
+  },
+  "finishedAt": "2026-11-18T21:29:34.665Z",
+  "results": [
+    {
+      "id": "B6-1",
+      "name": "locked by default; sensitive commands rejected",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "ok": true,
+          "result": {
+            "unlocked": false,
+            "startedAt": 1795037270611
+          }
+        },
+        "responses": [
+          {
+            "ok": false,
+            "error": "locked"
+          },
+          {
+            "ok": false,
+            "error": "locked"
+          },
+          {
+            "ok": false,
+            "error": "locked"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B3-1",
+      "name": "popup layout with 1 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 1,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 56,
+        "docScrollWidth": 270,
+        "listClientHeight": 31,
+        "listScrollHeight": 31,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "9",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 227
+      }
+    },
+    {
+      "id": "B3-25",
+      "name": "popup layout with 25 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 25,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 631,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "9",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 201
+      }
+    },
+    {
+      "id": "B3-50",
+      "name": "popup layout with 50 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 50,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 1256,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "9",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 79
+      }
+    },
+    {
+      "id": "B3-100",
+      "name": "popup layout with 100 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 2506,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "9",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 74
+      }
+    },
+    {
+      "id": "B7-12px/auto/dark",
+      "name": "appearance 12px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          19
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 19
+      }
+    },
+    {
+      "id": "B7-12px/22/light",
+      "name": "appearance 12px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-12px/30/dark",
+      "name": "appearance 12px/30/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": 30,
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-20px/auto/light",
+      "name": "appearance 20px/auto/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": "auto",
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          31
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 31
+      }
+    },
+    {
+      "id": "B7-20px/22/dark",
+      "name": "appearance 20px/22/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 22,
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          26
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 26
+      }
+    },
+    {
+      "id": "B7-20px/30/light",
+      "name": "appearance 20px/30/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 30,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-20px/22/custom-low-contrast",
+      "name": "appearance 20px/22/custom-low-contrast with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 22,
+          "theme": "dark",
+          "customColors": true,
+          "fg": "#777777",
+          "bg": "#808080"
+        },
+        "rows": 100,
+        "rowHeights": [
+          26
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(0, 0, 0)",
+        "bg": "rgb(128, 128, 128)",
+        "mode": "dark",
+        "contrast": 5.32,
+        "expectedRowHeight": 26
+      }
+    },
+    {
+      "id": "B7-auto",
+      "name": "theme auto follows live prefers-color-scheme changes",
+      "verdict": "PASS",
+      "details": {
+        "transitions": [
+          {
+            "want": "dark",
+            "ok": true,
+            "bg": "rgb(28, 27, 34)"
+          },
+          {
+            "want": "light",
+            "ok": true,
+            "bg": "rgb(255, 255, 255)"
+          },
+          {
+            "want": "dark",
+            "ok": true,
+            "bg": "rgb(28, 27, 34)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B7-options",
+      "name": "options: live preview, saved separately, hints, reset keeps behaviour settings",
+      "verdict": "PASS",
+      "details": {
+        "livePreview": "20px",
+        "stored": {
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#777777",
+          "bg": "#808080",
+          "fontSize": 20,
+          "rowHeight": 22,
+          "sort": "alpha",
+          "autoLockMinutes": 7
+        },
+        "hints": {
+          "contrast": true,
+          "row": true,
+          "rowText": "Bei dieser Schriftgröße werden Zeilen 26 px hoch, damit kein Text abgeschnitten wird.",
+          "out": "20 px"
+        },
+        "reset": {
+          "theme": "auto",
+          "customColors": false,
+          "fg": "#e8e6e3",
+          "bg": "#1c1b22",
+          "fontSize": 16,
+          "rowHeight": "auto",
+          "sort": "alpha",
+          "autoLockMinutes": 7
+        },
+        "previewAfterReset": "16px"
+      }
+    },
+    {
+      "id": "B8-1",
+      "name": "hover highlights the whole row (name/code/free space/icon, scrolled rows) in light/dark/auto, no layout shift, contrast >= 4.5",
+      "verdict": "PASS",
+      "details": {
+        "cases": [
+          {
+            "theme": "dark",
+            "system": "-",
+            "expectedHover": "#302f35",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#302f35"
+            },
+            "contrastOnHover": 10.65,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "light",
+            "system": "-",
+            "expectedHover": "#e7e7e7",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#e7e7e7"
+            },
+            "contrastOnHover": 15.81,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "auto",
+            "system": "dark",
+            "expectedHover": "#302f35",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#302f35"
+            },
+            "contrastOnHover": 10.65,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "auto",
+            "system": "light",
+            "expectedHover": "#e7e7e7",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#e7e7e7"
+            },
+            "contrastOnHover": 15.81,
+            "transition": "0.08s",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "B8-2",
+      "name": "keyboard focus shows a visible inset outline without layout shift",
+      "verdict": "PASS",
+      "details": {
+        "isRow": true,
+        "focusVisible": true,
+        "outline": "solid 2px",
+        "offset": "-2px",
+        "rect": [
+          0,
+          6,
+          262,
+          25
+        ]
+      }
+    },
+    {
+      "id": "B8-3",
+      "name": "prefers-reduced-motion disables the hover transition",
+      "verdict": "PASS",
+      "details": {
+        "transitionDuration": "0s"
+      }
+    },
+    {
+      "id": "B3-copy",
+      "name": "click copies (writeText resolved), indicator shown and reset",
+      "verdict": "PASS",
+      "details": {
+        "copied": true,
+        "announce": "Code kopiert",
+        "indicatorReset": true
+      }
+    },
+    {
+      "id": "B6-2",
+      "name": "no secrets in responses, DOM or storage; key non-extractable",
+      "verdict": "PASS",
+      "details": {
+        "leaksFound": {
+          "responses": [],
+          "popupDom": [],
+          "optionsDom": [],
+          "storageLocal": [],
+          "sessionVault": []
+        },
+        "keyType": "[object CryptoKey]",
+        "extractable": false,
+        "exportKey": "InvalidAccessError",
+        "sessionKeys": [
+          "session",
+          "vault"
+        ],
+        "previewCounts": {
+          "new": 4,
+          "duplicate": 1,
+          "name-conflict": 1,
+          "invalid": 5
+        }
+      }
+    },
+    {
+      "id": "B4-1",
+      "name": "create, edit, reorder, delete via options UI; stale revision rejected",
+      "verdict": "PASS",
+      "details": {
+        "before": [
+          "Example Mail 01",
+          "Demo Cloud 02",
+          "Test Bank 03"
+        ],
+        "after": [
+          "Demo Cloud 02",
+          "UI Renamed",
+          "Test Bank 03"
+        ],
+        "added": true,
+        "secretFieldClearedAfterSave": true,
+        "renamed": true,
+        "moved": true,
+        "deleted": true,
+        "staleWrite": {
+          "ok": false,
+          "error": "conflict"
+        }
+      }
+    },
+    {
+      "id": "B5-1",
+      "name": "legacy preview via file upload; no persistence; apply disabled; malformed rejected",
+      "verdict": "PASS",
+      "details": {
+        "statuses": [
+          "new",
+          "new",
+          "new",
+          "duplicate",
+          "name-conflict",
+          "new",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid"
+        ],
+        "summary": "4 neu, 1 Duplikate, 1 Namenskonflikte, 5 ungültig",
+        "applyDisabled": true,
+        "revisionUnchanged": true,
+        "storageLocalUnchanged": true,
+        "malformed": {
+          "ok": false,
+          "error": "malformed",
+          "reason": "json"
+        }
+      }
+    },
+    {
+      "id": "B3-real-1",
+      "name": "real toolbar popup: 25 accounts, 25 px rows, within Firefox max 800×600",
+      "verdict": "PASS",
+      "details": {
+        "geo": {
+          "inner": [
+            270,
+            591
+          ],
+          "rows": 25,
+          "rowHeights": [
+            25
+          ],
+          "current": [
+            "Local Test Site"
+          ],
+          "scrollable": true
+        },
+        "panel": {
+          "x": 966,
+          "y": 82,
+          "w": 270,
+          "h": 591,
+          "panelState": "open"
+        },
+        "toolbarInput": "OK,OK"
+      }
+    },
+    {
+      "id": "B3-real-2",
+      "name": "active-site highlight after a real toolbar click (activeTab)",
+      "verdict": "PASS",
+      "details": {
+        "highlighted": [
+          "Local Test Site"
+        ]
+      }
+    },
+    {
+      "id": "B3-real-3",
+      "name": "real popup: list scrolls to the last account; footer stays visible",
+      "verdict": "PASS",
+      "details": {
+        "scrollTop": 65,
+        "maxScroll": 65,
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "lastName": "Local Test Site"
+      }
+    },
+    {
+      "id": "B3-real-4a",
+      "name": "real popup: script click without user activation is refused (error indicator)",
+      "verdict": "PASS",
+      "details": {
+        "indicator": "error"
+      }
+    },
+    {
+      "id": "B8-real",
+      "name": "real popup: real pointer hover highlights rows, incl. the scrolled-in current-site row",
+      "verdict": "PASS",
+      "details": {
+        "normalRow": {
+          "input": "OK",
+          "hover": true,
+          "current": false,
+          "bg": "#302f35",
+          "hoverToken": "#302f35",
+          "currentHoverToken": "#645427"
+        },
+        "currentSiteRow": {
+          "input": "OK",
+          "hover": true,
+          "current": true,
+          "bg": "#645427",
+          "hoverToken": "#302f35",
+          "currentHoverToken": "#645427"
+        }
+      }
+    },
+    {
+      "id": "B3-real-6",
+      "name": "real popup: real mouse wheel scrolls to the last account; footer visible",
+      "verdict": "PASS",
+      "details": {
+        "input": "OK",
+        "scrollTop": 65,
+        "maxScroll": 65,
+        "lastRowVisible": true,
+        "footerVisible": true
+      }
+    },
+    {
+      "id": "B3-real-4",
+      "name": "real popup: real mouse click copies the code (first and scrolled-in row)",
+      "verdict": "PASS",
+      "details": {
+        "firstRow": {
+          "which": "code",
+          "input": "OK",
+          "indicator": "ok",
+          "checkIcon": true,
+          "writes": 1,
+          "clipboardMatchesRow": true
+        },
+        "lastRow": {
+          "which": "code",
+          "input": "OK",
+          "indicator": "ok",
+          "checkIcon": true,
+          "writes": 1,
+          "clipboardMatchesRow": true
+        }
+      }
+    },
+    {
+      "id": "B3-real-5",
+      "name": "real popup: click on name, code, free space and icon copies the same code once, with check mark",
+      "verdict": "PASS",
+      "details": {
+        "firstRow": [
+          {
+            "which": "name",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "code",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "free",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "icon",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          }
+        ],
+        "lastRow": [
+          {
+            "which": "name",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "code",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "free",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          },
+          {
+            "which": "icon",
+            "input": "OK",
+            "indicator": "ok",
+            "checkIcon": true,
+            "writes": 1,
+            "clipboardMatchesRow": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "B3-real-7",
+      "name": "real popup: double-click on the copy icon writes the clipboard once",
+      "verdict": "PASS",
+      "details": {
+        "inputs": [
+          "OK",
+          "OK"
+        ],
+        "writes": 1
+      }
+    },
+    {
+      "id": "B6-3",
+      "name": "lock wipes key and vault; popup shows locked view",
+      "verdict": "PASS",
+      "details": {
+        "getCodes": {
+          "ok": false,
+          "error": "locked"
+        },
+        "sessionKeys": [],
+        "lockedView": true
+      }
+    },
+    {
+      "id": "B6-4",
+      "name": "works after event page suspension and restart",
+      "verdict": "PASS",
+      "details": {
+        "startedAtBefore": 1795037270611,
+        "startedAtAfter": 1795037309616,
+        "restarted": true,
+        "revision": 1
+      }
+    },
+    {
+      "id": "B6-5",
+      "name": "auto-lock after 1 min idle wipes the session (alarm path)",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "unlocked": true,
+          "startedAt": 1795037309616
+        },
+        "after": {
+          "unlocked": false,
+          "startedAt": 1795037374659
+        },
+        "sessionKeys": []
+      }
+    }
+  ]
+}
