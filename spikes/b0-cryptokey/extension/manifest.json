@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "CTA B0 CryptoKey Spike",
+  "version": "0.0.1",
+  "description": "Test-only extension: non-extractable CryptoKey in storage.session. Synthetic data only.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{5821226e-579a-404a-9336-5ad61995f89c}",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "permissions": ["storage", "alarms"],
+  "background": { "scripts": ["background.js"], "type": "module" },
+  "action": { "default_popup": "test.html?phase=popup" }
+}

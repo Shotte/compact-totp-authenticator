@@ -1,0 +1,337 @@
+{
+  "startedAt": "2026-11-18T20:24:30.366Z",
+  "prefs": {
+    "extensions.webextensions.uuids": "{\"{5821226e-579a-404a-9336-5ad61995f89c}\":\"23acf352-a72a-41a9-9b27-367fab700bf5\"}",
+    "extensions.background.idle.timeout": 3000,
+    "extensions.openPopupWithoutUserGesture.enabled": true,
+    "browser.shell.checkDefaultBrowser": false,
+    "datareporting.policy.dataSubmissionEnabled": false,
+    "toolkit.telemetry.reportingpolicy.firstRun": false,
+    "browser.startup.homepage_override.mstone": "ignore"
+  },
+  "phases": {
+    "create": {
+      "created": {
+        "toStringTag": "[object CryptoKey]",
+        "isCryptoKey": true,
+        "type": "secret",
+        "extractable": false,
+        "algorithm": {
+          "name": "AES-GCM",
+          "length": 256
+        },
+        "usages": [
+          "encrypt",
+          "decrypt"
+        ],
+        "export_raw": "InvalidAccessError",
+        "export_jwk": "InvalidAccessError",
+        "wrapKey": "InvalidAccessError",
+        "decrypt": "OK"
+      },
+      "setNested": "OK",
+      "setTopLevel": "OK",
+      "retrievedNested": {
+        "toStringTag": "[object CryptoKey]",
+        "isCryptoKey": true,
+        "type": "secret",
+        "extractable": false,
+        "algorithm": {
+          "name": "AES-GCM",
+          "length": 256
+        },
+        "usages": [
+          "encrypt",
+          "decrypt"
+        ],
+        "export_raw": "InvalidAccessError",
+        "export_jwk": "InvalidAccessError",
+        "wrapKey": "InvalidAccessError",
+        "decrypt": "OK"
+      },
+      "retrievedTopLevel": {
+        "toStringTag": "[object CryptoKey]",
+        "isCryptoKey": true,
+        "type": "secret",
+        "extractable": false,
+        "algorithm": {
+          "name": "AES-GCM",
+          "length": 256
+        },
+        "usages": [
+          "encrypt",
+          "decrypt"
+        ],
+        "export_raw": "InvalidAccessError",
+        "export_jwk": "InvalidAccessError",
+        "wrapKey": "InvalidAccessError",
+        "decrypt": "OK"
+      }
+    },
+    "reopen": {
+      "retrieved": {
+        "toStringTag": "[object CryptoKey]",
+        "isCryptoKey": true,
+        "type": "secret",
+        "extractable": false,
+        "algorithm": {
+          "name": "AES-GCM",
+          "length": 256
+        },
+        "usages": [
+          "encrypt",
+          "decrypt"
+        ],
+        "export_raw": "InvalidAccessError",
+        "export_jwk": "InvalidAccessError",
+        "wrapKey": "InvalidAccessError",
+        "decrypt": "OK"
+      }
+    },
+    "popup": {
+      "opens": [
+        "OK",
+        "OK"
+      ],
+      "popupResults": [
+        {
+          "t": 1795033473653,
+          "url": "moz-extension://23acf352-a72a-41a9-9b27-367fab700bf5/test.html?phase=popup",
+          "retrieved": {
+            "toStringTag": "[object CryptoKey]",
+            "isCryptoKey": true,
+            "type": "secret",
+            "extractable": false,
+            "algorithm": {
+              "name": "AES-GCM",
+              "length": 256
+            },
+            "usages": [
+              "encrypt",
+              "decrypt"
+            ],
+            "export_raw": "InvalidAccessError",
+            "export_jwk": "InvalidAccessError",
+            "wrapKey": "InvalidAccessError",
+            "decrypt": "OK"
+          }
+        },
+        {
+          "t": 1795033474924,
+          "url": "moz-extension://23acf352-a72a-41a9-9b27-367fab700bf5/test.html?phase=popup",
+          "retrieved": {
+            "toStringTag": "[object CryptoKey]",
+            "isCryptoKey": true,
+            "type": "secret",
+            "extractable": false,
+            "algorithm": {
+              "name": "AES-GCM",
+              "length": 256
+            },
+            "usages": [
+              "encrypt",
+              "decrypt"
+            ],
+            "export_raw": "InvalidAccessError",
+            "export_jwk": "InvalidAccessError",
+            "wrapKey": "InvalidAccessError",
+            "decrypt": "OK"
+          }
+        }
+      ]
+    },
+    "bgBefore": {
+      "probe": {
+        "instanceId": "84a2ea61-c899-435c-81e2-095c2b2600ab",
+        "hasSession": true,
+        "key": {
+          "toStringTag": "[object CryptoKey]",
+          "isCryptoKey": true,
+          "type": "secret",
+          "extractable": false,
+          "algorithm": {
+            "name": "AES-GCM",
+            "length": 256
+          },
+          "usages": [
+            "encrypt",
+            "decrypt"
+          ],
+          "export_raw": "InvalidAccessError",
+          "export_jwk": "InvalidAccessError",
+          "wrapKey": "InvalidAccessError",
+          "decrypt": "OK"
+        }
+      },
+      "log": [
+        {
+          "event": "start",
+          "instanceId": "7c4266a5-c153-4cb9-bd23-b7a0f08b5cbb",
+          "t": 1795033472996
+        },
+        {
+          "event": "start",
+          "instanceId": "84a2ea61-c899-435c-81e2-095c2b2600ab",
+          "t": 1795033476150
+        }
+      ]
+    },
+    "bgAfter": {
+      "probe": {
+        "instanceId": "414733f2-7c6f-482e-9074-edc5ddbb1f4c",
+        "hasSession": true,
+        "key": {
+          "toStringTag": "[object CryptoKey]",
+          "isCryptoKey": true,
+          "type": "secret",
+          "extractable": false,
+          "algorithm": {
+            "name": "AES-GCM",
+            "length": 256
+          },
+          "usages": [
+            "encrypt",
+            "decrypt"
+          ],
+          "export_raw": "InvalidAccessError",
+          "export_jwk": "InvalidAccessError",
+          "wrapKey": "InvalidAccessError",
+          "decrypt": "OK"
+        }
+      },
+      "log": [
+        {
+          "event": "start",
+          "instanceId": "7c4266a5-c153-4cb9-bd23-b7a0f08b5cbb",
+          "t": 1795033472996
+        },
+        {
+          "event": "start",
+          "instanceId": "84a2ea61-c899-435c-81e2-095c2b2600ab",
+          "t": 1795033476150
+        },
+        {
+          "event": "start",
+          "instanceId": "414733f2-7c6f-482e-9074-edc5ddbb1f4c",
+          "t": 1795033485392
+        }
+      ]
+    },
+    "lock": {
+      "lock": {
+        "ok": true
+      },
+      "afterLockPage": null,
+      "afterLockBg": {
+        "instanceId": "414733f2-7c6f-482e-9074-edc5ddbb1f4c",
+        "hasSession": false,
+        "key": null
+      },
+      "heldCopyStillUsable": "OK"
+    },
+    "verifyLock": {
+      "page": null,
+      "bg": {
+        "instanceId": "414733f2-7c6f-482e-9074-edc5ddbb1f4c",
+        "hasSession": false,
+        "key": null
+      },
+      "sensitive": {
+        "ok": false,
+        "error": "locked:none"
+      }
+    },
+    "expiry": {
+      "beforeDeadline": {
+        "ok": true
+      },
+      "touchBefore": {
+        "ok": true
+      },
+      "afterDeadline": {
+        "ok": false,
+        "error": "locked:expired"
+      },
+      "sessionAfter": null,
+      "touchAfterExpiry": {
+        "ok": false,
+        "error": "locked"
+      },
+      "sessionAfterTouch": null
+    },
+    "alarmSet": {
+      "arm": {
+        "ok": true
+      }
+    },
+    "alarmCheck": {
+      "session": null,
+      "log": [
+        {
+          "event": "start",
+          "instanceId": "7c4266a5-c153-4cb9-bd23-b7a0f08b5cbb",
+          "t": 1795033472996
+        },
+        {
+          "event": "start",
+          "instanceId": "84a2ea61-c899-435c-81e2-095c2b2600ab",
+          "t": 1795033476150
+        },
+        {
+          "event": "start",
+          "instanceId": "414733f2-7c6f-482e-9074-edc5ddbb1f4c",
+          "t": 1795033485392
+        },
+        {
+          "event": "start",
+          "instanceId": "7ec5463f-b360-481e-bd63-4d1c8da231a0",
+          "t": 1795033489846
+        },
+        {
+          "event": "alarm-lock",
+          "instanceId": "7ec5463f-b360-481e-bd63-4d1c8da231a0",
+          "t": 1795033491867
+        },
+        {
+          "event": "start",
+          "instanceId": "9b0fe7e6-49fb-4074-adad-18014b6ca49d",
+          "t": 1795033499120
+        }
+      ]
+    },
+    "reloadCheck": {
+      "bgLog": [
+        {
+          "event": "start",
+          "instanceId": "71ee769f-395a-47e6-93dc-889c8879405b",
+          "t": 1795033499571
+        }
+      ]
+    }
+  },
+  "browser": {
+    "name": "firefox",
+    "version": "160.0.1",
+    "platform": "windows"
+  },
+  "install": {
+    "extension": "{5821226e-579a-404a-9336-5ad61995f89c}"
+  },
+  "finishedAt": "2026-11-18T20:25:01.461Z",
+  "observations": {
+    "onSuspendAsyncWriteCompleted": false,
+    "backgroundStarts": 5
+  },
+  "verdicts": {
+    "1 create non-extractable key": "PASS",
+    "2 store in storage.session (nested + top level)": "PASS",
+    "3a retrieve after page close/reopen (tab)": "PASS",
+    "3b retrieve in real popup, opened twice": "PASS",
+    "4 works after event page suspend/restart": "PASS",
+    "5 remains non-extractable in every context": "PASS",
+    "6 removed reliably on lock": "PASS",
+    "B0-2 gate rejects after deadline without alarm": "PASS",
+    "B0-2 alarm wipes key while extension idle": "PASS",
+    "reload clears storage.session": "PASS"
+  }
+}
