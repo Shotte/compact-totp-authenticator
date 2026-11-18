@@ -1,0 +1,247 @@
+{
+  "extName": {
+    "message": "Compact TOTP Authenticator"
+  },
+  "extDescription": {
+    "message": "Kompakte Offline-TOTP-Codes: eine Zeile pro Konto, Klick kopiert."
+  },
+  "lockedTitle": {
+    "message": "Gesperrt"
+  },
+  "unlockDemo": {
+    "message": "Mit Demodaten entsperren"
+  },
+  "demoNote": {
+    "message": "Entwicklungsversion: nur synthetische Demokonten, es wird nichts gespeichert."
+  },
+  "secondsLeft": {
+    "message": "Sekunden bis zum nächsten 30-Sekunden-Code"
+  },
+  "lock": {
+    "message": "Sperren"
+  },
+  "settings": {
+    "message": "Einstellungen"
+  },
+  "noAccounts": {
+    "message": "Keine Konten"
+  },
+  "copyCode": {
+    "message": "Code für $NAME$ kopieren",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "copied": {
+    "message": "Code kopiert"
+  },
+  "copyFailed": {
+    "message": "Kopieren fehlgeschlagen"
+  },
+  "optionsTitle": {
+    "message": "Compact TOTP Authenticator – Einstellungen"
+  },
+  "accounts": {
+    "message": "Konten"
+  },
+  "colName": {
+    "message": "Name"
+  },
+  "colSite": {
+    "message": "Website"
+  },
+  "colType": {
+    "message": "Typ"
+  },
+  "colActions": {
+    "message": "Aktionen"
+  },
+  "colStatus": {
+    "message": "Status"
+  },
+  "moveUp": {
+    "message": "Hoch"
+  },
+  "moveDown": {
+    "message": "Runter"
+  },
+  "edit": {
+    "message": "Bearbeiten"
+  },
+  "delete": {
+    "message": "Löschen"
+  },
+  "confirmDelete": {
+    "message": "„$NAME$“ löschen?",
+    "placeholders": {
+      "name": {
+        "content": "$1"
+      }
+    }
+  },
+  "deleted": {
+    "message": "Gelöscht"
+  },
+  "saved": {
+    "message": "Gespeichert"
+  },
+  "addAccount": {
+    "message": "Konto hinzufügen"
+  },
+  "editAccount": {
+    "message": "Konto bearbeiten"
+  },
+  "fieldName": {
+    "message": "Name"
+  },
+  "fieldSecret": {
+    "message": "Geheimer Schlüssel"
+  },
+  "fieldSecretKeep": {
+    "message": "Leer lassen, um den bisherigen Schlüssel zu behalten."
+  },
+  "fieldUrl": {
+    "message": "Website (optional)"
+  },
+  "advanced": {
+    "message": "Erweitert"
+  },
+  "fieldAlgorithm": {
+    "message": "Algorithmus"
+  },
+  "fieldDigits": {
+    "message": "Stellen"
+  },
+  "fieldPeriod": {
+    "message": "Intervall (Sekunden)"
+  },
+  "save": {
+    "message": "Speichern"
+  },
+  "cancel": {
+    "message": "Abbrechen"
+  },
+  "display": {
+    "message": "Anzeige und Sperre"
+  },
+  "sortOrder": {
+    "message": "Sortierung"
+  },
+  "sortManual": {
+    "message": "Manuell"
+  },
+  "sortAlpha": {
+    "message": "A–Z"
+  },
+  "sortRevalpha": {
+    "message": "Z–A"
+  },
+  "theme": {
+    "message": "Design"
+  },
+  "themeDark": {
+    "message": "Dunkel"
+  },
+  "themeLight": {
+    "message": "Hell"
+  },
+  "themeCustom": {
+    "message": "Eigene Farben"
+  },
+  "colorFg": {
+    "message": "Textfarbe"
+  },
+  "colorBg": {
+    "message": "Hintergrundfarbe"
+  },
+  "autoLock": {
+    "message": "Automatisch sperren nach (Minuten)"
+  },
+  "importTitle": {
+    "message": "Import aus der Originalerweiterung (totp.json)"
+  },
+  "importPreviewNote": {
+    "message": "Nur Vorschau. Das Importieren wird freigeschaltet, sobald der verschlüsselte Tresor verfügbar ist."
+  },
+  "importApply": {
+    "message": "Importieren"
+  },
+  "importCounts": {
+    "message": "$NEW$ neu, $DUP$ Duplikate, $CONFLICT$ Namenskonflikte, $INVALID$ ungültig",
+    "placeholders": {
+      "new": {
+        "content": "$1"
+      },
+      "dup": {
+        "content": "$2"
+      },
+      "conflict": {
+        "content": "$3"
+      },
+      "invalid": {
+        "content": "$4"
+      }
+    }
+  },
+  "statusNew": {
+    "message": "Neu"
+  },
+  "statusDuplicate": {
+    "message": "Duplikat (wird übersprungen)"
+  },
+  "statusNameConflict": {
+    "message": "Name mit anderem Schlüssel vorhanden"
+  },
+  "statusInvalid": {
+    "message": "Ungültig"
+  },
+  "warnShort": {
+    "message": "kurzer Schlüssel"
+  },
+  "errLocked": {
+    "message": "Gesperrt. Bitte entsperren."
+  },
+  "errConflict": {
+    "message": "Die Daten wurden zwischenzeitlich geändert; die Liste wurde neu geladen. Bitte erneut versuchen."
+  },
+  "errInvalid": {
+    "message": "Ungültige Eingabe: $REASON$",
+    "placeholders": {
+      "reason": {
+        "content": "$1"
+      }
+    }
+  },
+  "errMalformed": {
+    "message": "Die Datei ist keine gültige totp.json."
+  },
+  "errInternal": {
+    "message": "Unerwarteter Fehler."
+  },
+  "reason_name": {
+    "message": "Name fehlt oder ist zu lang"
+  },
+  "reason_url": {
+    "message": "Website zu lang"
+  },
+  "reason_secret_format": {
+    "message": "geheimer Schlüssel ist kein gültiges Base32"
+  },
+  "reason_secret_short": {
+    "message": "geheimer Schlüssel ist zu kurz (mindestens 16 Zeichen)"
+  },
+  "reason_algorithm": {
+    "message": "nicht unterstützter Algorithmus"
+  },
+  "reason_digits": {
+    "message": "Stellen müssen 6, 7 oder 8 sein"
+  },
+  "reason_period": {
+    "message": "Intervall muss 10–300 Sekunden sein"
+  },
+  "reason_unknown_account": {
+    "message": "Konto existiert nicht mehr"
+  }
+}

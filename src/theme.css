@@ -1,0 +1,25 @@
+/* Theme tokens shared by popup and options. Dark is the original compact look. */
+:root {
+  color-scheme: dark;
+  --bg: #1c1b22;
+  --fg: #e8e6e3;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #0c0c0d;
+}
+:root {
+  --hover: color-mix(in srgb, var(--fg) 10%, var(--bg));
+  --active: color-mix(in srgb, var(--fg) 18%, var(--bg));
+  --line: color-mix(in srgb, var(--fg) 18%, var(--bg));
+  --muted: color-mix(in srgb, var(--fg) 62%, var(--bg));
+  --current: color-mix(in srgb, #d9a400 32%, var(--bg));
+  --ok: #3fb950;
+  --err: #f85149;
+}
+html, body { background: var(--bg); color: var(--fg); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}

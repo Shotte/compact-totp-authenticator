@@ -7,6 +7,13 @@
   "type": "module",
   "scripts": {
     "test": "node --test \"test/**/*.test.mjs\" \"spikes/**/*.test.mjs\"",
+    "test:browser": "node test/browser/run-browser-tests.mjs",
+    "lint": "web-ext lint --source-dir src",
+    "start": "web-ext run --source-dir src",
+    "build": "web-ext build --source-dir src --overwrite-dest",
     "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs"
+  },
+  "devDependencies": {
+    "web-ext": "10.8.0"
   }
 }
