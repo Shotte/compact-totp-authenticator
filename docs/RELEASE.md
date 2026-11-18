@@ -56,6 +56,16 @@ reviewed pull requests. The operator owns releases and AMO submissions; AMO API
 credentials are kept outside both repositories and outside CI until signing automation
 is explicitly approved. Conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## 4a-2. Licensing decision
+
+Final decision (operator, 2026-11-19): **MIT** (`SPDX-License-Identifier: MIT`). The root
+`LICENSE` holds the unmodified MIT text with the notices of this project and of the
+original project (Copyright (c) 2017 Rayquaza01), whose notice must be preserved.
+`src/LICENSE` is an identical copy so the extension package carries the notice (enforced by
+a static test). Audit 2026-11-19: no third-party runtime code, fonts, icons or images are
+bundled (all icons are original SVGs); `web-ext` (MPL-2.0) is a development tool only and
+not shipped.
+
 ## 4b. Future AMO distribution
 
 The project is open source (MIT, attribution to Rayquaza01/authenticator kept in
@@ -72,6 +82,9 @@ upload is required.
 - [ ] Secret-leak grep, fixtures synthetic
 - [ ] Manual test on Firefox current release (160) and ESR 140, Windows
 - [ ] `web-ext build`; XPI contains only `src/`
+- [ ] Licensing and attribution: XPI contains `LICENSE` (MIT, identical to the repository
+      root, both copyright notices); no new third-party code, fonts, icons or images without
+      a compatible license and required attribution; README attribution unchanged
 - [ ] Operator approval → `web-ext sign --channel=unlisted`
 - [ ] Tag release, attach signed XPI, update `updates.json` if used
 

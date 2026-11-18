@@ -3,9 +3,12 @@
 Firefox WebExtension that shows TOTP codes in an ultra-compact popup: one 25 px row per
 account, name left, code right, click to copy.
 
-Independent fork of [Rayquaza01/authenticator](https://github.com/Rayquaza01/authenticator)
-(MIT, discontinued 2025 because its encryption was insecure). CTA keeps the compact UI and
-replaces storage, encryption and import/export.
+Based on [Rayquaza01/authenticator](https://github.com/Rayquaza01/authenticator) (MIT),
+which was discontinued in 2025 because its encryption was insecure. CTA keeps the original's
+compact interface concept and implements a substantially new security and storage
+architecture (new code, encryption, key handling, import/export). It is an independent
+project, not affiliated with or endorsed by the original author, and not an official
+continuation of the original extension.
 
 ## Status
 
@@ -59,4 +62,9 @@ tab), not in public issues. Never include real TOTP secrets in issues or pull re
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Contains design concepts from Rayquaza01/authenticator (MIT).
+SPDX-License-Identifier: MIT
+
+MIT, see [LICENSE](LICENSE), which keeps the copyright notice of the original project
+(Copyright (c) 2017 Rayquaza01). The interface concept comes from Rayquaza01/authenticator;
+no code or assets of the original are included. The extension package ships the same
+LICENSE file. No third-party runtime libraries, fonts or icons are bundled.
