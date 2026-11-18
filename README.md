@@ -14,7 +14,8 @@ TOTP, legacy import preview, background-only key boundary. Development build wit
 synthetic in-memory demo data only; nothing is persisted until Phase C.
 
 `npm test` (unit/regression/static), `npm run lint` (web-ext), `npm run test:browser`
-(Firefox via WebDriver BiDi), `npm start` (run in Firefox), `npm run spike:b0`.
+(Firefox via WebDriver BiDi; `npm run test:browser:os` adds real Windows mouse input for the
+toolbar popup), `npm start` (run in Firefox), `npm run spike:b0`.
 Evidence: [docs/evidence/phase-b](docs/evidence/phase-b/README.md). See:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – upstream analysis, target architecture, plan

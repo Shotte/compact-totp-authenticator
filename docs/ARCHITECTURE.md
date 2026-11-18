@@ -133,6 +133,29 @@ name, secret and URL in the first release. Array order is the manual order.
   the period counter changes (fixes the stale-code bug). Refreshes do not extend the
   lock deadline; a `locked` answer switches the popup to the unlock form.
 - Locked state: compact password field inside the same popup width.
+- The whole row is one `<button>`; its children ignore pointer events, so a click anywhere
+  (name, code, free space, icon) fires exactly one copy. Clicks during the 1 s confirmation
+  are ignored. The list has `tabindex="-1"`, so Tab goes straight to the rows.
+- Toolbar placement: `action.default_area = "navbar"` (one-click access like the original;
+  Firefox would otherwise put the button into the extensions menu).
+
+### 2.4.1 Appearance (B7, B8)
+
+Settings live in `storage.local.settings`, separate from vault data:
+`theme` (`auto` default, `light`, `dark`), `customColors` + `fg`/`bg`, `fontSize` 12–20 px
+(default 16), `rowHeight` `auto` (default; 25 px at 16 px) / 22 / 25 / 30.
+
+- `lib/appearance.js` (pure, unit-tested) derives all color tokens from fg/bg and
+  enforces WCAG contrast: text ≥ 4.5:1 on every background token, icons ≥ 3:1. An
+  unreadable custom text color is replaced by black or white.
+- Fixed row heights are raised to `ceil(1.2 × fontSize) + 2` px so text never clips.
+- `lib/ui.js applyAppearance()` sets the tokens as CSS variables; `auto` follows
+  `prefers-color-scheme` live. `rows.css` is shared by popup and options preview.
+- Hover: background-only change to `--hover` (lighter in dark, light gray in light), the
+  current-site row uses `--current-hover`; 80 ms transition, none with
+  `prefers-reduced-motion`; keyboard focus is a 2 px inset outline (no layout shift).
+- Options page: live preview, segmented color scheme, font slider, row-height radios,
+  reset of appearance settings only.
 
 ### 2.5 Repository structure
 
