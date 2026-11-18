@@ -49,9 +49,9 @@ release).
 
 ## 4a. Repository
 
-Private Forgejo is the development authority; `main` is protected and changes arrive via
-reviewed feature branches. A public GitHub mirror is optional. Signing credentials never
-enter either repository.
+Private Forgejo is the development authority; changes reach `main` only via reviewed feature
+branches. A public GitHub mirror is optional. Signing credentials never enter either
+repository. Address and Git conventions: [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## 5. Release checklist (Phase D)
 

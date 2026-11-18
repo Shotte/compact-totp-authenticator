@@ -17,6 +17,7 @@ Architecture approved with conditions; B0 security spike done
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
 - [docs/MIGRATION.md](docs/MIGRATION.md) – legacy `totp.json` import
 - [docs/RELEASE.md](docs/RELEASE.md) – Manifest version, extension ID, signing, updates
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – repository (private Forgejo), Git conventions
 
 ## Principles
 
