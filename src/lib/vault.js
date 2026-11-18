@@ -16,9 +16,18 @@ export class VaultError extends Error {
   constructor(reason, message = reason) { super(`vault:${message}`); this.code = "vault"; this.reason = reason; }
 }
 
-const b64Len = (s, n) => { try { return typeof s === "string" && fromB64(s).length === n; } catch { return false; } };
+// Length is bounded BEFORE decoding, so untrusted header fields cannot cause large decode work.
+const b64Len = (s, n) => { try { return typeof s === "string" && s.length <= 4 * Math.ceil(n / 3) && fromB64(s).length === n; } catch { return false; } };
+export const MAX_CIPHERTEXT_LENGTH = 8 * 1024 * 1024; // base64 chars; ~6 MB plaintext, far above real vaults
 const exactKeys = (o, keys) => o && typeof o === "object" && !Array.isArray(o) &&
   Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
+
+// Bounded KDF parameters. Checked before any key derivation, so untrusted (not yet
+// authenticated) header data can never trigger unbounded work.
+export const isValidKdf = (kdf) =>
+  exactKeys(kdf, ["name", "hash", "iterations", "salt"]) && kdf.name === "PBKDF2" && kdf.hash === "SHA-256" &&
+  Number.isSafeInteger(kdf.iterations) && kdf.iterations >= MIN_ITERATIONS && kdf.iterations <= MAX_ITERATIONS &&
+  b64Len(kdf.salt, 16);
 
 // Strict header check before any decryption. Throws VaultError.
 export function validateVault(v) {
@@ -27,12 +36,10 @@ export function validateVault(v) {
   const { revision, kdf, cipher, ciphertext } = v;
   const ok = exactKeys(v, KEYS) &&
     Number.isSafeInteger(revision) && revision >= 1 &&
-    exactKeys(kdf, ["name", "hash", "iterations", "salt"]) && kdf.name === "PBKDF2" && kdf.hash === "SHA-256" &&
-    Number.isSafeInteger(kdf.iterations) && kdf.iterations >= MIN_ITERATIONS && kdf.iterations <= MAX_ITERATIONS &&
-    b64Len(kdf.salt, 16) &&
+    isValidKdf(kdf) &&
     exactKeys(cipher, ["name", "iv", "tagLength"]) && cipher.name === "AES-GCM" && cipher.tagLength === 128 &&
     b64Len(cipher.iv, 12) &&
-    typeof ciphertext === "string" && ciphertext.length > 0;
+    typeof ciphertext === "string" && ciphertext.length > 0 && ciphertext.length <= MAX_CIPHERTEXT_LENGTH;
   if (!ok) throw new VaultError("header");
   return v;
 }
