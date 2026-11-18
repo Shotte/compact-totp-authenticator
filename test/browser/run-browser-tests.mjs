@@ -268,6 +268,9 @@ try {
     const pref = (name, v) => evalJson(chrome, v === null
       ? `async () => Services.prefs.clearUserPref("${name}")` : `async () => Services.prefs.setIntPref("${name}", ${v})`);
     const rgbHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
+    // Hosted CI runners (Windows, macOS) report prefers-reduced-motion: reduce system-wide;
+    // pin "no preference" for the transition check (B8-3 covers the reduced case).
+    await pref("ui.prefersReducedMotion", 0);
     const move = (x, y) => call("input.performActions", { context: pop, actions: [{ type: "pointer", id: "mouse",
       parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", x: Math.round(x), y: Math.round(y), duration: 0 }] }] });
     const state = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});

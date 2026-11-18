@@ -66,7 +66,8 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest, firefox: release }
-          - { os: ubuntu-latest, firefox: esr140 }
+          - { os: ubuntu-latest, firefox: esr140 }      # final ESR 140 build = strict_min_version
+          - { os: ubuntu-latest, firefox: esr-latest }  # current ESR
           - { os: windows-latest, firefox: release }
           - { os: macos-latest, firefox: release }
     runs-on: ${{ matrix.os }}
@@ -83,11 +84,16 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Install Firefox ESR 140 (official Mozilla download)
-        if: matrix.firefox == 'esr140'
+      - name: Install Firefox ESR (official Mozilla downloads)
+        if: startsWith(matrix.firefox, 'esr')
         shell: bash
         run: |
-          curl -fsSL -o firefox-esr.tar.xz "https://download.mozilla.org/?product=firefox-esr140-latest-ssl&os=linux64&lang=en-US"
+          if [ "${{ matrix.firefox }}" = esr140 ]; then
+            URL="https://ftp.mozilla.org/pub/firefox/releases/140.17.0esr/linux-x86_64/en-US/firefox-140.17.0esr.tar.xz"
+          else
+            URL="https://download.mozilla.org/?product=firefox-esr-latest-ssl&os=linux64&lang=en-US"
+          fi
+          curl -fsSL -o firefox-esr.tar.xz "$URL"
           mkdir -p "$RUNNER_TEMP/firefox-esr" && tar -xJf firefox-esr.tar.xz -C "$RUNNER_TEMP/firefox-esr"
           echo "FIREFOX_BIN=$RUNNER_TEMP/firefox-esr/firefox/firefox" >> "$GITHUB_ENV"
       - name: Firefox version
