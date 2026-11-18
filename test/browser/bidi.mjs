@@ -1,6 +1,6 @@
 // Minimal WebDriver BiDi client for Firefox's built-in endpoint (no geckodriver, no deps).
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -49,10 +49,21 @@ export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
   }
 
   // Hard termination of the whole browser process tree (simulated crash / power loss).
-  async function kill(browserPid) {
-    spawnSync("taskkill", ["/F", "/T", "/PID", String(browserPid)], { stdio: "ignore", windowsHide: true });
+  // browserPid: the main browser process (Services.appinfo.processID); defaults to the
+  // spawned process, which on Linux/macOS is Firefox itself.
+  async function kill(browserPid = proc.pid) {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/F", "/T", "/PID", String(browserPid)], { stdio: "ignore", windowsHide: true });
+    } else {
+      try { process.kill(browserPid, "SIGKILL"); } catch { /* already gone */ }
+    }
     try { ws.close(); } catch { /* already gone */ }
-    await sleep(1500);
+    // Wait until the dead process has released the profile lock, else the restart fails.
+    const lock = join(profile, process.platform === "win32" ? "parent.lock" : "lock");
+    for (let i = 0; i < 80; i++) {
+      try { unlinkSync(lock); break; } catch (e) { if (e.code === "ENOENT") break; await sleep(250); }
+    }
+    await sleep(500);
   }
-  return { call, close, kill, profile };
+  return { call, close, kill, profile, pid: proc.pid };
 }

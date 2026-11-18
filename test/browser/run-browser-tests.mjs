@@ -27,9 +27,11 @@ const BASE = `moz-extension://${UUID}/`;
 const IDLE_MS = 3000;
 const LEGACY_PATH = join(root, "test/fixtures/legacy-synthetic.json");
 const LEGACY_TEXT = readFileSync(LEGACY_PATH, "utf8");
+// Synthetic test passwords (C2). Never real credentials.
+const PW = "correct horse battery staple 2026", PW2 = "zweites Passwort für den Wechsel ✓", PW3 = "dritte Passphrase für Absturztests";
 const SECRETS = [...syntheticAccounts(100).map((a) => a.secret),
   ...JSON.parse(LEGACY_TEXT).otp_list.map((e) => e?.key).filter((k) => typeof k === "string" && k.length >= 16)];
-const leaks = (text) => SECRETS.filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
+const leaks = (text) => [...SECRETS, PW, PW2, PW3].filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
 
 // Chrome-scope access to Services: a global in current Firefox, a module import in ESR 140.
 const SVC = "(typeof Services !== \"undefined\" ? Services : ChromeUtils.importESModule(\"resource://gre/modules/Services.sys.mjs\").Services)";
@@ -43,7 +45,7 @@ function record(id, name, pass, details) {
   console.log(`${pass ? "PASS" : "FAIL"}  ${id}  ${name}`);
 }
 
-const ff = await launchFirefox({ firefox: FIREFOX, prefs: {
+const PREFS = {
   "extensions.webextensions.uuids": JSON.stringify({ [EXT_ID]: UUID }),
   "extensions.background.idle.timeout": IDLE_MS,
   "intl.locale.requested": "de",
@@ -51,8 +53,12 @@ const ff = await launchFirefox({ firefox: FIREFOX, prefs: {
   "datareporting.policy.dataSubmissionEnabled": false,
   "toolkit.telemetry.reportingpolicy.firstRun": false,
   "browser.startup.homepage_override.mstone": "ignore",
-} });
-const { call } = ff;
+  // Restart tests: keep extension storage and UUID when the temporary add-on is reinstalled.
+  "extensions.webextensions.keepStorageOnUninstall": true,
+  "extensions.webextensions.keepUuidOnUninstall": true,
+};
+let ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS });
+const call = (method, params) => ff.call(method, params);
 
 async function evalJson(ctx, fnSource) {
   const r = await call("script.evaluate", { target: { context: ctx }, awaitPromise: true,
@@ -91,30 +97,62 @@ try {
   const s = await call("session.new", { capabilities: {} });
   evidence.browser = { version: s.capabilities.browserVersion, platform: s.capabilities.platformName };
   evidence.install = await call("webExtension.install", { extensionData: { type: "path", path: join(root, "src") } });
-  const opt = (await call("browsingContext.create", { type: "tab" })).context;
-  const pop = (await call("browsingContext.create", { type: "tab" })).context;
+  let opt = (await call("browsingContext.create", { type: "tab" })).context;
+  let pop = (await call("browsingContext.create", { type: "tab" })).context;
   await call("browsingContext.setViewport", { context: pop, viewport: { width: 270, height: 600 } });
   // Harness capability: privileged chrome-scope evaluation (used to flip Firefox prefs at
   // runtime). Not available in Firefox ESR 140; dependent checks are then NOT_TESTED.
-  const chromeTop = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0]?.context;
+  let chromeTop = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0]?.context;
   const CHROME_OK = chromeTop ? await evalJson(chromeTop, `async () => typeof Services !== "undefined" || typeof ChromeUtils !== "undefined"`).catch(() => false) : false;
   const NO_CHROME = "harness: privileged chrome scope unavailable in this Firefox version";
   evidence.chromeScopePrivileged = CHROME_OK;
   await open(opt, "options/options.html");
 
+  // Harness helpers (C2): real master-password vaults instead of the removed demo unlock.
+  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next"]);
+    await browser.storage.session.clear(); }`);
+  async function resetVault(n, password = PW) {
+    await wipeVault();
+    const r = await msg(opt, "setup", { password, confirm: password });
+    if (!r.ok) throw new Error("setup failed: " + JSON.stringify(r));
+    let revision = 1;
+    for (const a of syntheticAccounts(n)) {
+      const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
+        algorithm: a.algorithm, digits: a.digits, period: a.period } });
+      if (!res.ok) throw new Error("addAccount failed: " + JSON.stringify(res));
+      revision = res.result.revision;
+    }
+    return revision;
+  }
+  // Hard kill (simulated crash), relaunch with the same profile, reinstall the extension.
+  async function restart() {
+    const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+    const profile = ff.profile;
+    await ff.kill(pid);
+    ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS, profile });
+    await call("session.new", { capabilities: {} });
+    await call("webExtension.install", { extensionData: { type: "path", path: join(root, "src") } });
+    opt = (await call("browsingContext.create", { type: "tab" })).context;
+    pop = (await call("browsingContext.create", { type: "tab" })).context;
+    await call("browsingContext.setViewport", { context: pop, viewport: { width: 270, height: 600 } });
+    chromeTop = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0]?.context;
+    await open(opt, "options/options.html");
+  }
+
   // B6: locked by default, every sensitive command fails closed
   {
     const st = await msg(opt, "status");
     const r = await Promise.all(["getCodes", "listAccounts", "activity"].map((c) => msg(opt, c)));
-    const page = await waitFor(opt, "document.body.dataset.state === 'locked'");
-    record("B6-1", "locked by default; sensitive commands rejected", st.result.unlocked === false &&
+    const page = await waitFor(opt, "document.body.dataset.state === 'locked' && document.body.dataset.locked === 'setup'");
+    record("B6-1", "fresh install: not initialized, setup shown, sensitive commands rejected", st.result.unlocked === false &&
+      st.result.initialized === false &&
       r.every((x) => x.ok === false && x.error === "locked") && page, { status: st, responses: r });
   }
 
   // B3: layout for 1/25/50/100 accounts
   const layouts = {};
   for (const n of [1, 25, 50, 100]) {
-    await msg(opt, "devUnlock", { count: n });
+    await resetVault(n);
     const t0 = Date.now();
     await open(pop, "popup/popup.html");
     const rendered = await waitFor(pop, `document.body.dataset.rendered === "${n}"`, 10000);
@@ -389,12 +427,12 @@ try {
       let exportable = "unknown";
       try { await crypto.subtle.exportKey("raw", sess.session.key); exportable = "EXPORTED"; }
       catch (e) { exportable = e.name; }
-      return { local: JSON.stringify(local), vault: JSON.stringify(sess.vault ?? null),
+      return { local: JSON.stringify(local), session: JSON.stringify(sess),
         keyType: Object.prototype.toString.call(sess.session?.key), extractable: sess.session?.key?.extractable,
         exportable, sessionKeys: Object.keys(sess) }; }`);
     const found = {
       responses: leaks(JSON.stringify(resp)), popupDom: leaks(dom.popup), optionsDom: leaks(dom.options),
-      storageLocal: leaks(store.local), sessionVault: leaks(store.vault) };
+      storageLocal: leaks(store.local), storageSession: leaks(store.session) };
     const pass = Object.values(found).every((a) => a.length === 0) && resp.codes.ok && resp.list.ok &&
       resp.preview.ok && store.keyType === "[object CryptoKey]" && store.extractable === false &&
       store.exportable === "InvalidAccessError" && !resp.list.result.accounts.some((a) => "secret" in a);
@@ -405,7 +443,7 @@ try {
 
   // B4: account management through the options UI
   {
-    await msg(opt, "devUnlock", { count: 3 });
+    await resetVault(3);
     await open(opt, "options/options.html");
     await waitFor(opt, "document.querySelectorAll('#accounts tbody tr').length === 3");
     const names = () => evalJson(opt, `async () => [...document.querySelectorAll("#accounts td.name")].map((t) => t.textContent)`);
@@ -471,7 +509,7 @@ try {
     const srv = createServer((q, s) => { s.setHeader("content-type", "text/html"); s.end("<title>local</title>local test page"); });
     await new Promise((r) => srv.listen(0, "127.0.0.1", r));
     try {
-      await msg(opt, "devUnlock", { count: 24 });
+      await resetVault(24);
       const { result: { revision } } = await msg(opt, "listAccounts");
       await msg(opt, "addAccount", { revision, account: { name: "Local Test Site", secret: syntheticSecret(500), url: "localhost" } });
       const site = (await call("browsingContext.create", { type: "tab" })).context;
@@ -647,7 +685,7 @@ try {
 
   // B6: lock wipes session; popup falls back to the locked view
   {
-    await msg(opt, "devUnlock", { count: 25 });
+    await resetVault(25);
     await msg(opt, "lock");
     const codes = await msg(opt, "getCodes");
     const sess = await evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
@@ -659,7 +697,7 @@ try {
 
   // B6: event page suspension/restart keeps the session usable
   {
-    await msg(opt, "devUnlock", { count: 25 });
+    await resetVault(25);
     const a = await msg(opt, "status");
     const c1 = await msg(opt, "getCodes");
     await call("browsingContext.navigate", { context: pop, url: "about:blank", wait: "complete" });
@@ -675,7 +713,7 @@ try {
   // B6: auto-lock via alarm while idle (1 minute setting)
   {
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { autoLockMinutes: 1 } })`);
-    await msg(opt, "devUnlock", { count: 3 });
+    await resetVault(3);
     const before = await msg(opt, "status");
     const t0 = Date.now();
     await sleep(61_000);
@@ -694,13 +732,220 @@ try {
       !atDeadline.result.unlocked && wipedAfterMs !== null,
     { before: before.result, atDeadline: atDeadline.result, alarmWipedAfterSeconds: wipedAfterMs && Math.round(wipedAfterMs / 1000) });
   }
+  // ===== C2: master-password workflows on real storage.local / storage.session =====
+  const localSnap = () => evalJson(opt, `async () => JSON.stringify(await browser.storage.local.get())`);
+  const fill = (ctx, formId, values) => evalJson(ctx, `async () => { const f = document.getElementById(${JSON.stringify(formId)});
+    for (const [k, v] of Object.entries(${JSON.stringify(values)})) { const el = f.elements[k]; if (el.type === "checkbox") el.checked = v; else el.value = v; }
+    f.requestSubmit(); return true; }`);
+  const accountCount = async () => (await msg(opt, "listAccounts")).result?.accounts.length;
+  const sessionKeys = () => evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
+  const median = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+  let current = PW;
+
+  // C2-1: initial setup through the options UI
+  {
+    await wipeVault();
+    await open(opt, "options/options.html");
+    const setupShown = await waitFor(opt, "document.body.dataset.locked === 'setup'");
+    // minlength only constrains user typing; the service enforces 12+ characters regardless.
+    await fill(opt, "setupForm", { password: "eleven chrs", confirm: "eleven chrs" });
+    await waitFor(opt, `document.getElementById("message").textContent.includes("12 Zeichen")`, 10000);
+    const shortBlocked = await evalJson(opt, `async () => document.getElementById("message").textContent.includes("12 Zeichen")`);
+    await fill(opt, "setupForm", { password: PW, confirm: PW + "!" });
+    await waitFor(opt, `document.getElementById("message").dataset.kind === "error"`, 10000);
+    const mismatch = await evalJson(opt, `async () => document.getElementById("message").textContent`);
+    const noVault = !(await localSnap()).includes("cta-vault");
+    await fill(opt, "setupForm", { password: PW, confirm: PW });
+    const unlocked = await waitFor(opt, "document.body.dataset.state === 'unlocked'", 15000);
+    const cleared = await evalJson(opt, `async () => [...document.querySelectorAll("input[type=password]")].every((i) => i.value === "")`);
+    const st = (await msg(opt, "status")).result;
+    record("C2-1", "setup via UI: 12+ characters, confirmation required, vault created and unlocked, inputs cleared",
+      setupShown && shortBlocked && /stimmen nicht/.test(mismatch) && noVault && unlocked && cleared && st.initialized && st.unlocked,
+      { setupShown, shortBlocked, mismatch, noVaultAfterRejected: noVault, unlocked, inputsCleared: cleared });
+  }
+
+  // C2-2: popup unlock; wrong passwords never modify persistent storage
+  {
+    await resetVault(5);
+    await msg(opt, "lock");
+    await open(pop, "popup/popup.html");
+    const unlockMode = await waitFor(pop, "document.body.dataset.locked === 'unlock'");
+    const before = await localSnap();
+    await evalJson(pop, `async () => { document.getElementById("password").value = "definitely the wrong password";
+      document.getElementById("unlockForm").requestSubmit(); return true; }`);
+    const failShown = await waitFor(pop, `document.getElementById("lockedMsg").textContent.includes("fehlgeschlagen")`, 15000);
+    const wrong = [], wrongMs = [];
+    for (const p of [PW + " ", PW.toUpperCase(), "x".repeat(1025), ""]) {
+      const t0 = Date.now(); wrong.push((await msg(opt, "unlock", { password: p })).ok); wrongMs.push(Date.now() - t0);
+    }
+    evidence.wrongPasswordMs = wrongMs; // full PBKDF2 per new guess (first two entries)
+    const after = await localSnap();
+    const sessAfterWrong = await sessionKeys();
+    await evalJson(pop, `async () => { document.getElementById("password").value = ${JSON.stringify(PW)};
+      document.getElementById("unlockForm").requestSubmit(); return true; }`);
+    const rendered = await waitFor(pop, `document.body.dataset.rendered === "5"`, 15000);
+    record("C2-2", "popup unlock: wrong passwords rejected, storage.local byte-identical, correct password shows codes",
+      unlockMode && failShown && wrong.every((x) => x === false) && before === after && !sessAfterWrong.includes("session") && rendered,
+      { unlockMode, failShown, wrongAttemptsRejected: wrong.every((x) => x === false), storageUnchanged: before === after, rendered });
+  }
+
+  // C2-3: unlock latency (600,000 iterations) and attacker-modified KDF headers
+  {
+    const times = [];
+    for (let i = 0; i < 5; i++) {
+      await msg(opt, "lock");
+      const t0 = Date.now();
+      const r = await msg(opt, "unlock", { password: PW });
+      times.push(r.ok ? Date.now() - t0 : -1);
+    }
+    await msg(opt, "lock");
+    const saved = await evalJson(opt, `async () => browser.storage.local.get()`);
+    const forge = (iterations) => evalJson(opt, `async () => { const { vault } = await browser.storage.local.get("vault");
+      vault.kdf.iterations = ${iterations}; await browser.storage.local.set({ vault }); await browser.storage.local.remove("vault_backup"); }`);
+    await forge(10_000_000); // structurally valid, maximum permitted
+    const forgedSnap = await localSnap();
+    const tF = Date.now();
+    const pending = msg(opt, "unlock", { password: PW });
+    const pings = [];
+    for (let i = 0; i < 6; i++) { const a = Date.now(); await evalJson(pop, `async () => document.title.length`); pings.push(Date.now() - a); await sleep(150); }
+    const forged = await pending;
+    const forgedMs = Date.now() - tF;
+    const forgedUnchanged = (await localSnap()) === forgedSnap;
+    await forge(1e12); // out of bounds: must be rejected before PBKDF2
+    const tO = Date.now();
+    const oversized = await msg(opt, "unlock", { password: PW });
+    const oversizedMs = Date.now() - tO;
+    await evalJson(opt, `async () => { await browser.storage.local.clear(); await browser.storage.local.set(${JSON.stringify(saved)}); }`);
+    const restored = (await msg(opt, "unlock", { password: PW })).ok;
+    evidence.unlockLatency = { iterations600kMs: times, medianMs: median(times), forged10MMs: forgedMs, oversizedRejectMs: oversizedMs, uiPingMaxMs: Math.max(...pings) };
+    record("C2-3", "unlock latency measured; 10M-iteration header fails without freezing the UI; oversized rejected before PBKDF2",
+      times.every((x) => x > 0) && forged.ok === false && forgedUnchanged && Math.max(...pings) < 500 && oversized.ok === false && oversizedMs < 300 && restored,
+      { ...evidence.unlockLatency, forgedResult: forged.reason, oversizedResult: oversized.reason, storageUnchangedByForgedAttempt: forgedUnchanged });
+  }
+
+  // C2-4: password change via UI; immediate session invalidation; no rollback to the old generation
+  {
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'", 10000);
+    await evalJson(opt, `async () => { window.__oldKey = (await browser.storage.session.get("session")).session.key; return true; }`);
+    const n = await accountCount();
+    await fill(opt, "changeForm", { current: PW, next: PW2, confirm: PW2 });
+    const lockedAfter = await waitFor(opt, "document.body.dataset.locked === 'unlock'", 20000);
+    const codes = await msg(opt, "getCodes");
+    const oldKeyDead = await evalJson(opt, `async () => { const { openVault } = await import("../lib/vault.js");
+      const { vault } = await browser.storage.local.get("vault"); try { await openVault(window.__oldKey, vault); return false; } catch { return true; } }`);
+    const snap = await localSnap();
+    const oldPw = await msg(opt, "unlock", { password: PW });
+    const oldRestore = await msg(opt, "restore", { password: PW, confirmed: true });
+    const untouched = (await localSnap()) === snap;
+    const nfd = await msg(opt, "unlock", { password: PW2.normalize("NFD") });
+    const gen = await evalJson(opt, `async () => { const s = (await browser.storage.session.get("session")).session;
+      const { vault } = await browser.storage.local.get("vault"); return s.generation === vault.kdf.salt; }`);
+    const nAfter = await accountCount();
+    current = PW2;
+    record("C2-4", "password change via UI locks at once; old key and old password dead; no rollback; new password (NFD) unlocks",
+      lockedAfter && codes.ok === false && oldKeyDead && oldPw.ok === false && oldRestore.ok === false && untouched && nfd.ok && gen && nAfter === n,
+      { lockedAfter, getCodesAfterChange: codes.error, oldKeyCannotDecrypt: oldKeyDead, oldPassword: oldPw.reason,
+        oldPasswordRestore: oldRestore.reason, storageUnchanged: untouched, sessionGenerationMatchesVault: gen, accounts: [n, nAfter] });
+  }
+
+  // C2-5: explicit recovery from a valid same-generation backup through the UI
+  {
+    const n = await accountCount();
+    const { result: { revision } } = await msg(opt, "listAccounts");
+    await msg(opt, "addAccount", { revision, account: { name: "Newest", secret: syntheticSecret(600) } });
+    await msg(opt, "lock");
+    await evalJson(opt, `async () => { const { vault } = await browser.storage.local.get("vault");
+      vault.ciphertext = (vault.ciphertext[0] === "A" ? "B" : "A") + vault.ciphertext.slice(1); await browser.storage.local.set({ vault }); }`);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.locked === 'unlock'");
+    const snap = await localSnap();
+    await fill(opt, "unlockForm", { password: PW2 });
+    const recoverShown = await waitFor(opt, "document.body.dataset.locked === 'recover'", 15000);
+    const noConfirm = await msg(opt, "restore", { password: PW2 });
+    const wrongPw = await msg(opt, "restore", { password: PW, confirmed: true });
+    const untouched = (await localSnap()) === snap;
+    await fill(opt, "recoveryForm", { password: PW2, confirmed: true });
+    const unlocked = await waitFor(opt, "document.body.dataset.state === 'unlocked'", 15000);
+    const nAfter = await accountCount();
+    record("C2-5", "damaged vault: recovery offered without writing; confirmation and correct password required; previous revision restored",
+      recoverShown && noConfirm.reason === "confirmation" && wrongPw.ok === false && untouched && unlocked && nAfter === n,
+      { recoverShown, withoutConfirmation: noConfirm.reason, wrongPassword: wrongPw.reason, storageUnchangedBeforeConfirm: untouched, accounts: [n, nAfter] });
+  }
+
+  // C2-6: browser restart (hard kill): session gone, encrypted vault persists
+  {
+    const n = await accountCount();
+    await restart();
+    const st = (await msg(opt, "status")).result;
+    const sess = await sessionKeys();
+    await open(pop, "popup/popup.html");
+    const unlockMode = await waitFor(pop, "document.body.dataset.locked === 'unlock'", 10000);
+    const tCold = Date.now();
+    const r = await msg(opt, "unlock", { password: current });
+    evidence.coldUnlockMsAfterRestart = Date.now() - tCold; // fresh process: no PBKDF2 result cache
+    const nAfter = await accountCount();
+    record("C2-6", "after a hard kill and restart: locked, session storage empty, vault persists and unlocks",
+      st.initialized && !st.unlocked && !sess.includes("session") && unlockMode && r.ok && nAfter === n,
+      { status: st, sessionKeys: sess, unlockMode, accounts: [n, nAfter], coldUnlockMs: evidence.coldUnlockMsAfterRestart });
+  }
+
+  // C2-7: termination during a burst of vault writes
+  for (const delay of [400, 1200]) {
+    const n0 = await accountCount();
+    await call("script.evaluate", { target: { context: opt }, awaitPromise: false, expression: `(async () => {
+      let { result: { revision } } = await browser.runtime.sendMessage({ cmd: "listAccounts" });
+      for (let i = 0; i < 300; i++) {
+        const r = await browser.runtime.sendMessage({ cmd: "addAccount", revision,
+          account: { name: "Crash " + i, secret: ${JSON.stringify(syntheticSecret(700))} } });
+        if (!r.ok) break; revision = r.result.revision;
+      } })()` });
+    await sleep(delay);
+    await restart();
+    let r = (await msg(opt, "unlock", { password: current })).result;
+    let restoredFromBackup = false;
+    if (r?.recoverable) { r = (await msg(opt, "restore", { password: current, confirmed: true })).result; restoredFromBackup = true; }
+    const nAfter = await accountCount();
+    record(`C2-7-${delay}`, `kill ${delay} ms into a write burst: vault opens (directly or via confirmed restore), data consistent`,
+      !!r?.unlocked && Number.isInteger(nAfter) && nAfter >= n0 && nAfter <= n0 + 300,
+      { delayMs: delay, accountsBefore: n0, accountsAfter: nAfter, restoredFromBackup });
+  }
+
+  // C2-8: termination during password rotation: exactly one password works, never none, never both
+  for (const delay of [100, 350, 800]) {
+    const next = current === PW2 ? PW3 : PW2;
+    const n0 = await accountCount();
+    await call("script.evaluate", { target: { context: opt }, awaitPromise: false,
+      expression: `browser.runtime.sendMessage(${JSON.stringify({ cmd: "changePassword", current, next, confirm: next })})` });
+    await sleep(delay);
+    await restart();
+    const tryPw = async (p) => {
+      const r = await msg(opt, "unlock", { password: p });
+      if (r.ok && r.result.recoverable) {
+        const rr = await msg(opt, "restore", { password: p, confirmed: true });
+        if (rr.ok) { await msg(opt, "lock"); return "recovered"; }
+      }
+      if (r.ok && r.result.unlocked) { await msg(opt, "lock"); return "ok"; }
+      return "no";
+    };
+    const oldResult = await tryPw(current), newResult = await tryPw(next);
+    const works = [oldResult, newResult].filter((x) => x !== "no").length;
+    const winner = newResult !== "no" ? next : current;
+    await msg(opt, "unlock", { password: winner });
+    const nAfter = await accountCount();
+    record(`C2-8-${delay}`, `kill ${delay} ms into a password change: exactly one password opens the intact vault`,
+      works === 1 && nAfter === n0, { delayMs: delay, oldPassword: oldResult, newPassword: newResult, accounts: [n0, nAfter] });
+    current = winner;
+  }
+  evidence.finalPasswordIsPW = current === PW;
+
   evidence.layouts = layouts;
 } catch (e) {
   evidence.fatal = e.stack;
   console.log(e.stack);
 } finally {
   evidence.finishedAt = new Date().toISOString();
-  await ff.close();
+  try { await ff.close(); } catch { /* browser already gone */ }
 }
 
 evidence.results = results;
