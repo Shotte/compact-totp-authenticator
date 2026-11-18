@@ -1,13 +1,14 @@
 // Minimal WebDriver BiDi client for Firefox's built-in endpoint (no geckodriver, no deps).
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function launchFirefox({ firefox, prefs, port = 9334 }) {
-  const profile = mkdtempSync(join(tmpdir(), "cta-browser-"));
+// profile: reuse an existing profile directory (restart tests); otherwise a fresh one.
+export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
+  profile ??= mkdtempSync(join(tmpdir(), "cta-browser-"));
   writeFileSync(join(profile, "user.js"), Object.entries(prefs)
     .map(([k, v]) => `user_pref(${JSON.stringify(k)}, ${JSON.stringify(v)});`).join("\n"));
   const proc = spawn(firefox, ["-profile", profile, "-no-remote", "-new-instance",
@@ -34,16 +35,24 @@ export async function launchFirefox({ firefox, prefs, port = 9334 }) {
     if (msg.type === "error") p.rej(new Error(`${p.method}: ${msg.error} ${msg.message}`));
     else p.res(msg.result);
   };
+  ws.onclose = () => { for (const p of pending.values()) p.rej(new Error("connection closed")); pending.clear(); };
   const call = (method, params = {}) => {
     const id = ++nextId;
     ws.send(JSON.stringify({ id, method, params }));
     return new Promise((res, rej) => pending.set(id, { res, rej, method }));
   };
 
-  async function close() {
+  async function close({ keepProfile = false } = {}) {
     try { await call("browser.close"); } catch { proc.kill(); }
     await sleep(1500);
-    try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile lock */ }
+    if (!keepProfile) { try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile lock */ } }
   }
-  return { call, close };
+
+  // Hard termination of the whole browser process tree (simulated crash / power loss).
+  async function kill(browserPid) {
+    spawnSync("taskkill", ["/F", "/T", "/PID", String(browserPid)], { stdio: "ignore", windowsHide: true });
+    try { ws.close(); } catch { /* already gone */ }
+    await sleep(1500);
+  }
+  return { call, close, kill, profile };
 }

@@ -7,7 +7,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
 import { startOsInput } from "./os-input.mjs";
-import { syntheticAccounts, syntheticSecret } from "../../src/lib/fixtures.js";
+import { syntheticAccounts, syntheticSecret } from "../helpers/fixtures.mjs";
 import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js";
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 

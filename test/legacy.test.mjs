@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseLegacy, previewImport, MAX_IMPORT_BYTES } from "../src/lib/legacy.js";
-import { syntheticSecret } from "../src/lib/fixtures.js";
+import { syntheticSecret } from "./helpers/fixtures.mjs";
 
 const fixture = (name) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 const LEGACY = fixture("legacy-synthetic.json");
