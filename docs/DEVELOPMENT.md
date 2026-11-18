@@ -15,6 +15,11 @@ release tags from Forgejo and never accepts direct changes.
 
 - `main`: reviewed state only. No direct commits, no automatic merges, no force pushes.
   Changes arrive through a reviewed pull request on Forgejo.
+  Server-side protection rule `main` (since 2026-11-18): `enable_push=false`, no push
+  whitelist, `apply_to_admins=true` (no bypass), `required_approvals=0` (single operator),
+  no merge whitelist. Forgejo always blocks force pushes and deletion of protected branches.
+  Verified on a temporary branch: direct push, force push and deletion rejected; PR merge
+  by the operator succeeds.
 - `feature/<phase-or-topic>` (e.g. `feature/phase-b`), `fix/<topic>`: development branches,
   pushed to `origin` with upstream tracking.
 - History is never rewritten on pushed branches (no `--force`, no rebase of pushed commits).
