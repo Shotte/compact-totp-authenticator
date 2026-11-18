@@ -19,7 +19,7 @@ export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
 
   let ws, nextId = 0;
   const pending = new Map();
-  for (let i = 0; i < 60 && !ws; i++) {
+  for (let i = 0; i < 120 && !ws; i++) { // up to 60 s: first start on slow CI runners
     try {
       const sock = new WebSocket(`ws://127.0.0.1:${port}/session`);
       await new Promise((res, rej) => { sock.onopen = res; sock.onerror = rej; });

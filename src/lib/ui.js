@@ -1,5 +1,5 @@
 // Page helpers shared by popup and options: messaging, i18n, appearance. No secrets here.
-import { themeTokens, rowHeightPx } from "./appearance.js";
+import { themeTokens, rowHeightPx, lineHeightPx } from "./appearance.js";
 
 // Calls the background. Throws an Error whose .code is locked|conflict|invalid|malformed|internal.
 export async function call(cmd, args = {}) {
@@ -34,6 +34,7 @@ export function applyAppearance(settings, root = document.documentElement) {
   }
   root.style.setProperty("--current-hover", tokens.currentHover);
   root.style.setProperty("--font-size", `${settings.fontSize}px`);
+  root.style.setProperty("--line-height", `${lineHeightPx(settings.fontSize)}px`);
   root.style.setProperty("--row-height", `${rowHeightPx(settings.fontSize, settings.rowHeight)}px`);
   root.style.colorScheme = tokens.scheme;
   root.dataset.theme = tokens.mode;

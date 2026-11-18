@@ -69,3 +69,11 @@ test("locales: identical keys, every referenced key exists", () => {
     assert.equal((v.message.match(/\$[A-Z]+\$/g) ?? []).sort().join(), (en[k].message.match(/\$[A-Z]+\$/g) ?? []).sort().join(), `placeholders ${k}`);
   }
 });
+
+test("licensing: the package ships the root MIT LICENSE unchanged", () => {
+  const root = readFileSync(join(SRC, "..", "LICENSE"), "utf8");
+  assert.equal(readFileSync(join(SRC, "LICENSE"), "utf8"), root, "src/LICENSE must equal the root LICENSE");
+  assert.match(root, /^MIT License/);
+  assert.match(root, /Copyright \(c\) 2017 Rayquaza01/, "original project's notice preserved");
+  assert.equal(JSON.parse(readFileSync(join(SRC, "..", "package.json"), "utf8")).license, "MIT");
+});
