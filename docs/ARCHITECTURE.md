@@ -101,8 +101,11 @@ Background message API (all from own pages only; errors reduced to `locked`, `co
 
 | Command | Gate | Qualifying activity | Returns |
 |---|---|---|---|
-| `status` | no | no | `{ unlocked, startedAt }` |
-| `devUnlock {count}` (Phase B only) | – | starts session | `{ unlocked }` |
+| `status` | no | no | `{ initialized, unlocked, startedAt }` |
+| `setup {password, confirm}` | – | starts session | `{ unlocked }` (12+ chars, confirmation; refuses if a vault exists) |
+| `unlock {password}` | – | starts session | `{ unlocked }` or `{ recoverable, damage, generationVerified }`; never writes |
+| `restore {password, confirmed}` | – | starts session | explicit same-generation recovery (SECURITY.md §7) |
+| `changePassword {current, next, confirm}` | yes | locks | `{ locked: true }` (SECURITY.md §11.4) |
 | `lock` | no | – | `{ unlocked: false }` |
 | `activity` | yes | yes | `{}` |
 | `getCodes` | yes | no | `{ revision, codes: [{ id, name, url, period, code, validUntil }] }` |
@@ -209,7 +212,7 @@ export and recovery come before production legacy import.
 | # | Milestone | Acceptance criteria |
 |---|---|---|
 | C1 ✔ | `vault.js`: format v1, authenticated metadata, fresh nonce; `create`/`commit`/`rotate` authenticate the key before writing, read-only `load`, explicit same-generation `restoreBackup`, staged rotation (SECURITY.md §6–7); not yet wired to storage | Tampering, wrong keys, different salts, stale/damaged copies, concurrency; fault injection at every step of commit and rotation; at least one password always opens the data |
-| C2 | Master-password setup and unlock (PBKDF2-SHA-256), password change, persistence enabled, development unlock removed | No plaintext secret in `storage.local` after any operation; failed password change leaves the old vault usable; unlock time measured |
+| C2 ✔ | Master-password setup and unlock (PBKDF2-SHA-256, NFC, 12+ chars), confirmed recovery, password change with immediate lock, persistence on `storage.local`, development unlock removed | Wrong passwords never write; old key/password dead after change; kill/restart during writes and rotation recover; latency measured (SECURITY.md §11) |
 | C3 | Session lifecycle on the persistent vault: deadline gate, alarms, `onStartup` clear, optional system-lock, re-authentication for sensitive actions | B0-2/B6 checks against the real vault; every sensitive message rejected after expiry or lock |
 | C4 | Encrypted backup export (`cta-export`), verified re-import and recovery; plaintext export only after warning and confirmation | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |
 | C5 | Production legacy `totp.json` import: preview, validation, duplicates, append-only atomic commit | Duplicates skipped; failed or interrupted import changes nothing |
