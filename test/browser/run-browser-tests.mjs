@@ -6,11 +6,16 @@ import { createServer } from "node:http";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
+import { startOsInput } from "./os-input.mjs";
 import { syntheticAccounts, syntheticSecret } from "../../src/lib/fixtures.js";
+import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js";
+import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = join(root, "docs/evidence/phase-b");
-const FIREFOX = process.argv[2] ?? "C:/Program Files/Mozilla Firefox/firefox.exe";
+const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "C:/Program Files/Mozilla Firefox/firefox.exe";
+// --os-input: real Windows mouse input for the toolbar popup (moves the cursor briefly).
+const OS_INPUT = process.argv.includes("--os-input") && process.platform === "win32";
 const EXT_ID = "{f587432b-b553-483e-b08d-4feac6378113}";
 const UUID = "6f1c2a7e-0b5d-4c3e-9a8f-1d2e3f4a5b6c"; // fixed test-profile UUID
 const BASE = `moz-extension://${UUID}/`;
@@ -135,6 +140,194 @@ try {
     }
   }
 
+  // B7: appearance extremes with 100 accounts — no clipping/overlap, uniform rows, contrast
+  {
+    const combos = [];
+    for (const fontSize of [12, 20]) for (const rowHeight of ["auto", 22, 30]) {
+      combos.push({ fontSize, rowHeight, theme: combos.length % 2 ? "light" : "dark" });
+    }
+    combos.push({ fontSize: 20, rowHeight: 22, theme: "dark", customColors: true, fg: "#777777", bg: "#808080" });
+    for (const c of combos) {
+      await evalJson(opt, `async () => browser.storage.local.set({ settings: ${JSON.stringify(c)} })`);
+      await open(pop, "popup/popup.html");
+      await waitFor(pop, `document.body.dataset.rendered === "100"`, 10000);
+      const m = await evalJson(pop, `async () => {
+        const rows = [...document.querySelectorAll("#list .row")], list = document.getElementById("list");
+        const px = (el) => getComputedStyle(el).fontSize;
+        const issues = [];
+        const check = (row, i) => {
+          const r = row.getBoundingClientRect(), [n, c, ic] = [".name", ".code", ".icon"].map((s) => row.querySelector(s));
+          const [nr, cr, ir] = [n, c, ic].map((e) => e.getBoundingClientRect());
+          if (nr.right > cr.left + 0.5) issues.push(i + ": name overlaps code");
+          if (cr.right > ir.left + 0.5) issues.push(i + ": code overlaps icon");
+          if (ir.right > r.right - 11) issues.push(i + ": icon outside padding");
+          if (c.scrollWidth > c.clientWidth + 0.5) issues.push(i + ": code truncated");
+          for (const [e, er] of [[n, nr], [c, cr]]) {
+            if (er.top < r.top - 0.5 || er.bottom > r.bottom + 0.5) issues.push(i + ": text box exceeds row");
+            if (e.scrollHeight > e.clientHeight + 0.5) issues.push(i + ": text clipped vertically");
+          }
+        };
+        rows.slice(0, 12).forEach(check);
+        list.scrollTop = list.scrollHeight;
+        await new Promise((r) => requestAnimationFrame(r));
+        const last = rows.at(-1), lr = list.getBoundingClientRect(), la = last.getBoundingClientRect();
+        check(last, rows.length - 1);
+        const f = document.querySelector("footer").getBoundingClientRect();
+        const name = rows[0].querySelector(".name");
+        return { rows: rows.length, rowHeights: [...new Set(rows.map((r) => r.getBoundingClientRect().height))],
+          nameFont: px(name), codeFont: px(rows[0].querySelector(".code")),
+          bodyWidth: document.body.getBoundingClientRect().width, bodyHeight: document.body.getBoundingClientRect().height,
+          docScrollWidth: document.documentElement.scrollWidth, issues,
+          lastRowVisible: la.top >= lr.top - 0.5 && la.bottom <= lr.bottom + 0.5,
+          footerVisible: f.top >= lr.bottom - 1 && f.bottom <= innerHeight + 0.5,
+          fg: getComputedStyle(name).color, bg: getComputedStyle(document.body).backgroundColor,
+          mode: document.documentElement.dataset.theme }; }`);
+      const toHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
+      m.contrast = Math.round(contrast(toHex(m.fg), toHex(m.bg)) * 100) / 100;
+      m.expectedRowHeight = rowHeightPx(c.fontSize, c.rowHeight);
+      const label = `${c.fontSize}px/${c.rowHeight}/${c.customColors ? "custom-low-contrast" : c.theme}`;
+      record(`B7-${label}`, `appearance ${label} with 100 accounts`, m.rows === 100 && m.rowHeights.length === 1 &&
+        m.rowHeights[0] === m.expectedRowHeight && m.nameFont === `${c.fontSize}px` && m.codeFont === `${c.fontSize}px` &&
+        m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.issues.length === 0 &&
+        m.lastRowVisible && m.footerVisible && m.contrast >= 4.5, { settings: c, ...m });
+      if ([["12", "auto"], ["20", "30"]].some(([f, r]) => String(c.fontSize) === f && String(c.rowHeight) === r) ||
+        c.customColors) {
+        await evalJson(pop, `async () => { document.getElementById("list").scrollTop = 0; }`);
+        const h = Math.ceil(m.bodyHeight);
+        const shot = await call("browsingContext.captureScreenshot", { context: pop, clip: { type: "box", x: 0, y: 0, width: 270, height: h } });
+        writeFileSync(join(OUT, `popup-appearance-${label.replace(/\//g, "-")}.png`), Buffer.from(shot.data, "base64"));
+      }
+    }
+
+    // Auto follows a live change of the Firefox color scheme (no reload)
+    await evalJson(opt, `async () => browser.storage.local.set({ settings: { theme: "auto" } })`);
+    await open(pop, "popup/popup.html");
+    await waitFor(pop, `document.body.dataset.rendered === "100"`);
+    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
+    const setScheme = (v) => evalJson(chrome, `async () => Services.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
+    const seen = [];
+    for (const v of [0, 1, 0]) { // 0 = dark, 1 = light
+      await setScheme(v);
+      const want = v === 0 ? "dark" : "light";
+      seen.push({ want, ok: await waitFor(pop, `document.documentElement.dataset.theme === "${want}"`, 3000),
+        bg: await evalJson(pop, `async () => getComputedStyle(document.body).backgroundColor`) });
+    }
+    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    record("B7-auto", "theme auto follows live prefers-color-scheme changes", seen.every((s) => s.ok) &&
+      seen[0].bg !== seen[1].bg, { transitions: seen });
+
+    // Options page: live preview, persistence, contrast hint, reset to defaults
+    await evalJson(opt, `async () => browser.storage.local.set({ settings: { sort: "alpha", autoLockMinutes: 7 } })`);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const ui = await evalJson(opt, `async () => {
+      const f = document.getElementById("settingsForm"), el = f.elements, pv = document.querySelector("#appearancePreview .name");
+      el.fontSize.value = "20"; f.dispatchEvent(new Event("input", { bubbles: true }));
+      const livePreview = getComputedStyle(pv).fontSize;
+      el.rowHeight.value = "22"; el.customColors.checked = true; el.fg.value = "#777777"; el.bg.value = "#808080";
+      f.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 200));
+      const stored = (await browser.storage.local.get("settings")).settings;
+      const hints = { contrast: !document.getElementById("contrastNote").hidden, row: !document.getElementById("rowNote").hidden,
+        rowText: document.getElementById("rowNote").textContent, out: document.getElementById("fontSizeOut").textContent };
+      document.getElementById("resetAppearance").click();
+      await new Promise((r) => setTimeout(r, 200));
+      const reset = (await browser.storage.local.get("settings")).settings;
+      return { livePreview, stored, hints, reset, previewAfterReset: getComputedStyle(pv).fontSize }; }`);
+    const r = ui.reset;
+    record("B7-options", "options: live preview, saved separately, hints, reset keeps behaviour settings",
+      ui.livePreview === "20px" && ui.stored.fontSize === 20 && ui.stored.rowHeight === 22 && ui.stored.customColors &&
+      ui.hints.contrast && ui.hints.row && ui.hints.out === "20 px" && r.theme === "auto" && r.fontSize === 16 &&
+      r.rowHeight === "auto" && r.customColors === false && r.sort === "alpha" && r.autoLockMinutes === 7 &&
+      ui.previewAfterReset === "16px", ui);
+    await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    for (const [scheme, v] of [["dark", 0], ["light", 1]]) {
+      await setScheme(v);
+      await sleep(300);
+      const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
+        s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+      const shot = await call("browsingContext.captureScreenshot", { context: opt,
+        clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+      writeFileSync(join(OUT, `options-appearance-auto-${scheme}-de.png`), Buffer.from(shot.data, "base64"));
+    }
+    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+  }
+
+  // B8: subtle row hover (trusted BiDi pointer input in the popup document)
+  {
+    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
+    const pref = (name, v) => evalJson(chrome, v === null
+      ? `async () => Services.prefs.clearUserPref("${name}")` : `async () => Services.prefs.setIntPref("${name}", ${v})`);
+    const rgbHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
+    const move = (x, y) => call("input.performActions", { context: pop, actions: [{ type: "pointer", id: "mouse",
+      parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", x: Math.round(x), y: Math.round(y), duration: 0 }] }] });
+    const state = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});
+      const r = row.getBoundingClientRect(), cs = getComputedStyle(row);
+      return { hover: row.matches(":hover"), bg: cs.backgroundColor, fg: cs.color, rect: [r.x, r.y, r.width, r.height],
+        transition: cs.transitionDuration }; }`);
+    const parts = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});
+      const r = row.getBoundingClientRect(), c = (s) => { const e = row.querySelector(s).getBoundingClientRect(); return [e.x + e.width / 2, r.y + r.height / 2]; };
+      return { name: c(".name"), code: c(".code"), free: [r.x + 4, r.y + r.height / 2], icon: c(".icon") }; }`);
+    const cases = [["dark", null], ["light", null], ["auto", 0], ["auto", 1]];
+    const out = [];
+    for (const [theme, override] of cases) {
+      if (override !== null) await pref("layout.css.prefers-color-scheme.content-override", override);
+      await evalJson(opt, `async () => browser.storage.local.set({ settings: { theme: "${theme}" } })`);
+      await open(pop, "popup/popup.html");
+      await waitFor(pop, `document.body.dataset.rendered === "100"`);
+      const tok = themeTokens({ ...DEFAULT_SETTINGS, theme }, override === 0);
+      await move(135, 595); // park the pointer on the footer
+      await sleep(150);
+      const idle = await state(1);
+      const p = await parts(1);
+      const hovered = {};
+      for (const [which, [x, y]] of Object.entries(p)) {
+        await move(x, y);
+        await sleep(150); // > 80 ms transition
+        const s = await state(1);
+        hovered[which] = { hover: s.hover, bg: rgbHex(s.bg), sameRect: JSON.stringify(s.rect) === JSON.stringify(idle.rect) };
+      }
+      await evalJson(pop, `async () => { const l = document.getElementById("list"); l.scrollTop = l.scrollHeight; }`);
+      await sleep(100);
+      const lp = await parts(-1);
+      await move(...lp.name);
+      await sleep(150);
+      const last = await state(-1);
+      const fg = rgbHex(idle.fg);
+      out.push({ theme, system: override === null ? "-" : override === 0 ? "dark" : "light", expectedHover: tok.hover,
+        idleBg: rgbHex(idle.bg), hovered, scrolledLastRow: { hover: last.hover, bg: rgbHex(last.bg) },
+        contrastOnHover: Math.round(contrast(fg, tok.hover) * 100) / 100, transition: idle.transition,
+        ok: Object.values(hovered).every((h) => h.hover && h.bg === tok.hover && h.sameRect) && last.hover &&
+          rgbHex(last.bg) === tok.hover && rgbHex(idle.bg) !== tok.hover && contrast(fg, tok.hover) >= 4.5 &&
+          idle.transition === "0.08s" });
+      if (override !== null) await pref("layout.css.prefers-color-scheme.content-override", null);
+    }
+    record("B8-1", "hover highlights the whole row (name/code/free space/icon, scrolled rows) in light/dark/auto, no layout shift, contrast >= 4.5",
+      out.every((o) => o.ok), { cases: out });
+
+    // Keyboard focus ring (Tab) without changing the row size
+    await open(pop, "popup/popup.html");
+    await waitFor(pop, `document.body.dataset.rendered === "100"`);
+    const before = await state(0);
+    await call("input.performActions", { context: pop, actions: [{ type: "key", id: "kb", actions: [
+      { type: "keyDown", value: "" }, { type: "keyUp", value: "" }] }] });
+    await sleep(150);
+    const focus = await evalJson(pop, `async () => { const a = document.activeElement, cs = getComputedStyle(a), r = a.getBoundingClientRect();
+      return { isRow: a.classList.contains("row"), focusVisible: a.matches(":focus-visible"), outline: cs.outlineStyle + " " + cs.outlineWidth,
+        offset: cs.outlineOffset, rect: [r.x, r.y, r.width, r.height] }; }`);
+    record("B8-2", "keyboard focus shows a visible inset outline without layout shift", focus.isRow && focus.focusVisible &&
+      focus.outline === "solid 2px" && focus.offset === "-2px" && JSON.stringify(focus.rect) === JSON.stringify(before.rect), focus);
+
+    // prefers-reduced-motion: no transition
+    await pref("ui.prefersReducedMotion", 1);
+    await open(pop, "popup/popup.html");
+    await waitFor(pop, `document.body.dataset.rendered === "100"`);
+    const reduced = (await state(0)).transition;
+    await pref("ui.prefersReducedMotion", null);
+    record("B8-3", "prefers-reduced-motion disables the hover transition", reduced === "0s", { transitionDuration: reduced });
+    await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+  }
+
   // B3: click-to-copy with real (trusted) pointer input and confirmation indicator
   {
     await open(pop, "popup/popup.html");
@@ -244,13 +437,29 @@ try {
       await call("browsingContext.navigate", { context: site, url: `http://localhost:${srv.address().port}/`, wait: "complete" });
       await call("browsingContext.activate", { context: site });
       const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-      // Native pointer input in the browser chrome: a real click on our toolbar button.
-      const mouse = (actions) => call("input.performActions", { context: chrome,
-        actions: [{ type: "pointer", id: "m", parameters: { pointerType: "mouse" }, actions }] });
+      // --os-input: real Windows mouse input via os-input.ps1 at CSS coordinates of the
+      // browser chrome viewport; refused unless the target window belongs to this Firefox.
+      const ffPid = await evalJson(chrome, `async () => Services.appinfo.processID`);
+      const scr = await evalJson(chrome, `async () => ({ sx: window.mozInnerScreenX, sy: window.mozInnerScreenY, dpr: window.devicePixelRatio })`);
+      const osInput = OS_INPUT ? await startOsInput(join(root, "test/browser/os-input.ps1"), ffPid) : null;
+      const osAt = async (action, x = 0, y = 0, delta = 0) => {
+        const out = await osInput.send([action, Math.round((scr.sx + x) * scr.dpr), Math.round((scr.sy + y) * scr.dpr), delta].join(" "));
+        if (out !== "OK") console.log(`os-input ${action}: ${out}`);
+        return out;
+      };
       const btn = await evalJson(chrome, `async () => { const r = document.getElementById(
         "_f587432b-b553-483e-b08d-4feac6378113_-BAP").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
-      await mouse([{ type: "pointerMove", x: Math.round(btn.x + btn.w / 2), y: Math.round(btn.y + btn.h / 2) },
-        { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }]);
+      let toolbarInput = "bidi";
+      if (OS_INPUT) {
+        // Real user flow: foreground the test Firefox, then a real click on the toolbar button.
+        toolbarInput = [await osAt("focus"), await osAt("toolbar", btn.x + btn.w / 2, btn.y + btn.h / 2)].join(",");
+      } else {
+        // Native BiDi pointer input in the browser chrome on our toolbar button.
+        await call("input.performActions", { context: chrome, actions: [{ type: "pointer", id: "m",
+          parameters: { pointerType: "mouse" }, actions: [
+            { type: "pointerMove", x: Math.round(btn.x + btn.w / 2), y: Math.round(btn.y + btn.h / 2) },
+            { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }] }] });
+      }
       const opened = await waitFor(opt, `browser.extension.getViews({ type: "popup" })[0]?.document.body.dataset.rendered === "25"`, 5000) &&
         await waitFor(chrome, `[...document.querySelectorAll("browser")].find((x) => x.currentURI?.spec?.endsWith("/popup/popup.html"))
           ?.closest("panel")?.state === "open"`, 5000); // wait for the open animation to finish
@@ -267,7 +476,7 @@ try {
       record("B3-real-1", "real toolbar popup: 25 accounts, 25 px rows, within Firefox max 800×600",
         opened && geo.rows === 25 && geo.rowHeights.length === 1 && geo.rowHeights[0] === 25 &&
         geo.inner[0] === 270 && geo.inner[0] <= 800 && geo.inner[1] <= 600 && panel.panelState === "open" &&
-        panel.w === geo.inner[0] && panel.h === geo.inner[1] && geo.scrollable, { geo, panel });
+        panel.w === geo.inner[0] && panel.h === geo.inner[1] && geo.scrollable, { geo, panel, toolbarInput });
       record("B3-real-2", "active-site highlight after a real toolbar click (activeTab)",
         JSON.stringify(geo.current) === JSON.stringify(["Local Test Site"]), { highlighted: geo.current });
 
@@ -286,30 +495,110 @@ try {
       record("B3-real-3", "real popup: list scrolls to the last account; footer stays visible",
         sc.scrollTop > 0 && Math.abs(sc.scrollTop - sc.maxScroll) <= 1 && sc.lastRowVisible && sc.footerVisible, sc);
 
-      // Click the last (now visible) row inside the real popup, then read the system
-      // clipboard in chrome. The click is synthetic (element.click()) because native input
-      // does not reach the panel; a trusted click was verified in B3-copy, a real mouse
-      // click in the toolbar popup is a manual check.
-      const target = await pv(`const row = [...d.querySelectorAll("#list .row")].at(-1);
-        const code = row.querySelector(".code").textContent; row.click(); return { code };`);
-      await sleep(300);
-      const after = await pv(`const row = [...d.querySelectorAll("#list .row")].at(-1);
-        return { copied: row.dataset.copied ?? null, code: row.querySelector(".code").textContent };`);
-      const clip = await evalJson(chrome, `async () => {
+      const readClipboard = () => evalJson(chrome, `async () => {
         const t = Cc["@mozilla.org/widget/transferable;1"].createInstance(Ci.nsITransferable);
         t.init(null); t.addDataFlavor("text/plain");
         Services.clipboard.getData(t, Services.clipboard.kGlobalClipboard, null);
         const o = {}; t.getTransferData("text/plain", o); return o.value.QueryInterface(Ci.nsISupportsString).data; }`);
-      // Expected: Firefox refuses clipboard.writeText without user activation, so the
-      // synthetic click must show the error indicator and must not write the clipboard.
-      // A copy with a real mouse click in the toolbar popup is therefore MANUAL.
-      const expectedRefusal = after.copied === "error" && clip !== target.code;
-      results.push({ id: "B3-real-4", name: "real popup click-to-copy with a real mouse click",
-        verdict: expectedRefusal ? "MANUAL" : "FAIL",
-        details: { syntheticClickIndicator: after.copied, clipboardWritten: clip === target.code,
-          note: "synthetic click correctly refused (no user activation); trusted click verified in B3-copy" } });
-      console.log(`${expectedRefusal ? "MANUAL" : "FAIL"}  B3-real-4  real popup click-to-copy with a real mouse click`);
+      const setClipboard = (text) => evalJson(chrome, `async () => Cc["@mozilla.org/widget/clipboardhelper;1"]
+        .getService(Ci.nsIClipboardHelper).copyString(${JSON.stringify(text)})`);
+
+      // A script-generated click has no user activation: Firefox must refuse the copy and
+      // the row must show the error indicator instead of the check mark.
+      await setClipboard("cta-sentinel");
+      await pv(`[...d.querySelectorAll("#list .row")].at(-1).click(); return true;`);
+      await sleep(300);
+      const synth = await pv(`return [...d.querySelectorAll("#list .row")].at(-1).dataset.copied ?? null;`);
+      record("B3-real-4a", "real popup: script click without user activation is refused (error indicator)",
+        synth === "error" && (await readClipboard()) === "cta-sentinel", { indicator: synth });
+      await sleep(1100); // busy/feedback window
+
+      if (OS_INPUT) {
+        // Real Windows mouse input at popup coordinates (os-input.ps1 only acts on this
+        // Firefox's popup panel window).
+        const os = (action, x, y, delta = 0) => osAt(action, panel.x + x, panel.y + y, delta); // async
+        // Test harness: count clipboard writes made by the popup.
+        await pv(`d.getElementById("list").scrollTop = 0;
+          w.__copies = 0; const orig = w.navigator.clipboard.writeText.bind(w.navigator.clipboard);
+          w.navigator.clipboard.writeText = (s) => { w.__copies++; return orig(s); }; return true;`);
+        const part = (rowIndex, which) => pv(`const row = [...d.querySelectorAll("#list .row")].at(${rowIndex});
+          const r = row.getBoundingClientRect(), el = ${JSON.stringify(which)} === "free" ? null : row.querySelector("." + ${JSON.stringify(which)});
+          const e = el ? el.getBoundingClientRect() : { x: r.x + 2, width: 6 };
+          return { x: e.x + e.width / 2, y: r.y + r.height / 2, code: row.querySelector(".code").textContent };`);
+        const clickParts = async (rowIndex) => {
+          const out = [];
+          for (const which of ["name", "code", "free", "icon"]) {
+            while (Date.now() % 30_000 > 26_000) await sleep(250); // avoid a code change mid-check
+            await setClipboard("cta-sentinel");
+            const before = await pv(`return w.__copies;`);
+            const tgt = await part(rowIndex, which);
+            const input = await os("click", tgt.x, tgt.y);
+            await sleep(400);
+            const st = await pv(`const row = [...d.querySelectorAll("#list .row")].at(${rowIndex});
+              return { copied: row.dataset.copied ?? null, check: !!row.querySelector(".icon path[d^='M2.5 8.5']"), copies: w.__copies };`);
+            const clip = await readClipboard();
+            out.push({ which, input, indicator: st.copied, checkIcon: st.check, writes: st.copies - before,
+              clipboardMatchesRow: clip === tgt.code });
+            await sleep(1100);
+          }
+          return out;
+        };
+        // B8 in the real popup: real pointer hover over a normal row and (after scrolling)
+        // over the current-site row; background must be the hover / current-hover token.
+        const hoverRow = async (rowIndex) => {
+          const tgt = await part(rowIndex, "name");
+          const input = await os("hover", tgt.x, tgt.y);
+          await sleep(200);
+          return { input, ...(await pv(`const row = [...d.querySelectorAll("#list .row")].at(${rowIndex}), root = d.documentElement.style;
+            const hex = (rgb) => "#" + rgb.match(/\\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
+            return { hover: row.matches(":hover"), current: !!row.closest("li.current"), bg: hex(w.getComputedStyle(row).backgroundColor),
+              hoverToken: root.getPropertyValue("--hover"), currentHoverToken: root.getPropertyValue("--current-hover") };`)) };
+        };
+        const h0 = await hoverRow(0);
+        await pv(`const l = d.getElementById("list"); l.scrollTop = l.scrollHeight; return true;`);
+        await sleep(150);
+        const hLast = await hoverRow(-1);
+        await pv(`d.getElementById("list").scrollTop = 0; return true;`);
+        record("B8-real", "real popup: real pointer hover highlights rows, incl. the scrolled-in current-site row",
+          h0.input === "OK" && h0.hover && !h0.current && h0.bg === h0.hoverToken &&
+          hLast.input === "OK" && hLast.hover && hLast.current && hLast.bg === hLast.currentHoverToken,
+          { normalRow: h0, currentSiteRow: hLast });
+
+        const firstRow = await clickParts(0);
+
+        // Real mouse wheel over the list down to the end
+        const wheelInput = await os("wheel", panel.w / 2, 200, -120 * 15);
+        await sleep(800);
+        const wheel = await pv(`const list = d.getElementById("list"), rows = [...d.querySelectorAll("#list .row")];
+          const lr = list.getBoundingClientRect(), last = rows.at(-1).getBoundingClientRect(), f = d.querySelector("footer").getBoundingClientRect();
+          return { scrollTop: list.scrollTop, maxScroll: list.scrollHeight - list.clientHeight,
+            lastRowVisible: last.top >= lr.top - 0.5 && last.bottom <= lr.bottom + 0.5, footerVisible: f.top >= lr.bottom - 1 && f.bottom <= w.innerHeight + 0.5 };`);
+        record("B3-real-6", "real popup: real mouse wheel scrolls to the last account; footer visible",
+          wheelInput === "OK" && wheel.scrollTop > 0 && Math.abs(wheel.scrollTop - wheel.maxScroll) <= 1 &&
+          wheel.lastRowVisible && wheel.footerVisible, { input: wheelInput, ...wheel });
+        const lastRow = await clickParts(-1);
+        const good = (r) => r.input === "OK" && r.indicator === "ok" && r.checkIcon && r.writes === 1 && r.clipboardMatchesRow;
+        record("B3-real-4", "real popup: real mouse click copies the code (first and scrolled-in row)",
+          good(firstRow[1]) && good(lastRow[1]), { firstRow: firstRow[1], lastRow: lastRow[1] });
+        record("B3-real-5", "real popup: click on name, code, free space and icon copies the same code once, with check mark",
+          [...firstRow, ...lastRow].every(good), { firstRow, lastRow });
+
+        // Double-click on the copy icon: exactly one write
+        while (Date.now() % 30_000 > 26_000) await sleep(250);
+        const before = await pv(`return w.__copies;`);
+        const icon = await part(-1, "icon");
+        const dbl = [await os("click", icon.x, icon.y), await os("click", icon.x, icon.y)];
+        await sleep(400);
+        const writes = (await pv(`return w.__copies;`)) - before;
+        record("B3-real-7", "real popup: double-click on the copy icon writes the clipboard once", dbl.every((x) => x === "OK") && writes === 1,
+          { inputs: dbl, writes });
+      } else {
+        results.push({ id: "B3-real-4", name: "real popup click-to-copy with a real mouse click", verdict: "MANUAL",
+          details: { note: "run with --os-input on Windows to automate with real mouse input" } });
+        console.log("MANUAL  B3-real-4  real popup click-to-copy (run with --os-input)");
+      }
       await call("browsingContext.close", { context: site });
+      osInput?.close();
     } finally {
       srv.close();
     }
