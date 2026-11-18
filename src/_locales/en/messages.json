@@ -8,12 +8,6 @@
   "lockedTitle": {
     "message": "Locked"
   },
-  "unlockDemo": {
-    "message": "Unlock with demo data"
-  },
-  "demoNote": {
-    "message": "Development build: synthetic demo accounts only, nothing is saved."
-  },
   "secondsLeft": {
     "message": "Seconds until the next 30-second code"
   },
@@ -284,5 +278,98 @@
   },
   "behavior": {
     "message": "Behavior"
+  },
+  "passwordLabel": {
+    "message": "Master password"
+  },
+  "unlockButton": {
+    "message": "Unlock"
+  },
+  "unlocking": {
+    "message": "Checking password…"
+  },
+  "unlockFailed": {
+    "message": "Unlock failed. Please check the password."
+  },
+  "notInitialized": {
+    "message": "Not set up yet. Create a master password in the settings."
+  },
+  "setupButton": {
+    "message": "Set up"
+  },
+  "setupTitle": {
+    "message": "Create master password"
+  },
+  "setupWarning": {
+    "message": "Your accounts are encrypted with this password. There is no way to recover it: if you forget it, your accounts are lost. Store it safely, e.g. in a password manager."
+  },
+  "newPassword": {
+    "message": "New master password"
+  },
+  "confirmPassword": {
+    "message": "Repeat new master password"
+  },
+  "passwordRules": {
+    "message": "At least 12 characters. Long passphrases are welcome; no special character rules."
+  },
+  "setupDone": {
+    "message": "Master password created. The vault is unlocked."
+  },
+  "openRecovery": {
+    "message": "Open recovery in settings"
+  },
+  "recoverableTitle": {
+    "message": "Restore from backup"
+  },
+  "recoverableText": {
+    "message": "The current vault is damaged, but a verified backup of the same password generation is available. Restoring it may lose the most recent change."
+  },
+  "restoreConfirm": {
+    "message": "I understand that the most recent change may be lost."
+  },
+  "restoreButton": {
+    "message": "Restore backup"
+  },
+  "restoreDone": {
+    "message": "Backup restored. The vault is unlocked."
+  },
+  "changePasswordTitle": {
+    "message": "Change master password"
+  },
+  "currentPassword": {
+    "message": "Current master password"
+  },
+  "changePasswordButton": {
+    "message": "Change password"
+  },
+  "changePasswordNote": {
+    "message": "After the change the vault is locked; unlock it with the new password."
+  },
+  "passwordChanged": {
+    "message": "Master password changed. Please unlock with the new password."
+  },
+  "reason_password": {
+    "message": "password missing or too long"
+  },
+  "reason_password_short": {
+    "message": "the password needs at least 12 characters"
+  },
+  "reason_password_long": {
+    "message": "the password is too long (max. 1024 characters)"
+  },
+  "reason_password_mismatch": {
+    "message": "the passwords do not match"
+  },
+  "reason_current_password": {
+    "message": "the current password is wrong"
+  },
+  "reason_exists": {
+    "message": "a vault already exists"
+  },
+  "reason_no_vault": {
+    "message": "no vault found"
+  },
+  "reason_confirmation": {
+    "message": "please confirm the restore"
   }
 }

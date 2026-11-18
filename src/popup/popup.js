@@ -1,18 +1,47 @@
-import { call, t, localize, applyAppearance, followSystemScheme } from "../lib/ui.js";
+import { call, t, localize, applyAppearance, followSystemScheme, errorText } from "../lib/ui.js";
 import { loadSettings } from "../lib/settings.js";
 import { sortForView, matchesSite } from "../lib/accounts.js";
 
 const $ = (id) => document.getElementById(id);
 let settings, tabUrl = null, codes = [], timer = null, refreshing = false;
 
-function showLocked() {
+// Locked view variants: "unlock" (password form), "setup" (no vault yet) and "recover"
+// (damaged vault; recovery needs explicit confirmation in the settings page).
+let lockedMode = "unlock";
+function showLocked(mode = lockedMode, message = "") {
   clearInterval(timer);
   timer = null;
   codes = [];
+  lockedMode = mode;
   $("list").replaceChildren();
   $("unlocked").hidden = true;
   $("locked").hidden = false;
+  $("unlockForm").hidden = mode !== "unlock";
+  $("openOptions").hidden = mode === "unlock";
+  $("openOptions").textContent = t(mode === "setup" ? "setupButton" : "openRecovery");
+  $("lockedMsg").textContent = message || (mode === "setup" ? t("notInitialized") : mode === "recover" ? t("recoverableText") : "");
   document.body.dataset.state = "locked";
+  document.body.dataset.locked = mode;
+  if (mode === "unlock") $("password").focus();
+}
+
+async function unlock(ev) {
+  ev.preventDefault();
+  const input = $("password");
+  $("unlockBtn").disabled = input.disabled = true;
+  $("lockedMsg").textContent = t("unlocking"); // PBKDF2 takes a moment
+  try {
+    const r = await call("unlock", { password: input.value });
+    input.value = ""; // never keep the password in the page longer than needed
+    if (r.recoverable) showLocked("recover");
+    else await showUnlocked();
+  } catch (e) {
+    input.value = "";
+    showLocked("unlock", e.reason === "unlock" ? t("unlockFailed") : errorText(e));
+  } finally {
+    $("unlockBtn").disabled = input.disabled = false;
+    if (lockedMode === "unlock" && !$("locked").hidden) input.focus();
+  }
 }
 
 async function showUnlocked() {
@@ -110,18 +139,18 @@ async function init() {
   try { tabUrl = (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.url ?? null; }
   catch { tabUrl = null; }
 
-  $("unlockDemo").addEventListener("click", async () => {
-    await call("devUnlock", { count: 25 });
-    await showUnlocked();
-  });
-  $("lock").addEventListener("click", async () => { await call("lock"); showLocked(); });
-  $("settings").addEventListener("click", () => { browser.runtime.openOptionsPage(); window.close(); });
+  $("unlockForm").addEventListener("submit", unlock);
+  $("lock").addEventListener("click", async () => { await call("lock"); showLocked("unlock"); });
+  const openOptions = () => { browser.runtime.openOptionsPage(); window.close(); };
+  $("settings").addEventListener("click", openOptions);
+  $("openOptions").addEventListener("click", openOptions);
 
-  if ((await call("status")).unlocked) {
+  const st = await call("status");
+  if (st.unlocked) {
     await call("activity").catch(() => {}); // opening the popup is user activity
     await showUnlocked();
   } else {
-    showLocked();
+    showLocked(st.initialized ? "unlock" : "setup");
   }
 }
 

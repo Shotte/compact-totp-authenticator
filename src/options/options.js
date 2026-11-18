@@ -21,21 +21,44 @@ async function run(fn) {
   }
 }
 
-function showLocked() {
+// Locked view: "setup" (no vault), "unlock" or "recover" (explicit, confirmed restore).
+async function showLocked(mode) {
+  if (!mode) mode = (await call("status")).initialized ? "unlock" : "setup";
   state = { revision: 0, accounts: [] };
   $("accounts").tBodies[0].replaceChildren();
   $("lockedView").hidden = false;
   $("unlockedView").hidden = true;
   $("lockBtn").hidden = true;
+  for (const [id, m] of [["setupForm", "setup"], ["unlockForm", "unlock"], ["recoveryForm", "recover"]]) {
+    $(id).hidden = m !== mode;
+    $(id).reset();
+  }
   resetForm();
   document.body.dataset.state = "locked";
+  document.body.dataset.locked = mode;
+}
+
+// Password forms: inputs are cleared after every attempt; progress shown while PBKDF2 runs.
+function passwordForm(id, handler) {
+  $(id).addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const form = $(id), fields = [...form.elements];
+    const values = Object.fromEntries(fields.filter((f) => f.name).map((f) => [f.name, f.type === "checkbox" ? f.checked : f.value]));
+    fields.forEach((f) => { f.disabled = true; });
+    say(t("unlocking"), "progress");
+    try { await handler(values); }
+    catch (e) { say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : errorText(e), "error"); }
+    finally {
+      fields.forEach((f) => { f.disabled = false; if (f.type === "password") f.value = ""; });
+    }
+  });
 }
 
 async function refresh(clearMessage = true) {
   try {
     state = await call("listAccounts");
   } catch (e) {
-    if (e.code === "locked") { showLocked(); return; }
+    if (e.code === "locked") { await showLocked(); return; }
     throw e;
   }
   if (clearMessage) say("");
@@ -227,11 +250,28 @@ async function init() {
   $("accountForm").addEventListener("submit", submitAccount);
   $("cancelEdit").addEventListener("click", resetForm);
   $("importFile").addEventListener("change", previewFile);
-  $("lockBtn").addEventListener("click", async () => { await call("lock"); showLocked(); });
-  $("unlockDemo").addEventListener("click", () => run(async () => {
-    await call("devUnlock", { count: 25 });
+  $("lockBtn").addEventListener("click", async () => { await call("lock"); await showLocked("unlock"); });
+  passwordForm("setupForm", async ({ password, confirm }) => {
+    await call("setup", { password, confirm });
+    await refresh(false);
+    say(t("setupDone"));
+  });
+  passwordForm("unlockForm", async ({ password }) => {
+    const r = await call("unlock", { password });
+    if (r.recoverable) { await showLocked("recover"); say(t("recoverableText"), "error"); return; }
     await refresh();
-  }));
+  });
+  passwordForm("recoveryForm", async ({ password, confirmed }) => {
+    await call("restore", { password, confirmed });
+    await refresh(false);
+    say(t("restoreDone"));
+  });
+  passwordForm("changeForm", async ({ current, next, confirm }) => {
+    try { await call("changePassword", { current, next, confirm }); }
+    catch (e) { if (e.code === "locked" || e.reason === "current-password") await showLocked(); throw e; }
+    await showLocked("unlock"); // the old session is gone; unlock with the new password
+    say(t("passwordChanged"));
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
   await refresh();
 }

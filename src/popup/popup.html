@@ -11,8 +11,14 @@
 <body>
   <section id="locked" hidden>
     <p class="title" data-i18n="lockedTitle"></p>
-    <button id="unlockDemo" type="button" data-i18n="unlockDemo"></button>
-    <p class="note" data-i18n="demoNote"></p>
+    <form id="unlockForm" autocomplete="off" hidden>
+      <label class="sr-only" for="password" data-i18n="passwordLabel"></label>
+      <input id="password" type="password" required maxlength="1024" autocomplete="current-password"
+        data-i18n-attr="placeholder:passwordLabel">
+      <button id="unlockBtn" type="submit" data-i18n="unlockButton"></button>
+    </form>
+    <p id="lockedMsg" class="note" role="status" aria-live="polite"></p>
+    <button id="openOptions" type="button" hidden></button>
   </section>
 
   <section id="unlocked" hidden>

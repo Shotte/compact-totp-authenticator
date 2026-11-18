@@ -8,12 +8,6 @@
   "lockedTitle": {
     "message": "Gesperrt"
   },
-  "unlockDemo": {
-    "message": "Mit Demodaten entsperren"
-  },
-  "demoNote": {
-    "message": "Entwicklungsversion: nur synthetische Demokonten, es wird nichts gespeichert."
-  },
   "secondsLeft": {
     "message": "Sekunden bis zum nächsten 30-Sekunden-Code"
   },
@@ -284,5 +278,98 @@
   },
   "behavior": {
     "message": "Verhalten"
+  },
+  "passwordLabel": {
+    "message": "Master-Passwort"
+  },
+  "unlockButton": {
+    "message": "Entsperren"
+  },
+  "unlocking": {
+    "message": "Passwort wird geprüft…"
+  },
+  "unlockFailed": {
+    "message": "Entsperren fehlgeschlagen. Bitte das Passwort prüfen."
+  },
+  "notInitialized": {
+    "message": "Noch nicht eingerichtet. Lege in den Einstellungen ein Master-Passwort an."
+  },
+  "setupButton": {
+    "message": "Einrichten"
+  },
+  "setupTitle": {
+    "message": "Master-Passwort anlegen"
+  },
+  "setupWarning": {
+    "message": "Deine Konten werden mit diesem Passwort verschlüsselt. Es gibt keine Möglichkeit, es wiederherzustellen: Wenn du es vergisst, sind deine Konten verloren. Bewahre es sicher auf, z. B. in einem Passwort-Manager."
+  },
+  "newPassword": {
+    "message": "Neues Master-Passwort"
+  },
+  "confirmPassword": {
+    "message": "Neues Master-Passwort wiederholen"
+  },
+  "passwordRules": {
+    "message": "Mindestens 12 Zeichen. Lange Passphrasen sind willkommen; keine Sonderzeichen-Regeln."
+  },
+  "setupDone": {
+    "message": "Master-Passwort angelegt. Der Tresor ist entsperrt."
+  },
+  "openRecovery": {
+    "message": "Wiederherstellung in den Einstellungen öffnen"
+  },
+  "recoverableTitle": {
+    "message": "Aus Sicherung wiederherstellen"
+  },
+  "recoverableText": {
+    "message": "Der aktuelle Tresor ist beschädigt, aber eine geprüfte Sicherung derselben Passwort-Generation ist vorhanden. Beim Wiederherstellen kann die letzte Änderung verloren gehen."
+  },
+  "restoreConfirm": {
+    "message": "Mir ist bewusst, dass die letzte Änderung verloren gehen kann."
+  },
+  "restoreButton": {
+    "message": "Sicherung wiederherstellen"
+  },
+  "restoreDone": {
+    "message": "Sicherung wiederhergestellt. Der Tresor ist entsperrt."
+  },
+  "changePasswordTitle": {
+    "message": "Master-Passwort ändern"
+  },
+  "currentPassword": {
+    "message": "Aktuelles Master-Passwort"
+  },
+  "changePasswordButton": {
+    "message": "Passwort ändern"
+  },
+  "changePasswordNote": {
+    "message": "Nach der Änderung wird der Tresor gesperrt; entsperre ihn mit dem neuen Passwort."
+  },
+  "passwordChanged": {
+    "message": "Master-Passwort geändert. Bitte mit dem neuen Passwort entsperren."
+  },
+  "reason_password": {
+    "message": "Passwort fehlt oder ist zu lang"
+  },
+  "reason_password_short": {
+    "message": "das Passwort braucht mindestens 12 Zeichen"
+  },
+  "reason_password_long": {
+    "message": "das Passwort ist zu lang (max. 1024 Zeichen)"
+  },
+  "reason_password_mismatch": {
+    "message": "die Passwörter stimmen nicht überein"
+  },
+  "reason_current_password": {
+    "message": "das aktuelle Passwort ist falsch"
+  },
+  "reason_exists": {
+    "message": "es existiert bereits ein Tresor"
+  },
+  "reason_no_vault": {
+    "message": "kein Tresor gefunden"
+  },
+  "reason_confirmation": {
+    "message": "bitte die Wiederherstellung bestätigen"
   }
 }
