@@ -9,7 +9,7 @@ Status: Phase A analysis and design. Nothing here is implemented yet.
 | U1 | "Encryption" is a Vigenère cipher over a 65-character alphabet with the password as repeating key; no IV, no integrity | `crypt.js` | Base32 plaintext uses only 32 of 65 symbols, so each ciphertext character narrows the password character; with several keys the password and all secrets are recoverable in seconds. Effectively obfuscation. |
 | U2 | Password verifier is a single unsalted-per-password SHA-256 of `password + extension UUID`, stored in `storage.local` | `loader.js`, `options.js` | Fast offline brute force (billions/s on GPU); UUID is readable from the profile. |
 | U3 | Encryption optional; default is no password | `options.js` | Secrets stored in plaintext in the Firefox profile. |
-| U4 | Decrypted secrets logged: `console.log(item, tab)` per row, `console.log(res.otp_list)` | `loader.js:57`, `options.js:258` | Secrets in browser console / logs. |
+| U4 | Decrypted secrets logged: `console.log(item, tab)` per row, `console.log(res.otp_list)` | `loader.js:57`, `options.js:279` | Secrets in browser console / logs. |
 | U5 | Plaintext export kept permanently in a `data:` URL on the options page | `exportSettings()` | Secrets sit in the DOM whenever options are open. |
 | U6 | Import clears storage and writes the raw file | `importSettings()` | Silent data loss; arbitrary storage keys (e.g. `hash`) can be injected. |
 | U7 | "Forgot password" resets the hash but leaves encrypted keys | `reset.js` | Silent corruption of all secrets. |
