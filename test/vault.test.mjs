@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sealVault, openVault, validateVault, createVaultStore, aad, VaultError,
+import { sealVault, openVault, validateVault, createVaultStore, aad, VaultError, sameGeneration,
   MIN_ITERATIONS, MAX_ITERATIONS } from "../src/lib/vault.js";
 import { newAesKey, toB64, fromB64 } from "../src/lib/crypto.js";
 import { syntheticAccounts } from "../src/lib/fixtures.js";
@@ -105,125 +105,250 @@ test("nonce: a fresh random 96-bit IV for every seal (10,000 seals, no repeats)"
 
 // ---- storage protocol -------------------------------------------------------
 
-async function setup(n = 3) {
+const KDF2 = { iterations: MIN_ITERATIONS, salt: toB64(new Uint8Array(16).fill(8)) }; // second key generation
+const gen = (v) => v.kdf.salt;
+const damage = (v) => { v.ciphertext = v.ciphertext.replace(/^./, (c) => (c === "A" ? "B" : "A")); };
+const snapshot = (area) => clone([...area.map]);
+function fakeAreaFrom(map) { const a = fakeArea(); for (const [k, v] of map) a.map.set(k, clone(v)); return a; }
+
+async function setup(n = 2) {
   const area = fakeArea(), key = await newAesKey(), store = createVaultStore(area);
-  await store.commit(key, payload(n), { expectedRevision: 0, kdf: KDF });
+  await store.create(key, payload(n), { kdf: KDF });
   return { area, key, store };
 }
 
-test("commit: first write, next revision, backup holds the previous vault", async () => {
-  const { area, key, store } = await setup(2);
-  const before = clone(area.map.get("vault"));
-  assert.equal(await store.commit(key, payload(4), { expectedRevision: 1, kdf: KDF }), 2);
-  assert.deepEqual(area.map.get("vault_backup"), before);
-  assert.deepEqual(await store.load(key), { revision: 2, payload: payload(4), restored: false });
-});
-
-test("commit: stale revision is a conflict and writes nothing", async () => {
-  const { area, key, store } = await setup();
-  const snap = clone([...area.map]);
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 0, kdf: KDF }), reason("conflict"));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 7, kdf: KDF }), reason("conflict"));
-  assert.deepEqual([...area.map], snap);
-});
-
-test("concurrent commits on the same revision: exactly one wins", async () => {
-  const { key, store } = await setup();
-  const results = await Promise.allSettled([4, 5, 6].map((n) => store.commit(key, payload(n), { expectedRevision: 1, kdf: KDF })));
-  assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected", "rejected"]);
-  assert.ok(results.filter((r) => r.status === "rejected").every((r) => r.reason.reason === "conflict"));
-  assert.equal((await store.load(key)).revision, 2);
-});
-
-// Area wrapper that fails selected set() calls.
+// Area wrapper with fault injection on the n-th set() call. Modes:
+// throw – set fails, storage stays usable; dead – set fails, storage unusable afterwards;
+// corrupt – value lands damaged; corrupt-then-dead / write-then-dead – value lands
+// (damaged / intact), then storage becomes unusable (process "crash" right after the write).
 function faulty(area, failOn) {
-  let n = 0;
-  return { ...area, map: area.map, async set(obj) {
-    n++;
-    const f = failOn(n, obj);
-    if (f === "throw") throw new Error("QuotaExceededError (simulated)");
-    if (f === "corrupt") { const v = clone(obj.vault); v.ciphertext = v.ciphertext.replace(/^./, (c) => (c === "A" ? "B" : "A")); return area.set({ vault: v }); }
-    if (f === "dead") { area.set = async () => { throw new Error("storage gone"); }; throw new Error("storage gone"); }
-    if (f === "corrupt-then-dead") { // bad new vault lands on disk, then storage fails for good
-      const v = clone(obj.vault); v.ciphertext = v.ciphertext.replace(/^./, (c) => (c === "A" ? "B" : "A"));
-      await area.set({ vault: v });
-      const real = area.set; area.set = async () => { throw new Error("storage gone"); }; area.restore = () => { area.set = real; };
-      return undefined;
-    }
-    return area.set(obj);
-  } };
+  let n = 0, dead = false;
+  const kill = () => { dead = true; throw new Error("storage gone (simulated crash)"); };
+  return { map: area.map, get: (k) => area.get(k),
+    async remove(k) { if (dead) throw new Error("storage gone"); return area.remove(k); },
+    async set(obj) {
+      if (dead) throw new Error("storage gone");
+      const f = failOn(++n, obj);
+      const [k, v] = Object.entries(obj)[0];
+      if (f === "throw") throw new Error("QuotaExceededError (simulated)");
+      if (f === "dead") kill();
+      if (f === "corrupt" || f === "corrupt-then-dead") { const d = clone(v); damage(d); await area.set({ [k]: d }); if (f === "corrupt-then-dead") kill(); return; }
+      if (f === "write-then-dead") { await area.set(obj); kill(); }
+      return area.set(obj);
+    } };
 }
 
-test("storage failure writing the new vault: rolled back, old vault intact", async () => {
-  const { area, key } = await setup(2);
-  const old = clone(area.map.get("vault"));
-  const store = createVaultStore(faulty(area, (n, obj) => ("vault" in obj && n === 2 ? "throw" : null)));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 1, kdf: KDF }), reason("write"));
-  assert.deepEqual(area.map.get("vault"), old);
-  assert.deepEqual((await store.load(key)).payload, payload(2));
-});
+// After a "restart": which key opens the vault (directly or via explicit recovery)?
+async function whoOpens(map, oldKey, newKey) {
+  const out = {};
+  for (const [name, key] of [["old", oldKey], ["new", newKey]]) {
+    try { const r = await createVaultStore(fakeAreaFrom(map)).load(key); out[name] = r.status + (r.source ? `:${r.source}` : ""); }
+    catch (e) { out[name] = e.reason; }
+  }
+  return out;
+}
 
-test("storage failure writing the backup: nothing changed", async () => {
-  const { area, key } = await setup(2);
-  const snap = clone([...area.map]);
-  const store = createVaultStore(faulty(area, (n, obj) => ("vault_backup" in obj ? "throw" : null)));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 1, kdf: KDF }));
-  assert.deepEqual([...area.map], snap);
-});
-
-test("silent corruption detected by read-back verification: rolled back", async () => {
-  const { area, key } = await setup(2);
-  const old = clone(area.map.get("vault"));
-  const store = createVaultStore(faulty(area, (n, obj) => ("vault" in obj && n === 2 ? "corrupt" : null)));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 1, kdf: KDF }), reason("write"));
-  assert.deepEqual(area.map.get("vault"), old);
-});
-
-test("crash mid-commit (storage dies, rollback impossible): next load still recovers", async () => {
-  const { area, key } = await setup(2);
-  const store = createVaultStore(faulty(area, (n, obj) => ("vault" in obj && n === 2 ? "dead" : null)));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 1, kdf: KDF }));
-  const fresh = createVaultStore(fakeAreaFrom(area.map)); // "browser restarted", storage readable again
-  assert.deepEqual((await fresh.load(key)).payload, payload(2));
-});
-
-test("crash after a bad new vault reached disk (rollback impossible): backup saves the data", async () => {
-  const { area, key } = await setup(2);
-  const store = createVaultStore(faulty(area, (n, obj) => ("vault" in obj && n === 2 ? "corrupt-then-dead" : null)));
-  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 1, kdf: KDF }), reason("write"));
-  assert.notEqual(area.map.get("vault").ciphertext, area.map.get("vault_backup").ciphertext, "bad copy is on disk");
-  area.restore();
-  const r = await createVaultStore(fakeAreaFrom(area.map)).load(key); // restarted
-  assert.deepEqual([r.revision, r.restored, r.payload], [1, true, payload(2)]);
-});
-
-function fakeAreaFrom(map) { const a = fakeArea(); for (const [k, v] of map) a.map.set(k, clone(v)); return a; }
-
-test("corrupted current vault on disk: backup restored and reported", async () => {
+test("create: first vault only; refuses when any vault copy exists", async () => {
   const { area, key, store } = await setup(2);
-  await store.commit(key, payload(3), { expectedRevision: 1, kdf: KDF });
-  const v = area.map.get("vault"); v.ciphertext = v.ciphertext.replace(/^./, (c) => (c === "A" ? "B" : "A"));
+  assert.deepEqual(await store.load(key), { status: "ok", revision: 1, payload: payload(2) });
+  await assert.rejects(store.create(key, payload(3), { kdf: KDF }), reason("exists"));
+  for (const k of ["vault_backup", "vault_next"]) {
+    const a = fakeArea(); a.map.set(k, clone(area.map.get("vault")));
+    await assert.rejects(createVaultStore(a).create(key, payload(3), { kdf: KDF }), reason("exists"), k);
+  }
+});
+
+test("commit: next revision, same key generation, backup holds the previous vault", async () => {
+  const { area, key, store } = await setup(2);
+  const before = clone(area.map.get("vault"));
+  assert.equal(await store.commit(key, payload(4), { expectedRevision: 1 }), 2);
+  assert.deepEqual(area.map.get("vault_backup"), before);
+  assert.ok(sameGeneration(area.map.get("vault").kdf, before.kdf), "commit keeps the KDF parameters");
+  assert.deepEqual(await store.load(key), { status: "ok", revision: 2, payload: payload(4) });
+});
+
+test("R2: an unrelated key cannot replace the vault, even with the correct revision", async () => {
+  const { area, store } = await setup(2);
+  const snap = snapshot(area);
+  await assert.rejects(store.commit(await newAesKey(), payload(9), { expectedRevision: 1 }), reason("auth"));
+  await assert.rejects(store.rotate(await newAesKey(), await newAesKey(), { expectedRevision: 1, kdf: KDF2 }), reason("auth"));
+  assert.deepEqual(snapshot(area), snap);
+});
+
+test("R2: a damaged current vault is never overwritten by a regular commit", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  damage(area.map.get("vault"));
+  const snap = snapshot(area);
+  await assert.rejects(store.commit(key, payload(9), { expectedRevision: 2 }), reason("auth"));
+  assert.deepEqual(snapshot(area), snap);
+});
+
+test("revision conflicts are preserved; concurrent commit/rotate on one revision: one wins", async () => {
+  const { area, key, store } = await setup(2);
+  const snap = snapshot(area);
+  for (const r of [0, 2, 7]) await assert.rejects(store.commit(key, payload(5), { expectedRevision: r }), reason("conflict"));
+  assert.deepEqual(snapshot(area), snap);
+  const newKey = await newAesKey();
+  const results = await Promise.allSettled([
+    store.commit(key, payload(4), { expectedRevision: 1 }),
+    store.rotate(key, newKey, { expectedRevision: 1, kdf: KDF2 }),
+    store.commit(key, payload(6), { expectedRevision: 1 }),
+  ]);
+  assert.deepEqual(results.map((r) => r.status), ["fulfilled", "rejected", "rejected"]);
+  assert.ok(results.slice(1).every((r) => r.reason.reason === "conflict"));
+  assert.equal(gen(area.map.get("vault")), KDF.salt, "the losing rotation changed nothing");
+});
+
+test("R1: wrong keys never write and never restore (intact or damaged vault)", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  const wrong = await newAesKey();
+  for (const broken of [false, true]) {
+    if (broken) damage(area.map.get("vault"));
+    const snap = snapshot(area);
+    await assert.rejects(store.load(wrong), reason("decrypt"));
+    await assert.rejects(store.restoreBackup(wrong), reason("refused"));
+    await assert.rejects(store.restoreBackup(wrong, { allowUnverifiedGeneration: true }), reason("refused"));
+    assert.deepEqual(snapshot(area), snap);
+  }
+});
+
+test("R1: damaged primary + valid same-generation backup: 'recoverable' read-only, explicit restore", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  damage(area.map.get("vault"));
+  const snap = snapshot(area);
   const r = await store.load(key);
-  assert.deepEqual([r.revision, r.restored], [1, true]);
-  assert.deepEqual(r.payload, payload(2));
-  assert.equal(area.map.get("vault").revision, 1, "backup written back as current");
+  assert.deepEqual([r.status, r.source, r.revision, r.damage, r.generationVerified], ["recoverable", "backup", 1, "decrypt", true]);
+  assert.deepEqual(snapshot(area), snap, "load is read-only");
+  assert.deepEqual(await store.restoreBackup(key), { revision: 1, source: "backup" });
+  assert.deepEqual(await store.load(key), { status: "ok", revision: 1, payload: payload(2) });
 });
 
-test("both copies unreadable: corrupt error, nothing deleted", async () => {
+test("valid primary + stale backup: load uses the primary; restore refused", async () => {
   const { area, key, store } = await setup(2);
-  await store.commit(key, payload(3), { expectedRevision: 1, kdf: KDF });
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  await store.commit(key, payload(4), { expectedRevision: 2 });
+  const snap = snapshot(area);
+  assert.equal((await store.load(key)).revision, 3);
+  await assert.rejects(store.restoreBackup(key), (e) => e.reason === "refused" && /current-valid/.test(e.message));
+  assert.deepEqual(snapshot(area), snap);
+});
+
+test("corrupted backup: valid primary unaffected; with a damaged primary too, nothing is written", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  damage(area.map.get("vault_backup"));
+  assert.equal((await store.load(key)).status, "ok");
+  damage(area.map.get("vault"));
+  const snap = snapshot(area);
+  await assert.rejects(store.load(key), reason("decrypt"));
+  await assert.rejects(store.restoreBackup(key), reason("refused"));
+  assert.deepEqual(snapshot(area), snap);
+});
+
+test("different salts: recovery never crosses key generations", async () => {
+  const { area, key } = await setup(2);
+  const otherKey = await newAesKey();
+  // backup of another generation that opens with otherKey; primary damaged
+  area.map.set("vault_backup", await sealVault(otherKey, payload(5), { revision: 1, kdf: KDF2 }));
+  damage(area.map.get("vault"));
+  const store = createVaultStore(area);
+  const snap = snapshot(area);
+  for (const k of [key, otherKey]) {
+    await assert.rejects(store.load(k), reason("decrypt"));
+    await assert.rejects(store.restoreBackup(k, { allowUnverifiedGeneration: true }), reason("refused"));
+  }
+  assert.deepEqual(snapshot(area), snap);
+});
+
+test("structurally destroyed primary: recoverable only with explicit unverified-generation consent", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
+  area.map.set("vault", { garbage: true });
+  const r = await store.load(key);
+  assert.deepEqual([r.status, r.damage, r.generationVerified], ["recoverable", "header", false]);
+  await assert.rejects(store.restoreBackup(key), (e) => /generation-unverified/.test(e.message));
+  assert.deepEqual(area.map.get("vault"), { garbage: true });
+  await assert.rejects(store.load(await newAesKey()), reason("corrupt"));
+  assert.equal((await store.restoreBackup(key, { allowUnverifiedGeneration: true })).revision, 1);
+  assert.equal((await store.load(key)).status, "ok");
+});
+
+test("rotate: old key and new salt required; afterwards only the new password opens", async () => {
+  const { area, key, store } = await setup(2);
+  const newKey = await newAesKey();
+  await assert.rejects(store.rotate(key, newKey, { expectedRevision: 1, kdf: KDF }), reason("generation"));
+  assert.deepEqual(await store.rotate(key, newKey, { expectedRevision: 1, kdf: KDF2 }), { revision: 2, backupRefreshed: true });
+  assert.deepEqual([gen(area.map.get("vault")), gen(area.map.get("vault_backup")), area.map.has("vault_next")],
+    [KDF2.salt, KDF2.salt, false], "no old-generation copy remains");
+  assert.deepEqual(await whoOpens(area.map, key, newKey), { old: "decrypt", new: "ok" });
+  await assert.rejects(store.restoreBackup(key, { allowUnverifiedGeneration: true }), reason("refused"));
+  await assert.rejects(store.commit(key, payload(5), { expectedRevision: 2 }), reason("auth"));
+});
+
+// Rotation set() order: 1 vault_next, 2 vault_backup (old), 3 vault (switch), 4 vault_backup (new).
+const ROTATION_CASES = [
+  // [label, set#, mode, expected { old, new } after restart]
+  ["1 before writing the new vault (staging fails)", 1, "throw", { old: "ok", new: "decrypt" }],
+  ["1b crash while staging", 1, "corrupt-then-dead", { old: "ok", new: "decrypt" }],
+  ["2 crash after staging, before the rollback copy", 2, "dead", { old: "ok", new: "decrypt" }],
+  ["2b crash after the rollback copy (backup prepared)", 3, "dead", { old: "ok", new: "decrypt" }],
+  ["3 primary write fails (storage alive, rolled back)", 3, "throw", { old: "ok", new: "decrypt" }],
+  ["3b primary write damaged, then crash", 3, "corrupt-then-dead", { old: "decrypt", new: "recoverable:staged" }],
+  ["4 crash after writing the primary, before verifying", 3, "write-then-dead", { old: "decrypt", new: "ok" }],
+  ["5 crash after verification, before updating the backup", 4, "dead", { old: "decrypt", new: "ok" }],
+  ["6 backup replacement fails (storage alive)", 4, "throw", { old: "decrypt", new: "ok" }],
+  ["6b backup replacement damaged", 4, "corrupt", { old: "decrypt", new: "ok" }],
+];
+
+for (const [label, at, mode, expected] of ROTATION_CASES) {
+  test(`rotation interrupted – ${label}: old ${expected.old}, new ${expected.new}`, async () => {
+    const { area, key } = await setup(2);
+    const newKey = await newAesKey();
+    const store = createVaultStore(faulty(area, (n) => (n === at ? mode : null)));
+    await store.rotate(key, newKey, { expectedRevision: 1, kdf: KDF2 }).catch(() => {});
+    assert.deepEqual(await whoOpens(area.map, key, newKey), expected);
+    // Never locked out: at least one password opens or recovers the data, which is intact.
+    const working = expected.old === "ok" ? key : newKey;
+    const s = createVaultStore(fakeAreaFrom(area.map));
+    if ((await s.load(working)).status === "recoverable") await s.restoreBackup(working);
+    assert.deepEqual((await s.load(working)).payload, payload(2));
+    // The old password can never reverse a completed switch (cases 3b–6b).
+    if (expected.old !== "ok") await assert.rejects(s.restoreBackup(key, { allowUnverifiedGeneration: true }), reason("refused"));
+  });
+}
+
+test("leftover old-generation backup is replaced by the next regular commit", async () => {
+  const { area, key } = await setup(2);
+  const newKey = await newAesKey();
+  await createVaultStore(faulty(area, (n) => (n === 4 ? "throw" : null))).rotate(key, newKey, { expectedRevision: 1, kdf: KDF2 });
+  assert.equal(gen(area.map.get("vault_backup")), KDF.salt);
+  await createVaultStore(area).commit(newKey, payload(4), { expectedRevision: 2 });
+  assert.equal(gen(area.map.get("vault_backup")), KDF2.salt);
+});
+
+test("storage failures during a regular commit: rolled back or recoverable, never lost", async () => {
+  for (const [at, mode] of [[1, "throw"], [2, "throw"], [2, "corrupt"], [2, "dead"], [2, "corrupt-then-dead"], [2, "write-then-dead"]]) {
+    const { area, key } = await setup(2);
+    await createVaultStore(faulty(area, (n) => (n === at ? mode : null))).commit(key, payload(5), { expectedRevision: 1 }).catch(() => {});
+    const s = createVaultStore(fakeAreaFrom(area.map));
+    const r = await s.load(key);
+    if (r.status === "recoverable") await s.restoreBackup(key);
+    const final = await s.load(key);
+    const ok = JSON.stringify(final.payload) === JSON.stringify(payload(2)) || JSON.stringify(final.payload) === JSON.stringify(payload(5));
+    assert.ok(final.status === "ok" && ok, `set#${at} ${mode}: ${JSON.stringify(final.status)}`);
+  }
+});
+
+test("both copies unreadable: error, nothing deleted; empty storage loads as null", async () => {
+  const { area, key, store } = await setup(2);
+  await store.commit(key, payload(3), { expectedRevision: 1 });
   for (const k of ["vault", "vault_backup"]) area.map.get(k).version = 9;
-  const snap = clone([...area.map]);
+  const snap = snapshot(area);
   await assert.rejects(store.load(key), reason("corrupt"));
-  assert.deepEqual([...area.map], snap);
-  await assert.rejects(store.load(await newAesKey()), reason("corrupt"), "wrong key is never 'repaired'");
-});
-
-test("empty storage loads as null; dropBackup removes only the backup", async () => {
-  assert.equal(await createVaultStore(fakeArea()).load(await newAesKey()), null);
-  const { area, key, store } = await setup(2);
-  await store.commit(key, payload(3), { expectedRevision: 1, kdf: KDF });
-  await store.dropBackup();
-  assert.equal(area.map.has("vault_backup"), false);
-  assert.equal((await store.load(key)).revision, 2);
+  await assert.rejects(store.restoreBackup(key, { allowUnverifiedGeneration: true }), reason("refused"));
+  assert.deepEqual(snapshot(area), snap);
+  assert.equal(await createVaultStore(fakeArea()).load(key), null);
 });
