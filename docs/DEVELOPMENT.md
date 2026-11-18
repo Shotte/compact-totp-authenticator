@@ -87,9 +87,14 @@ not published. Old SHAs mentioned in earlier reports refer to that archive.
 
 ## Backup: GitHub → private Forgejo pull mirror
 
-The Forgejo backup is a **pull mirror** of the public GitHub repository: Forgejo fetches
-all branches and tags on a fixed interval. GitHub needs no credentials for this (public
-repository), and Forgejo never pushes anywhere.
+The Forgejo backup is a **private pull mirror** of the public GitHub repository, created
+2026-11-18 under the same repository name: Forgejo fetches all branches and tags from
+`https://github.com/Shotte/compact-totp-authenticator.git` every hour. GitHub needs no
+credentials for this (public repository). The mirror is read-only: it accepts no pushes,
+and Forgejo never pushes anywhere, so synchronization is strictly one-way.
+
+The pre-publication history (original e-mail, private address) is not part of the mirror;
+it is kept by the operator as verified Git bundles outside both repositories.
 
 Verification (Git Bash, both remotes configured):
 
