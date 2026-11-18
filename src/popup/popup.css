@@ -1,0 +1,48 @@
+/* Original measurements: 270 px wide, monospace 16 px, 25 px rows. */
+html, body { margin: 0; }
+body { width: 270px; font: 16px/1.2 monospace; overflow: hidden; }
+button { font: inherit; color: inherit; }
+
+/* Firefox caps popups at 600 px; list + 6 px padding + 25 px footer stay below it. */
+#list {
+  list-style: none; margin: 0; padding: 6px 0 0;
+  max-height: 560px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+}
+.row {
+  display: flex; align-items: center; gap: 8px; box-sizing: border-box;
+  width: 100%; height: 25px; padding: 0 12px;
+  border: 0; background: none; text-align: left; cursor: pointer;
+}
+.row:hover { background: var(--hover); }
+.row:active { background: var(--active); }
+.row:focus-visible { outline: 1px solid var(--fg); outline-offset: -1px; }
+.current .row { background: var(--current); }
+.name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.code { font-variant-numeric: tabular-nums; }
+.icon { display: flex; width: 13px; color: var(--muted); }
+.icon svg, .icon-btn svg { width: 13px; height: 13px; }
+.row[data-copied="ok"] .icon { color: var(--ok); }
+.row[data-copied="error"] .icon { color: var(--err); }
+.empty { height: 25px; line-height: 25px; padding: 0 12px; color: var(--muted); }
+
+footer {
+  display: flex; align-items: center; gap: 2px; height: 24px;
+  padding: 0 6px 0 12px; border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--muted);
+}
+#ticker { margin-right: auto; font-variant-numeric: tabular-nums; }
+.icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: 3px;
+  background: none; color: var(--muted); cursor: pointer;
+}
+.icon-btn:hover, .icon-btn:focus-visible { background: var(--hover); color: var(--fg); }
+
+#locked { padding: 12px; font-size: 13px; }
+#locked .title { margin: 0 0 10px; font-size: 16px; }
+#locked button {
+  width: 100%; height: 28px; border: 1px solid var(--line); border-radius: 3px;
+  background: var(--hover); cursor: pointer;
+}
+#locked button:hover { background: var(--active); }
+#locked .note { margin: 10px 0 0; color: var(--muted); line-height: 1.35; }
