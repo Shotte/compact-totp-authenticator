@@ -23,15 +23,40 @@ pushed to GitHub. The backup never accepts direct changes; there is no bidirecti
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every pull request and
-on pushes to `main`: `npm ci`, `npm test` (unit, regression and static security gates),
-`npm run lint -- --warnings-as-errors` (web-ext) and `npm run build` (package validation).
+on pushes to `main`:
+
+| Job | Runner | Content |
+|---|---|---|
+| `test` (required check) | Ubuntu | `npm ci`, `npm test` (unit, regression, static, crypto, portability), `web-ext lint --warnings-as-errors`, `npm run build` |
+| `unit` | Windows, macOS | `npm test`, lint |
+| `browser` (headless) | Ubuntu: Firefox release, current ESR, final ESR 140 (140.17.0esr = `strict_min_version`); Windows and macOS: Firefox release | WebDriver BiDi integration suite; results uploaded as artifacts (`browser-results-*`) |
+
+Headless runs cannot exercise the real toolbar popup; those checks appear as `NOT_TESTED`
+in the results, together with checks that need privileged chrome scope (unavailable in
+Firefox ESR 140). Firefox versions follow the hosted runner images for "release" (they can
+lag one version behind); ESR builds come directly from Mozilla.
+
+### Platform coverage
+
+| Area | Windows | Linux | macOS |
+|---|---|---|---|
+| Unit, crypto, static, portability tests | CI | CI | CI |
+| Vault format portability (committed fixture) | CI | CI | CI |
+| Popup document layout, appearance, hover, focus (headless BiDi) | CI | CI (+ ESR 153, ESR 140) | CI |
+| Locking, auto-lock alarm, event page restart (headless BiDi) | CI | CI | CI |
+| Real toolbar popup: size, scrolling, highlight, hover, click-to-copy | operator desktop (`test:browser:os`) | manual_review | manual_review |
+| Native file dialogs, keyboard shortcut, visual review | manual_review | manual_review | manual_review |
+| Browser restart, persistent encrypted storage (real kill/restart) | C2 browser tests (operator) | C6 | C6 |
+| PBKDF2 unlock latency on representative hardware | C2 (operator machine) | C6 | C6 |
+
+Android: not tested, no support claimed. iOS/iPadOS: out of scope.
 
 - Trigger is `pull_request`, never `pull_request_target`: workflows from forks run with a
   read-only token and without secrets. Default workflow token permission is read-only.
 - Actions are pinned to commit SHAs; only GitHub-owned actions are allowed.
 - Fork pull requests from outside contributors need approval before workflows run.
-- Browser tests (`npm run test:browser`, `npm run test:browser:os`) need a local Firefox
-  and, for the real-popup checks, Windows desktop input; they run on the operator machine
+- `npm run test:browser:os` (real Windows mouse input in the toolbar popup) needs a
+  Windows desktop; it runs on the operator machine
   before review and their evidence is committed under `docs/evidence/`.
 - No signing credentials exist in the repository or in CI. Mozilla signing is not
   automated yet (see [RELEASE.md](RELEASE.md)).

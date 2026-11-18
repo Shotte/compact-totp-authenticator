@@ -148,7 +148,9 @@ Settings live in `storage.local.settings`, separate from vault data:
 - `lib/appearance.js` (pure, unit-tested) derives all color tokens from fg/bg and
   enforces WCAG contrast: text ≥ 4.5:1 on every background token, icons ≥ 3:1. An
   unreadable custom text color is replaced by black or white.
-- Fixed row heights are raised to `ceil(1.2 × fontSize) + 2` px so text never clips.
+- Line height is a whole number of pixels, `ceil(1.25 × fontSize)`; fixed row heights are
+  raised to that line height + 2 px so text never clips (fractional line boxes clipped
+  descenders on Linux/macOS).
 - `lib/ui.js applyAppearance()` sets the tokens as CSS variables; `auto` follows
   `prefers-color-scheme` live. `rows.css` is shared by popup and options preview.
 - Hover: background-only change to `--hover` (lighter in dark, light gray in light), the

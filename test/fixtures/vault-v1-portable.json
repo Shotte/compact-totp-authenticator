@@ -1,0 +1,52 @@
+{
+  "note": "Synthetic portability fixture. Key = bytes 0..31; never a real secret.",
+  "aad": "[\"cta-vault\",1,7,\"PBKDF2\",\"SHA-256\",600000,\"oKGio6SlpqeoqaqrrK2urw==\",\"AES-GCM\",128]",
+  "payload": {
+    "accounts": [
+      {
+        "id": "fixture-1",
+        "name": "Example Mail 01 – Ünïcödé ✓",
+        "url": "example.com",
+        "secret": "INKECLKTLFHFISCFKREUGLJQGAYDAMBR",
+        "algorithm": "SHA-1",
+        "digits": 6,
+        "period": 30
+      },
+      {
+        "id": "fixture-2",
+        "name": "Demo Cloud 02 – Ünïcödé ✓",
+        "url": "example.org",
+        "secret": "INKECLKTLFHFISCFKREUGLJQGAYDAMBS",
+        "algorithm": "SHA-1",
+        "digits": 6,
+        "period": 30
+      },
+      {
+        "id": "fixture-3",
+        "name": "Test Bank 03 – Ünïcödé ✓",
+        "url": "example.net",
+        "secret": "INKECLKTLFHFISCFKREUGLJQGAYDAMBT",
+        "algorithm": "SHA-256",
+        "digits": 8,
+        "period": 30
+      }
+    ]
+  },
+  "vault": {
+    "format": "cta-vault",
+    "version": 1,
+    "revision": 7,
+    "kdf": {
+      "name": "PBKDF2",
+      "hash": "SHA-256",
+      "iterations": 600000,
+      "salt": "oKGio6SlpqeoqaqrrK2urw=="
+    },
+    "cipher": {
+      "name": "AES-GCM",
+      "iv": "1vBXS8ddUbO1R0x8",
+      "tagLength": 128
+    },
+    "ciphertext": "dpwfmuAZi+3ujmUmTIXjwJoLFBt7S1baWVprNmfymr0HShd9N4TEk/y8UfwpCB+SvLzmnYMwXrdqHbt/ZttRFivvEuZ8wpQa5ND2mhshq2NaRsmUBjS+ioMZfyng9lcv8BzXm8BRVadJRNl8iA9Ex5AZV8ijrxUyFJV+023QW3dFMLeq1Xp9ZBG3XV1q3OPHeuCierJR7/4SxbmMe9uSP2rw5iXsSVQEcLBXNNELICyhK0q5IIBXehofDx6eM+Hq5W/aEDt9QJSSv7qp5QVKbxUD88N2GHRWR0gk/y68xKClkfED5bewCMIRpauA/AmVJrfaOfJRDVz8ZM/JFPqvRbzcB2Jm1MVJh1uZ2E7rHKbfFwXNHw9m67gXwLSvMgTjGAWqJfEK6pvPehtwVOstM9tlDCXjkbrl8yEdI/RgK/gQ+MK9LtUvcKT4RwRSccDnC1e3KI8lOgL5XmXaan1MmcmxQ3/yNCW9+7n2O5qTkWLFIndXV5cIS5piJaWzPzAqSETRudusXvvmCoY0NYcbRNkGNHZ7Cae3qL0W1Z+9OVZsThgCaiu5qVvEo8VwC67tQvOsYHLzoKa7WzcOqu1Rhl4c/DcilqBmzkuzq4r/qi/s9wNYhuaO86TRHOMKjaTxFjVEQR3iJcts2A+Q14A0LXglQaTE9msVuS92irSe1YEGPLPbaVAsTvB7OxctJeLpnC23sww8xrhleLSo"
+  }
+}

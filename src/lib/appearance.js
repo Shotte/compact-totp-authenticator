@@ -76,9 +76,11 @@ export function themeTokens(settings, systemDark = false) {
 }
 
 // Row geometry. Auto keeps the original 25 px at 16 px; fixed heights are raised to the
-// minimum that fits one line of text (line-height 1.2 plus 2 px), so text never clips.
-export const LINE_HEIGHT = 1.2;
-export const minRowHeight = (fontSize) => Math.ceil(fontSize * LINE_HEIGHT) + 2;
+// minimum that fits one line of text plus 2 px, so text never clips. The line height is a
+// whole number of pixels (1.25 em, rounded up): fractional line boxes round differently per
+// platform/font and clipped descenders on Linux and macOS (found by the CI matrix).
+export const lineHeightPx = (fontSize) => Math.ceil(fontSize * 1.25);
+export const minRowHeight = (fontSize) => lineHeightPx(fontSize) + 2;
 export function rowHeightPx(fontSize, rowHeight) {
   const wanted = rowHeight === "auto" ? Math.round((fontSize * 25) / 16) : rowHeight;
   return Math.max(wanted, minRowHeight(fontSize));

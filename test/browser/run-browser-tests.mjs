@@ -12,8 +12,13 @@ import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js"
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const OUT = join(root, "docs/evidence/phase-b");
-const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "C:/Program Files/Mozilla Firefox/firefox.exe";
+const OUT = process.env.RESULTS_DIR ? resolve(process.env.RESULTS_DIR) : join(root, "docs/evidence/phase-b");
+const DEFAULT_FIREFOX = { win32: "C:/Program Files/Mozilla Firefox/firefox.exe",
+  darwin: "/Applications/Firefox.app/Contents/MacOS/firefox", linux: "firefox" }[process.platform];
+const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? process.env.FIREFOX_BIN ?? DEFAULT_FIREFOX;
+// MOZ_HEADLESS=1 (CI): no graphical desktop. Tests that need real browser UI are reported
+// as NOT_TESTED, never skipped silently and never counted as passed.
+const HEADLESS = process.env.MOZ_HEADLESS === "1";
 // --os-input: real Windows mouse input for the toolbar popup (moves the cursor briefly).
 const OS_INPUT = process.argv.includes("--os-input") && process.platform === "win32";
 const EXT_ID = "{f587432b-b553-483e-b08d-4feac6378113}";
@@ -26,7 +31,13 @@ const SECRETS = [...syntheticAccounts(100).map((a) => a.secret),
   ...JSON.parse(LEGACY_TEXT).otp_list.map((e) => e?.key).filter((k) => typeof k === "string" && k.length >= 16)];
 const leaks = (text) => SECRETS.filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
 
+// Chrome-scope access to Services: a global in current Firefox, a module import in ESR 140.
+const SVC = "(typeof Services !== \"undefined\" ? Services : ChromeUtils.importESModule(\"resource://gre/modules/Services.sys.mjs\").Services)";
 const results = [];
+function notTested(id, name, reason) {
+  results.push({ id, name, verdict: "NOT_TESTED", details: { reason } });
+  console.log(`NOT_TESTED  ${id}  ${name} (${reason})`);
+}
 function record(id, name, pass, details) {
   results.push({ id, name, verdict: pass ? "PASS" : "FAIL", details });
   console.log(`${pass ? "PASS" : "FAIL"}  ${id}  ${name}`);
@@ -83,6 +94,12 @@ try {
   const opt = (await call("browsingContext.create", { type: "tab" })).context;
   const pop = (await call("browsingContext.create", { type: "tab" })).context;
   await call("browsingContext.setViewport", { context: pop, viewport: { width: 270, height: 600 } });
+  // Harness capability: privileged chrome-scope evaluation (used to flip Firefox prefs at
+  // runtime). Not available in Firefox ESR 140; dependent checks are then NOT_TESTED.
+  const chromeTop = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0]?.context;
+  const CHROME_OK = chromeTop ? await evalJson(chromeTop, `async () => typeof Services !== "undefined" || typeof ChromeUtils !== "undefined"`).catch(() => false) : false;
+  const NO_CHROME = "harness: privileged chrome scope unavailable in this Firefox version";
+  evidence.chromeScopePrivileged = CHROME_OK;
   await open(opt, "options/options.html");
 
   // B6: locked by default, every sensitive command fails closed
@@ -121,8 +138,11 @@ try {
       return out; }`);
     m.renderMs = ms;
     layouts[n] = m;
+    // Default appearance must keep the Phase B dimensions exactly (no unintended growth).
+    const expectedBody = n === 1 ? 56 : 591;
+    m.expectedBodyHeight = expectedBody;
     const pass = rendered && m.rows === n && m.rowHeights.length === 1 && m.rowHeights[0] === 25 &&
-      m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.lastRowReachable &&
+      m.bodyHeight === expectedBody && m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.lastRowReachable &&
       m.footerVisible && /monospace/.test(m.fontFamily) && m.codesOk && ms < 3000;
     record(`B3-${n}`, `popup layout with ${n} account(s)`, pass, m);
     if (n === 25) {
@@ -142,9 +162,13 @@ try {
 
   // B7: appearance extremes with 100 accounts — no clipping/overlap, uniform rows, contrast
   {
+    // Every supported layout configuration: font 12–20 px × row height auto/22/25/30, with
+    // the color modes rotating (dark, light, auto, custom) so each appears at every size band.
     const combos = [];
-    for (const fontSize of [12, 20]) for (const rowHeight of ["auto", 22, 30]) {
-      combos.push({ fontSize, rowHeight, theme: combos.length % 2 ? "light" : "dark" });
+    const colorModes = [{ theme: "dark" }, { theme: "light" }, { theme: "auto" },
+      { theme: "auto", customColors: true, fg: "#1a1a1a", bg: "#f0efe6" }];
+    for (let fontSize = 12; fontSize <= 20; fontSize++) for (const rowHeight of ["auto", 22, 25, 30]) {
+      combos.push({ fontSize, rowHeight, ...colorModes[combos.length % colorModes.length] });
     }
     combos.push({ fontSize: 20, rowHeight: 22, theme: "dark", customColors: true, fg: "#777777", bg: "#808080" });
     for (const c of combos) {
@@ -185,13 +209,13 @@ try {
       const toHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
       m.contrast = Math.round(contrast(toHex(m.fg), toHex(m.bg)) * 100) / 100;
       m.expectedRowHeight = rowHeightPx(c.fontSize, c.rowHeight);
-      const label = `${c.fontSize}px/${c.rowHeight}/${c.customColors ? "custom-low-contrast" : c.theme}`;
+      const label = `${c.fontSize}px/${c.rowHeight}/${c.customColors ? (c.fg === "#777777" ? "custom-low-contrast" : "custom") : c.theme}`;
       record(`B7-${label}`, `appearance ${label} with 100 accounts`, m.rows === 100 && m.rowHeights.length === 1 &&
         m.rowHeights[0] === m.expectedRowHeight && m.nameFont === `${c.fontSize}px` && m.codeFont === `${c.fontSize}px` &&
         m.bodyWidth === 270 && m.docScrollWidth <= 270 && m.bodyHeight <= 600 && m.issues.length === 0 &&
         m.lastRowVisible && m.footerVisible && m.contrast >= 4.5, { settings: c, ...m });
       if ([["12", "auto"], ["20", "30"]].some(([f, r]) => String(c.fontSize) === f && String(c.rowHeight) === r) ||
-        c.customColors) {
+        c.fg === "#777777") {
         await evalJson(pop, `async () => { document.getElementById("list").scrollTop = 0; }`);
         const h = Math.ceil(m.bodyHeight);
         const shot = await call("browsingContext.captureScreenshot", { context: pop, clip: { type: "box", x: 0, y: 0, width: 270, height: h } });
@@ -200,11 +224,13 @@ try {
     }
 
     // Auto follows a live change of the Firefox color scheme (no reload)
+    const chrome = chromeTop;
+    const setScheme = (v) => evalJson(chrome, `async () => ${SVC}.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
+    if (!CHROME_OK) notTested("B7-auto", "theme auto follows live prefers-color-scheme changes", NO_CHROME);
+    else {
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { theme: "auto" } })`);
     await open(pop, "popup/popup.html");
     await waitFor(pop, `document.body.dataset.rendered === "100"`);
-    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-    const setScheme = (v) => evalJson(chrome, `async () => Services.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
     const seen = [];
     for (const v of [0, 1, 0]) { // 0 = dark, 1 = light
       await setScheme(v);
@@ -212,9 +238,10 @@ try {
       seen.push({ want, ok: await waitFor(pop, `document.documentElement.dataset.theme === "${want}"`, 3000),
         bg: await evalJson(pop, `async () => getComputedStyle(document.body).backgroundColor`) });
     }
-    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
     record("B7-auto", "theme auto follows live prefers-color-scheme changes", seen.every((s) => s.ok) &&
       seen[0].bg !== seen[1].bg, { transitions: seen });
+    }
 
     // Options page: live preview, persistence, contrast hint, reset to defaults
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { sort: "alpha", autoLockMinutes: 7 } })`);
@@ -241,7 +268,7 @@ try {
       r.rowHeight === "auto" && r.customColors === false && r.sort === "alpha" && r.autoLockMinutes === 7 &&
       ui.previewAfterReset === "16px", ui);
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
-    for (const [scheme, v] of [["dark", 0], ["light", 1]]) {
+    for (const [scheme, v] of CHROME_OK ? [["dark", 0], ["light", 1]] : []) {
       await setScheme(v);
       await sleep(300);
       const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
@@ -250,15 +277,18 @@ try {
         clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
       writeFileSync(join(OUT, `options-appearance-auto-${scheme}-de.png`), Buffer.from(shot.data, "base64"));
     }
-    await evalJson(chrome, `async () => Services.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+    if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
   }
 
   // B8: subtle row hover (trusted BiDi pointer input in the popup document)
   {
-    const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
-    const pref = (name, v) => evalJson(chrome, v === null
-      ? `async () => Services.prefs.clearUserPref("${name}")` : `async () => Services.prefs.setIntPref("${name}", ${v})`);
+    const chrome = chromeTop;
+    const pref = async (name, v) => CHROME_OK && evalJson(chrome, v === null
+      ? `async () => ${SVC}.prefs.clearUserPref("${name}")` : `async () => ${SVC}.prefs.setIntPref("${name}", ${v})`);
     const rgbHex = (rgb) => "#" + rgb.match(/\d+/g).slice(0, 3).map((v) => Number(v).toString(16).padStart(2, "0")).join("");
+    // Hosted CI runners (Windows, macOS) report prefers-reduced-motion: reduce system-wide;
+    // pin "no preference" for the transition check (B8-3 covers the reduced case).
+    await pref("ui.prefersReducedMotion", 0);
     const move = (x, y) => call("input.performActions", { context: pop, actions: [{ type: "pointer", id: "mouse",
       parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", x: Math.round(x), y: Math.round(y), duration: 0 }] }] });
     const state = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});
@@ -268,7 +298,9 @@ try {
     const parts = (i) => evalJson(pop, `async () => { const row = [...document.querySelectorAll("#list .row")].at(${i});
       const r = row.getBoundingClientRect(), c = (s) => { const e = row.querySelector(s).getBoundingClientRect(); return [e.x + e.width / 2, r.y + r.height / 2]; };
       return { name: c(".name"), code: c(".code"), free: [r.x + 4, r.y + r.height / 2], icon: c(".icon") }; }`);
-    const cases = [["dark", null], ["light", null], ["auto", 0], ["auto", 1]];
+    // The auto cases need a runtime color-scheme override (privileged chrome scope).
+    const cases = CHROME_OK ? [["dark", null], ["light", null], ["auto", 0], ["auto", 1]] : [["dark", null], ["light", null]];
+    if (!CHROME_OK) notTested("B8-1-auto", "hover in theme auto (dark/light system scheme)", NO_CHROME);
     const out = [];
     for (const [theme, override] of cases) {
       if (override !== null) await pref("layout.css.prefers-color-scheme.content-override", override);
@@ -319,12 +351,15 @@ try {
       focus.outline === "solid 2px" && focus.offset === "-2px" && JSON.stringify(focus.rect) === JSON.stringify(before.rect), focus);
 
     // prefers-reduced-motion: no transition
+    if (!CHROME_OK) notTested("B8-3", "prefers-reduced-motion disables the hover transition", NO_CHROME);
+    else {
     await pref("ui.prefersReducedMotion", 1);
     await open(pop, "popup/popup.html");
     await waitFor(pop, `document.body.dataset.rendered === "100"`);
     const reduced = (await state(0)).transition;
     await pref("ui.prefersReducedMotion", null);
     record("B8-3", "prefers-reduced-motion disables the hover transition", reduced === "0s", { transitionDuration: reduced });
+    }
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
   }
 
@@ -423,6 +458,12 @@ try {
         storageLocalUnchanged: localAfter === localBefore, malformed });
   }
 
+  if (HEADLESS) {
+    for (const [id, name] of [["B3-real-1", "real toolbar popup size and rows"], ["B3-real-2", "active-site highlight via toolbar click"],
+      ["B3-real-3", "real popup scrolling"], ["B3-real-4", "real popup click-to-copy"], ["B8-real", "real popup hover"]]) {
+      notTested(id, name, "headless run: no toolbar popup panel");
+    }
+  } else
   // B3: the REAL toolbar popup, opened by a native click on the toolbar button (grants
   // activeTab like a user click). The popup DOM is read via extension.getViews() from the
   // options page; panel geometry and the clipboard are read in the browser chrome.
@@ -439,7 +480,7 @@ try {
       const chrome = (await call("browsingContext.getTree", { "moz:scope": "chrome" })).contexts[0].context;
       // --os-input: real Windows mouse input via os-input.ps1 at CSS coordinates of the
       // browser chrome viewport; refused unless the target window belongs to this Firefox.
-      const ffPid = await evalJson(chrome, `async () => Services.appinfo.processID`);
+      const ffPid = await evalJson(chrome, `async () => ${SVC}.appinfo.processID`);
       const scr = await evalJson(chrome, `async () => ({ sx: window.mozInnerScreenX, sy: window.mozInnerScreenY, dpr: window.devicePixelRatio })`);
       const osInput = OS_INPUT ? await startOsInput(join(root, "test/browser/os-input.ps1"), ffPid) : null;
       const osAt = async (action, x = 0, y = 0, delta = 0) => {
@@ -498,7 +539,7 @@ try {
       const readClipboard = () => evalJson(chrome, `async () => {
         const t = Cc["@mozilla.org/widget/transferable;1"].createInstance(Ci.nsITransferable);
         t.init(null); t.addDataFlavor("text/plain");
-        Services.clipboard.getData(t, Services.clipboard.kGlobalClipboard, null);
+        ${SVC}.clipboard.getData(t, ${SVC}.clipboard.kGlobalClipboard, null);
         const o = {}; t.getTransferData("text/plain", o); return o.value.QueryInterface(Ci.nsISupportsString).data; }`);
       const setClipboard = (text) => evalJson(chrome, `async () => Cc["@mozilla.org/widget/clipboardhelper;1"]
         .getService(Ci.nsIClipboardHelper).copyString(${JSON.stringify(text)})`);
@@ -636,12 +677,22 @@ try {
     await evalJson(opt, `async () => browser.storage.local.set({ settings: { autoLockMinutes: 1 } })`);
     await msg(opt, "devUnlock", { count: 3 });
     const before = await msg(opt, "status");
-    await sleep(65_000);
-    const sess = await evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
-    const after = await msg(opt, "status");
+    const t0 = Date.now();
+    await sleep(61_000);
+    // Fail-closed right after the deadline, independent of the alarm (status does not wipe).
+    const atDeadline = await msg(opt, "status");
+    // Alarm cleanup: polled without touching the extension. Firefox may wake an idle event
+    // page late (seen on ESR 153), so the delay is measured, bounded at 120 s.
+    let wipedAfterMs = null;
+    while (Date.now() - t0 < 120_000) {
+      const keys = await evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
+      if (!keys.includes("session")) { wipedAfterMs = Date.now() - t0; break; }
+      await sleep(5_000);
+    }
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
-    record("B6-5", "auto-lock after 1 min idle wipes the session (alarm path)", before.result.unlocked &&
-      !after.result.unlocked && !sess.includes("session"), { before: before.result, after: after.result, sessionKeys: sess });
+    record("B6-5", "auto-lock after 1 min: locked at the deadline; alarm wipes the idle session", before.result.unlocked &&
+      !atDeadline.result.unlocked && wipedAfterMs !== null,
+    { before: before.result, atDeadline: atDeadline.result, alarmWipedAfterSeconds: wipedAfterMs && Math.round(wipedAfterMs / 1000) });
   }
   evidence.layouts = layouts;
 } catch (e) {
@@ -653,9 +704,11 @@ try {
 }
 
 evidence.results = results;
+evidence.environment = { platform: process.platform, arch: process.arch, node: process.version, headless: HEADLESS };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "browser-results.json"), JSON.stringify(evidence, null, 2) + "\n");
 const failed = results.filter((r) => r.verdict === "FAIL").length;
 const manual = results.filter((r) => r.verdict === "MANUAL").length;
-console.log(`${results.length - failed - manual}/${results.length} passed, ${manual} manual, ${failed} failed${evidence.fatal ? " (fatal error)" : ""}`);
+const untested = results.filter((r) => r.verdict === "NOT_TESTED").length;
+console.log(`${results.length - failed - manual - untested}/${results.length} passed, ${manual} manual, ${untested} not tested, ${failed} failed${evidence.fatal ? " (fatal error)" : ""}`);
 process.exit(failed || evidence.fatal ? 1 : 0);
