@@ -49,6 +49,7 @@ toolbar popup), `npm start` (run in Firefox), `npm run spike:b0`.
 Evidence: [docs/evidence/phase-b](docs/evidence/phase-b/README.md). See:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – upstream analysis, target architecture, plan
+- [docs/PLAN-C4-C6.md](docs/PLAN-C4-C6.md) – C4–C6 preparation: acceptance criteria, open decisions, test plans (draft)
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
 - [docs/MIGRATION.md](docs/MIGRATION.md) – legacy `totp.json` import
 - [docs/RELEASE.md](docs/RELEASE.md) – Manifest version, extension ID, signing, updates
