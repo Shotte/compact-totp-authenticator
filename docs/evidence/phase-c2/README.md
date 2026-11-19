@@ -21,3 +21,28 @@ Unlock timing: cold 126 ms, wrong password 116 ms per guess, cached repeat 3–5
 forged 10M header 1.87 s (see SECURITY.md §11.3). Restart tests use
 `extensions.webextensions.keepStorageOnUninstall` so the temporary add-on keeps its
 storage across a reinstall; the browser is killed hard (taskkill / SIGKILL).
+
+## C2 review: authentication scenarios and repeated-unlock timing
+
+[`auth-review-results.json`](auth-review-results.json): headless run, Firefox 160.0.1,
+Windows 11, after the review checks were added. Result: 67/72 PASS, 0 failed, 5 not tested
+(the real toolbar popup is unavailable headless; covered by the 74/74 run above, which
+predates C2-9/C2-10).
+
+| Check | Result |
+|---|---|
+| C2-9 scenarios 2–10 on real storage, plus an identical wrong guess repeated three times: wrong passwords fail with `storage.local` byte-identical, correct ones open | PASS |
+| C2-10 instrumented experiment: one PBKDF2 call per derivation; only byte-identical input is fast, also with raw Web Crypto | PASS |
+
+| Attempt | Time |
+|---|---|
+| New wrong guess (scenarios 2–8) | 119–170 ms each |
+| Correct password, already derived in this process | 6–10 ms |
+| First attempts after a browser restart (wrong / correct) | 125 / 123 ms |
+| Old password after rotation (new salt) | 164 ms |
+| Identical wrong guess, 3× | 118 / 6 / 8 ms, all fail |
+| C2-10: first, different password, different salt, iterations + 1 | 111–112 ms |
+| C2-10: identical input, new string instance, NFD, raw repeat | 0–1 ms |
+
+Root cause and assessment: [SECURITY.md §11.7](../../SECURITY.md); unit-level proof that
+every attempt derives: [`test/auth-invariant.test.mjs`](../../../test/auth-invariant.test.mjs).

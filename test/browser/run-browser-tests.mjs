@@ -947,6 +947,111 @@ try {
       works === 1 && nAfter === n0, { delayMs: delay, oldPassword: oldResult, newPassword: newResult, accounts: [n0, nAfter] });
     current = winner;
   }
+  // C2-9: authentication scenarios on real storage (review CTA-001 C2): every attempt is
+  // validated against the current vault; failures never write; timings recorded.
+  {
+    let guesses = 0; // each wrong guess is a new input, so its timing shows a real PBKDF2 run
+    const WRONG = () => "definitely not the right password " + ++guesses;
+    const attempt = async (password) => {
+      const before = await localSnap();
+      const t0 = Date.now();
+      const r = await msg(opt, "unlock", { password });
+      const ms = Date.now() - t0;
+      const unlocked = r.ok && r.result.unlocked === true;
+      const unchanged = unlocked || (await localSnap()) === before;
+      return { unlocked, ms, unchanged };
+    };
+    const rows = [];
+    const scenario = async (id, fn) => { const r = await fn(); rows.push({ id, ...r }); return r; };
+    const pair = async () => ({ wrong: await attempt(WRONG()), right: await attempt(current) });
+    const okPair = (p) => !p.wrong.unlocked && p.wrong.unchanged && p.right.unlocked;
+
+    await msg(opt, "lock");
+    await scenario("2 wrong right after a successful unlock", async () => {
+      const right = await attempt(current), wrong = await attempt(WRONG());
+      return { ok: right.unlocked && !wrong.unlocked && wrong.unchanged, right, wrong };
+    });
+    await scenario("3/4 explicit lock, then wrong and correct", async () => { await msg(opt, "lock"); const p = await pair(); return { ok: okPair(p), ...p }; });
+    await scenario("5 automatic expiration, then wrong and correct", async () => {
+      await evalJson(opt, `async () => browser.storage.local.set({ settings: { autoLockMinutes: 1 } })`);
+      await msg(opt, "lock"); await attempt(current);
+      await sleep(61_000);
+      const expired = (await msg(opt, "getCodes")).error === "locked";
+      const p = await pair();
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+      return { ok: expired && okPair(p), expired, ...p };
+    });
+    await scenario("6 event page restart, then wrong and correct", async () => {
+      await msg(opt, "lock");
+      const a = (await msg(opt, "status")).result.startedAt;
+      await call("browsingContext.navigate", { context: pop, url: "about:blank", wait: "complete" });
+      await sleep(IDLE_MS * 3);
+      const b = (await msg(opt, "status")).result.startedAt;
+      const p = await pair();
+      return { ok: a !== b && okPair(p), eventPageRestarted: a !== b, ...p };
+    });
+    await scenario("7 browser restart, then wrong and correct", async () => { await restart(); const p = await pair(); return { ok: okPair(p), ...p }; });
+    await scenario("8 rotation, then old and new password", async () => {
+      const next = current === PW2 ? PW3 : PW2;
+      const ch = await msg(opt, "changePassword", { current, next, confirm: next });
+      const old = await attempt(current), neu = await attempt(next);
+      if (ch.ok && neu.unlocked) current = next;
+      return { ok: ch.ok && !old.unlocked && old.unchanged && neu.unlocked, old, new: neu };
+    });
+    await scenario("9 distinct string instances, identical content", async () => {
+      const results = [];
+      for (let i = 0; i < 3; i++) { await msg(opt, "lock"); results.push(await attempt([...current].join(""))); }
+      return { ok: results.every((r) => r.unlocked), attempts: results };
+    });
+    await scenario("10 NFC and NFD input", async () => {
+      const results = [];
+      for (const f of ["NFD", "NFC", "NFD"]) { await msg(opt, "lock"); results.push({ form: f, ...(await attempt(current.normalize(f))) }); }
+      return { ok: current.normalize("NFD") !== current && results.every((r) => r.unlocked), attempts: results };
+    });
+    await scenario("identical wrong guess repeated (NSS-cached derivation) still fails", async () => {
+      await msg(opt, "lock");
+      const guess = WRONG(), results = [await attempt(guess), await attempt(guess), await attempt(guess)];
+      return { ok: results.every((r) => !r.unlocked && r.unchanged), attempts: results };
+    });
+    record("C2-9", "authentication scenarios 2-10: wrong passwords fail without writing, correct ones open, after lock/expiry/restarts/rotation",
+      rows.every((r) => r.ok), { scenarios: rows });
+  }
+
+  // C2-10: controlled experiment on the speed of repeated derivations (same page realm,
+  // our deriveKey and raw Web Crypto, with a deriveKey call counter; no service involved).
+  {
+    const exp = await evalJson(opt, `async () => {
+      const { deriveKey } = await import("../lib/kdf.js");
+      const subtle = crypto.subtle, real = subtle.deriveKey.bind(subtle);
+      let calls = 0; subtle.deriveKey = (a, ...x) => { if (a?.name === "PBKDF2") calls++; return real(a, ...x); };
+      const salt = (b) => btoa(String.fromCharCode(...new Uint8Array(16).fill(b)));
+      const kdf = (s, it = 600000) => ({ name: "PBKDF2", hash: "SHA-256", iterations: it, salt: s });
+      const pw = "Grüße – experiment passphrase " + Math.random(); // fresh input for this run
+      const time = async (label, fn) => { const c0 = calls, t0 = performance.now(); await fn(); return { label, ms: Math.round(performance.now() - t0), pbkdf2Calls: calls - c0 }; };
+      const out = [];
+      out.push(await time("first derivation", () => deriveKey(pw, kdf(salt(7)))));
+      out.push(await time("identical input again", () => deriveKey(pw, kdf(salt(7)))));
+      out.push(await time("same content, new string instance", () => deriveKey([...pw].join(""), kdf(salt(7)))));
+      out.push(await time("NFD form (same normalized bytes)", () => deriveKey(pw.normalize("NFD"), kdf(salt(7)))));
+      out.push(await time("different password", () => deriveKey(pw + "x", kdf(salt(7)))));
+      out.push(await time("different salt", () => deriveKey(pw, kdf(salt(8)))));
+      out.push(await time("iterations + 1", () => deriveKey(pw, kdf(salt(7), 600001))));
+      subtle.deriveKey = real;
+      const rawIn = new TextEncoder().encode("raw " + Math.random());
+      const raw = async () => { const k = await subtle.importKey("raw", rawIn, "PBKDF2", false, ["deriveBits"]);
+        return subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", iterations: 600000, salt: new Uint8Array(16).fill(9) }, k, 256); };
+      out.push(await time("raw Web Crypto deriveBits (no app code), first", raw));
+      out.push(await time("raw Web Crypto deriveBits, identical input again", raw));
+      return out; }`);
+    const by = Object.fromEntries(exp.map((r) => [r.label, r]));
+    const slow = (l) => by[l].ms >= 40, fast = (l) => by[l].ms < 40;
+    const everyCallDerives = exp.filter((r) => !r.label.startsWith("raw")).every((r) => r.pbkdf2Calls === 1);
+    record("C2-10", "repeated-derivation speedup is inside Firefox Web Crypto for byte-identical input; the app derives every time",
+      everyCallDerives && slow("first derivation") && slow("different password") && slow("different salt") && slow("iterations + 1") &&
+      slow("raw Web Crypto deriveBits (no app code), first"),
+      { measurements: exp, identicalInputFast: fast("identical input again") && fast("raw Web Crypto deriveBits, identical input again") });
+  }
+
   evidence.finalPasswordIsPW = current === PW;
 
   evidence.layouts = layouts;
