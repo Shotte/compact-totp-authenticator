@@ -35,9 +35,16 @@ Implemented (Phase C1–C2):
 - Master password (12+ characters, NFC) with PBKDF2-SHA-256 (600,000 iterations); setup,
   unlock, confirmed recovery and password change (locks the session immediately).
 
-Planned (Phase C3–C6) – not implemented yet:
+In review (Phase C3, not merged):
 
-- Session lifecycle refinements, recovery UX for unverifiable vault generations.
+- A changed auto-lock time applies to the running session (shorter at once).
+- Optional lock when the computer is idle (off by default; uses Firefox's optional
+  `idle` permission; a locked screen alone is not detected by Firefox).
+- Fresh master-password check for sensitive operations (prepared for export).
+
+Planned (Phase C4–C6) – not implemented yet:
+
+- Recovery UX for unverifiable vault generations (design proposal in SECURITY.md §12.5).
 - Encrypted export, confirmed plaintext export, applying the legacy import.
 - Final security, regression and browser testing on all platforms.
 

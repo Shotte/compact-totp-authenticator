@@ -42,10 +42,19 @@ export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
     return new Promise((res, rej) => pending.set(id, { res, rej, method }));
   };
 
+  // Wait until the browser has released the profile lock, else a relaunch fails.
+  async function lockReleased() {
+    const lock = join(profile, process.platform === "win32" ? "parent.lock" : "lock");
+    for (let i = 0; i < 80; i++) {
+      try { unlinkSync(lock); break; } catch (e) { if (e.code === "ENOENT") break; await sleep(250); }
+    }
+  }
+
   async function close({ keepProfile = false } = {}) {
     try { await call("browser.close"); } catch { proc.kill(); }
     await sleep(1500);
-    if (!keepProfile) { try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile lock */ } }
+    if (keepProfile) { await lockReleased(); await sleep(500); return; }
+    try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile lock */ }
   }
 
   // Hard termination of the whole browser process tree (simulated crash / power loss).
@@ -58,11 +67,7 @@ export async function launchFirefox({ firefox, prefs, port = 9334, profile }) {
       try { process.kill(browserPid, "SIGKILL"); } catch { /* already gone */ }
     }
     try { ws.close(); } catch { /* already gone */ }
-    // Wait until the dead process has released the profile lock, else the restart fails.
-    const lock = join(profile, process.platform === "win32" ? "parent.lock" : "lock");
-    for (let i = 0; i < 80; i++) {
-      try { unlinkSync(lock); break; } catch (e) { if (e.code === "ENOENT") break; await sleep(250); }
-    }
+    await lockReleased();
     await sleep(500);
   }
   return { call, close, kill, profile, pid: proc.pid };
