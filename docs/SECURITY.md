@@ -682,6 +682,11 @@ vault. Restoring is a persistent, security-sensitive write, so the order is:
 6. The vault is read again right before writing: it must still be empty and at the
    revision that was verified in step 2 (`conflict` otherwise), and the single `commit`
    uses that revision for compare-and-set (§7).
+7. Immediately before the commit, with no `await` in between, the session epoch is
+   checked: a lock or re-unlock that arrived during the reads of step 6 aborts without
+   writing. A lock that arrives while the commit is already writing cannot stop it; the
+   restore is then reported as completed and the session stays locked (the answer always
+   matches the stored state; found by CI on macOS, fixed and tested).
 
 The two passwords stay separate: the master password never opens an export, and the
 export password is never accepted as the master password (tested both ways). Nothing is

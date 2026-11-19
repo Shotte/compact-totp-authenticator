@@ -24,7 +24,7 @@ format string removed from the AAD; payload accounts not validated.
 ## Firefox integration (C4-1 … C4-8)
 
 [`browser-results-local.json`](browser-results-local.json): Firefox 160.0.1, Windows 11,
-headless. Result 77/84 PASS, 0 failed, 1 MANUAL (C4-8), 6 NOT_TESTED (5 × real toolbar popup
+headless (final run after the review follow-up). Result 78/85 PASS, 0 failed, 1 MANUAL (C4-8), 6 NOT_TESTED (5 × real toolbar popup
 headless; C3-4 because the workstation was in use, so the system never reported idle).
 
 | Check | Result | Details |
@@ -42,19 +42,27 @@ Note on file selection: WebDriver BiDi `input.setFiles` is not supported for pri
 (extension) pages, so C4-4 hands a `File` with a Unicode name to the real file input
 through `DataTransfer`. The OS file chooser itself is MANUAL_REVIEW together with C4-8.
 
-### CI matrix (run 44562029333, head `7c0bf56`, headless)
+### CI matrix (run 44574857571, head `71a6b0c`, headless)
 
-| Platform / Firefox | PASS | NOT_TESTED | MANUAL | FAIL | C4-1…C4-7 | Lock inside export (lock sent / export answered, ms) | 1,000 accounts export / restore |
-|---|---|---|---|---|---|---|---|
-| Ubuntu / 160.0 | 78 | 5 | 1 | 0 | all PASS | 23/105, 40/103, 82/106 → locked | 133 / 43 ms |
-| Ubuntu / ESR 153.7 | 78 | 5 | 1 | 0 | all PASS | 22/124, 41/123, 81/123 → locked | 167 / 56 ms |
-| Ubuntu / ESR 140.17 | 76 | 8 | 1 | 0 | all PASS | 22/125, 41/124, 81/123 → locked | 170 / 57 ms |
-| Windows / 159.0.1 | 78 | 5 | 1 | 0 | all PASS | 30/110, 56/117, 82/109 → locked | 142 / 46 ms |
-| macOS / 159.0 | 78 | 5 | 1 | 0 | all PASS | 24/100, 44/97, 85/94 → locked | 151 / 83 ms |
+| Platform / Firefox | PASS | NOT_TESTED | MANUAL | FAIL | C4-1…C4-7, C4-9 | C4-9 attempts (lock sent / restore answered ms → result) |
+|---|---|---|---|---|---|---|
+| Ubuntu / 160.0 | 79 | 5 | 1 | 0 | all PASS | 22/104, 52/103, 83/104 → locked, nothing written; 122/114 → ok, written |
+| Ubuntu / ESR 153.7 | 79 | 5 | 1 | 0 | all PASS | 21/122, 51/120, 81/120, 122/124 → locked, nothing written |
+| Ubuntu / ESR 140.17 | 77 | 8 | 1 | 0 | all PASS | 22/102, 51/101, 82/101 → locked; 155/159 → ok, written |
+| Windows / 159.0.1 | 79 | 5 | 1 | 0 | all PASS | 22/116, 59/115, 94/115 → locked; 123/120 → ok, written |
+| macOS / 160.0 | 79 | 5 | 1 | 0 | all PASS | 29/75, 54/82 → locked; 83/85 → locked; 129/91 → ok, written |
 
-MANUAL is C4-8. NOT_TESTED is the real toolbar popup (headless), plus three checks on
-ESR 140 that need the privileged chrome scope. C3-4 (idle lock) passed on all five CI
-browsers.
+Every answer matches the stored state. MANUAL is C4-8 (native dialogs, verified below on
+Windows). NOT_TESTED is the real toolbar popup (headless), plus three checks on ESR 140
+that need the privileged chrome scope. C3-4 (idle lock) passed on all five CI browsers;
+locally it was NOT_TESTED because the workstation was in use.
+
+An earlier CI run (44573011153) failed C4-9 on three platforms. Two causes:
+
+- The test assumed every attempt would be aborted, but on fast runners the restore
+  finished before the lock.
+- On macOS a restore answered `locked` although it had written. This was a real defect,
+  fixed in `71a6b0c` (SECURITY.md §13.4 step 7).
 
 ## Review follow-up (after head `25049f7`)
 
