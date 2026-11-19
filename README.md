@@ -48,15 +48,21 @@ Implemented (Phase C4):
 - Unencrypted export (complete CTA format) after a warning and confirmation; legacy
   `totp.json` only when no information is lost.
 
-In review (Phase C5, not merged):
+Implemented (Phase C5):
 
-- Applying an import of a legacy `totp.json` or a CTA unencrypted export: append-only,
-  duplicates skipped, names for unnamed entries, one write.
+- Import of a legacy `totp.json` or a CTA unencrypted export after a preview and the
+  master password: append-only, duplicates skipped, names for unnamed entries, one write.
 
-Planned (Phase C6) – not implemented yet:
+In review (Phase C6, release verification, not merged):
+
+- Security regression, extension update test (unsigned upgrade simulation; the signed
+  update test is still open), release audit and operator checklist
+  ([docs/evidence/phase-c6](docs/evidence/phase-c6/README.md)).
+
+Not implemented:
 
 - Recovery UX for unverifiable vault generations (issue #8, proposal in SECURITY.md §12.5).
-- Final security, regression and browser testing, including a real update test.
+- Importing an encrypted export into a non-empty vault (issue #17).
 
 Known limitations are documented in [docs/SECURITY.md](docs/SECURITY.md).
 

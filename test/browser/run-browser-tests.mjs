@@ -33,7 +33,7 @@ const LEGACY_PATH = join(root, "test/fixtures/legacy-synthetic.json");
 const LEGACY_TEXT = readFileSync(LEGACY_PATH, "utf8");
 // Synthetic test passwords (C2). Never real credentials.
 const PW = "correct horse battery staple 2026", PW2 = "zweites Passwort für den Wechsel ✓", PW3 = "dritte Passphrase für Absturztests";
-const SECRETS = [...syntheticAccounts(100).map((a) => a.secret),
+const SECRETS = [...syntheticAccounts(100).map((a) => a.secret), ...exportRoundTripAccounts().map((a) => a.secret),
   ...JSON.parse(LEGACY_TEXT).otp_list.map((e) => e?.key).filter((k) => typeof k === "string" && k.length >= 16)];
 const leaks = (text) => [...SECRETS, PW, PW2, PW3].filter((s) => text.includes(s) || text.includes(s.toLowerCase()));
 
@@ -1523,6 +1523,42 @@ try {
     }
   }
 
+  }
+
+  // C6.3/C6.5: release checks that can run without a person (issues #2–#6 stay open; these
+  // are supporting evidence, not a substitute for the manual checks).
+  {
+    const WIDGET = `${EXT_ID.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}-browser-action`;
+    if (!CHROME_OK) {
+      notTested("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6)", NO_CHROME);
+      notTested("C6-2", "Alt+Shift+A registered for the popup and not used by a built-in Firefox shortcut (issue #6)", NO_CHROME);
+    } else {
+      const placement = await evalJson(chromeTop, `async () => {
+        const { CustomizableUI } = ChromeUtils.importESModule("resource:///modules/CustomizableUI.sys.mjs");
+        return CustomizableUI.getPlacementOfWidget(${JSON.stringify(WIDGET)}); }`).catch((e) => ({ error: String(e) }));
+      record("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6, supporting evidence)",
+        placement?.area === "nav-bar", { widget: WIDGET, placement });
+      const keys = await evalJson(chromeTop, `async () => {
+        const w = ${SVC}.wm.getMostRecentWindow("navigator:browser");
+        return [...w.document.querySelectorAll("key")].filter((k) => (k.getAttribute("key") || "").toUpperCase() === "A")
+          .map((k) => ({ id: k.id, modifiers: (k.getAttribute("modifiers") || "").split(/[ ,]+/).filter(Boolean).sort().join(","), disabled: k.hasAttribute("disabled") })); }`);
+      const cmds = await evalJson(opt, "async () => browser.commands.getAll()");
+      const ours = cmds.find((c) => c.name === "_execute_action");
+      const altShift = keys.filter((k) => k.modifiers === "alt,shift");
+      const builtIn = altShift.filter((k) => !k.id.startsWith("ext-key-id-"));
+      record("C6-2", "Alt+Shift+A registered for the popup; no built-in Firefox shortcut in the browser window uses it (issue #6, supporting evidence; other add-ons and OS shortcuts need the manual check)",
+        ours?.shortcut === "Alt+Shift+A" && altShift.length >= 1 && builtIn.length === 0, { command: ours, altShiftAKeys: altShift, builtInConflicts: builtIn });
+    }
+    // Final sweep after every flow of this run (setup, imports, exports, restores, password
+    // changes, crashes): no synthetic secret or test password in persistent or session storage.
+    const local = await evalJson(opt, "async () => JSON.stringify(await browser.storage.local.get())");
+    const sessionKeys = await evalJson(opt, "async () => { const s = await browser.storage.session.get(); return { keys: Object.keys(s), sessionFields: s.session ? Object.keys(s.session).sort() : null }; }");
+    const sessionText = await evalJson(opt, "async () => JSON.stringify(await browser.storage.session.get())");
+    const found = [...leaks(local), ...leaks(sessionText)];
+    const plaintextFields = /"(secret|accounts|otp_list)"s*:/.test(local);
+    record("C6-3", "after all flows of the run: no synthetic secret or password in storage.local or storage.session; no plaintext account fields; session holds only the key record",
+      found.length === 0 && !plaintextFields && sessionKeys.keys.every((k) => k === "session"),
+      { leaks: found.length, plaintextAccountFields: plaintextFields, session: sessionKeys, localBytes: local.length });
   }
 
   evidence.finalPasswordIsPW = current === PW;

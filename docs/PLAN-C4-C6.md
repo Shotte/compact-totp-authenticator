@@ -1,7 +1,7 @@
 # C4–C6 plan and decisions
 
-Status: C4 merged (PR #15, specification: [SECURITY.md §13](SECURITY.md)). C5 is implemented
-on `feature/c5-legacy-import` (SECURITY.md §14), review pending. C6 is planned. Decisions below were
+Status: C4 merged (PR #15, specification: [SECURITY.md §13](SECURITY.md)). C5 merged (PR #16,
+SECURITY.md §14). C6 is in review (PR #18, evidence in `docs/evidence/phase-c6`). Decisions below were
 approved in the C3 review decision (CTA-001, 2026-11-19). Material from the preparation
 draft (PR #14) that is now implemented or decided lives here or in SECURITY.md, not twice.
 
@@ -49,7 +49,7 @@ Carried over from the draft, not part of C4 (open proposals):
   today the user removes the extension's data manually.
 - Settings are not exported: they contain no secrets and do not matter for recovery.
 
-## 3. C5 – applying the legacy import (implemented, review pending)
+## 3. C5 – applying the legacy import (merged)
 
 Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
 
@@ -102,7 +102,7 @@ Per-row statuses (existing fixture plus empty names, same-name entries, weak sec
 revision conflict; hash mismatch; kill during commit; 1,000-entry limit; cancel writes
 nothing; no secrets in preview rows.
 
-## 4. C6 – final security and regression testing (planned)
+## 4. C6 – final security and regression testing (in review, PR #18)
 
 - **Release-blocking (approved): real Firefox extension update test.** It must show that
   the signed extension updates successfully, the encrypted vault survives, the extension

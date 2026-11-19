@@ -186,7 +186,9 @@ try {
   record("U-3", "extension ID and moz-extension UUID unchanged; still a permanent install",
     after?.id === before.id && after.uuid === before.uuid && after.temporary === false, { before, after });
 
-  // 5. Data after the update (event page restarted with the new code).
+  // 5. Data after the update (event page restarted with the new code). Firefox closes the
+  // extension's tabs when it replaces the add-on, so a new tab is opened.
+  page = undefined;
   await openPage(after.uuid);
   await sleep(800);
   const storeAfter = await storageLocal();
