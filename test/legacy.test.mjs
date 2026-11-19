@@ -22,9 +22,9 @@ test("preview classifies every fixture entry and leaks no secret", () => {
     ["", "invalid", "name", []],
     ["Missing Key", "invalid", "secret-format", []],
     ["", "invalid", "entry", []],
-    ["", "invalid", "name", []],
+    ["", "needs-name", null, []],
   ]);
-  assert.deepEqual(p.counts, { new: 4, duplicate: 1, "name-conflict": 1, invalid: 5 });
+  assert.deepEqual(p.counts, { new: 4, duplicate: 1, "name-conflict": 1, invalid: 4, "needs-name": 1 });
   const json = JSON.stringify(p);
   for (const e of JSON.parse(LEGACY).otp_list) {
     if (typeof e?.key === "string" && e.key.length >= 10) assert.ok(!json.includes(e.key), "secret in preview");

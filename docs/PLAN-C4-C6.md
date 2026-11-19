@@ -1,7 +1,7 @@
 # C4–C6 plan and decisions
 
-Status: C4 is implemented in this branch (specification: [SECURITY.md §13](SECURITY.md)).
-C5 and C6 are **planned**; no C5 production code before the C4 review. Decisions below were
+Status: C4 merged (PR #15, specification: [SECURITY.md §13](SECURITY.md)). C5 is implemented
+on `feature/c5-legacy-import` (SECURITY.md §14), review pending. C6 is planned. Decisions below were
 approved in the C3 review decision (CTA-001, 2026-11-19). Material from the preparation
 draft (PR #14) that is now implemented or decided lives here or in SECURITY.md, not twice.
 
@@ -49,7 +49,7 @@ Carried over from the draft, not part of C4 (open proposals):
   today the user removes the extension's data manually.
 - Settings are not exported: they contain no secrets and do not matter for recovery.
 
-## 3. C5 – applying the legacy import (planned)
+## 3. C5 – applying the legacy import (implemented, review pending)
 
 Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
 

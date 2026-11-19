@@ -7,7 +7,7 @@ import { newSession, checkSession, touch } from "./session-policy.js";
 import { totp } from "./totp.js";
 import { decodeBase32 } from "./base32.js";
 import * as acc from "./accounts.js";
-import { previewImport, MAX_IMPORT_BYTES } from "./legacy.js";
+import { planImport, MAX_IMPORT_BYTES, MAX_IMPORT_ENTRIES } from "./legacy.js";
 import { loadSettings } from "./settings.js";
 import { createVaultStore, validateVault, isValidKdf, VaultError } from "./vault.js";
 import { deriveKey, newKdf, checkNewPassword, normalizePassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
@@ -25,6 +25,11 @@ export class OutcomeUnknownError extends Error {
   constructor() { super("unknown"); this.code = "unknown"; }
 }
 
+async function sha256(text) {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function createService({ session, local, alarms, now = Date.now,
   randomId = () => crypto.randomUUID() }) {
   const startedAt = now();
@@ -33,10 +38,14 @@ export function createService({ session, local, alarms, now = Date.now,
   // another epoch must not write or return anything, even if storage still looks valid.
   let epoch = 0;
   let chain = Promise.resolve();
+  // The file text of the last import preview (C5, I6): kept only in event-page memory, bound
+  // to the session and the preview's vault revision, dropped on apply, cancel and lock.
+  let pendingImport = null;
   const exclusive = (fn) => { const run = chain.then(fn); chain = run.catch(() => {}); return run; };
 
   async function wipe() {
     epoch++;
+    pendingImport = null;
     await session.remove("session");
     await alarms.clear("autolock");
   }
@@ -370,14 +379,53 @@ export function createService({ session, local, alarms, now = Date.now,
       });
     },
 
-    // Preview only; nothing is stored (production import arrives in C5).
-    async importPreview({ text }) {
-      const ctx = await requireSession();
-      const { accounts } = await readVault(ctx);
-      const preview = previewImport(text, accounts);
-      await recheck(ctx);
-      return preview;
+    // Import step 1 (C5): preview of a legacy totp.json or a cta-plain v1 file. Writes
+    // nothing. Returns rows without secrets plus the vault revision and a SHA-256 of the
+    // file text; both must come back with importApply (I1).
+    importPreview({ text }) {
+      return exclusive(async () => {
+        pendingImport = null;
+        const ctx = await requireSession();
+        const { revision, accounts } = await readVault(ctx);
+        const { candidates, ...preview } = planImport(text, accounts);
+        const fileHash = await sha256(text);
+        await recheck(ctx);
+        pendingImport = { sessionId: ctx.s.id, revision, fileHash, text };
+        return { ...preview, revision, fileHash };
+      });
     },
+
+    // Import step 2 (C5): appends exactly the importable rows of that preview (new,
+    // name-conflict, needs-name with a replacement name) in one commit. Duplicates and
+    // invalid rows are skipped; existing accounts are never changed. A changed vault,
+    // another preview, a lock or an unknown file returns conflict: preview again.
+    importApply({ revision, fileHash, names }) {
+      return exclusive(async () => {
+        const ctx = await requireSession();
+        const pending = pendingImport;
+        if (!pending || pending.sessionId !== ctx.s.id || pending.fileHash !== fileHash
+          || pending.revision !== revision) throw new ConflictError();
+        const { revision: current, accounts } = await readVault(ctx);
+        if (current !== revision) throw new ConflictError();
+        const { candidates } = planImport(pending.text, accounts);
+        let next = accounts;
+        for (const c of candidates) {
+          const { index, needsName, ...fields } = c;
+          const name = needsName ? names[index] : fields.name;
+          if (needsName && (typeof name !== "string" || !name.trim())) throw new acc.InputError("import-name");
+          next = acc.addAccount(next, { ...fields, name }, randomId()); // validated like manual entry
+        }
+        if (!candidates.length) throw new acc.InputError("import-nothing");
+        if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
+        await recheck(ctx);
+        pendingImport = null;
+        const r = await commitAccounts(ctx, ctx.s.key, next, current);
+        return { ...r, imported: candidates.length };
+      });
+    },
+
+    // Drops the pending import text (user cancelled the preview).
+    async importCancel() { pendingImport = null; return {}; },
   };
 
   const str = (v) => (typeof v === "string" ? v : undefined);
@@ -399,6 +447,14 @@ export function createService({ session, local, alarms, now = Date.now,
     importPreview: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");
       return { text: m.text };
+    },
+    importApply: (m) => {
+      if (typeof m.fileHash !== "string") throw new acc.InputError("file-hash");
+      const names = m.names ?? {};
+      if (typeof names !== "object" || Array.isArray(names) || Object.values(names).some((v) => typeof v !== "string")) {
+        throw new acc.InputError("import-name");
+      }
+      return { revision: rev(m), fileHash: m.fileHash, names: Object.assign(Object.create(null), names) };
     },
   };
   function rev(m) {
