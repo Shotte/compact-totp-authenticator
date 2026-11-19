@@ -24,7 +24,7 @@ Implemented (Phase B):
 - Account management (add, edit, delete, reorder, sort), German and English UI.
 - Appearance settings: light/dark/automatic theme, custom colors with enforced contrast,
   font size 12–20 px, row height.
-- Legacy `totp.json` import **preview** (validation, duplicates; no import yet).
+- Legacy `totp.json` import preview (validation, duplicates).
 - Security foundation: non-extractable session key used only by the background,
   fail-closed lock deadline, auto-lock.
 
@@ -42,15 +42,19 @@ Implemented (Phase C3):
   `idle` permission; a locked screen alone is not detected by Firefox).
 - Fresh master-password check for sensitive operations.
 
-In review (Phase C4, not merged):
+Implemented (Phase C4):
 
 - Encrypted backup export with its own export password; restore into an empty vault.
 - Unencrypted export (complete CTA format) after a warning and confirmation; legacy
   `totp.json` only when no information is lost.
 
-Planned (Phase C5–C6) – not implemented yet:
+In review (Phase C5, not merged):
 
-- Applying the legacy import (merge, duplicates, empty names).
+- Applying an import of a legacy `totp.json` or a CTA unencrypted export: append-only,
+  duplicates skipped, names for unnamed entries, one write.
+
+Planned (Phase C6) – not implemented yet:
+
 - Recovery UX for unverifiable vault generations (issue #8, proposal in SECURITY.md §12.5).
 - Final security, regression and browser testing, including a real update test.
 

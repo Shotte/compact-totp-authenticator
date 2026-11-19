@@ -1,7 +1,7 @@
 # C4–C6 plan and decisions
 
-Status: C4 is implemented in this branch (specification: [SECURITY.md §13](SECURITY.md)).
-C5 and C6 are **planned**; no C5 production code before the C4 review. Decisions below were
+Status: C4 merged (PR #15, specification: [SECURITY.md §13](SECURITY.md)). C5 is implemented
+on `feature/c5-legacy-import` (SECURITY.md §14), review pending. C6 is planned. Decisions below were
 approved in the C3 review decision (CTA-001, 2026-11-19). Material from the preparation
 draft (PR #14) that is now implemented or decided lives here or in SECURITY.md, not twice.
 
@@ -49,7 +49,7 @@ Carried over from the draft, not part of C4 (open proposals):
   today the user removes the extension's data manually.
 - Settings are not exported: they contain no secrets and do not matter for recovery.
 
-## 3. C5 – applying the legacy import (planned)
+## 3. C5 – applying the legacy import (implemented, review pending)
 
 Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
 
@@ -65,6 +65,16 @@ Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
   secrets instead of rejecting all of them.
 - Never invent missing security-sensitive parameters.
 - A failed import leaves the existing vault unchanged.
+
+C5 architecture review decisions (CTA-001, 2026-11-19), as implemented:
+
+- The apply needs a fresh master password (`authorizeSensitive`), a preview bound to the
+  session, the same file hash and revision, and a final session check (SECURITY.md §14).
+- The cached import text is dropped on every session end (lock, expiry, idle lock,
+  password change, changed key generation, new session) and after any stale apply.
+- Generated placeholder names stay, marked as generated and editable. Same-name accounts
+  stay distinct; the name never proves a duplicate. Short valid secrets get a warning.
+- Merging an encrypted `cta-export` into a non-empty vault: separate enhancement, issue #17.
 
 ### 3.2 Acceptance criteria (proposed for the C5 review)
 

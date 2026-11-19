@@ -157,16 +157,16 @@
     "message": "Berechtigung nicht erteilt; die Leerlaufsperre bleibt aus."
   },
   "importTitle": {
-    "message": "Import aus der Originalerweiterung (totp.json)"
+    "message": "Import (totp.json der Originalerweiterung oder unverschlüsselter CTA-Export)"
   },
   "importPreviewNote": {
-    "message": "Nur Vorschau. Das Importieren wird freigeschaltet, sobald der verschlüsselte Tresor verfügbar ist."
+    "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung mit Ihrem Master-Passwort. Vorhandene Konten werden nie geändert; Duplikate werden übersprungen; Konten mit gleichem Namen bleiben erhalten."
   },
   "importApply": {
     "message": "Importieren"
   },
   "importCounts": {
-    "message": "$NEW$ neu, $DUP$ Duplikate, $CONFLICT$ Namenskonflikte, $INVALID$ ungültig",
+    "message": "$NEW$ neu, $DUP$ Duplikate, $CONFLICT$ Namenskonflikte, $NONAME$ ohne Namen, $INVALID$ ungültig",
     "placeholders": {
       "new": {
         "content": "$1"
@@ -177,8 +177,11 @@
       "conflict": {
         "content": "$3"
       },
-      "invalid": {
+      "noname": {
         "content": "$4"
+      },
+      "invalid": {
+        "content": "$5"
       }
     }
   },
@@ -502,5 +505,54 @@
   },
   "savedWeak": {
     "message": "Gespeichert. Hinweis: Der Schlüssel ist kürzer als 16 Zeichen (schwach, aber nutzbar)."
+  },
+  "statusNeedsName": {
+    "message": "Kein Name: bitte eingeben"
+  },
+  "importNameLabel": {
+    "message": "Name für das Konto ohne Namen"
+  },
+  "importUnnamed": {
+    "message": "Ohne Namen $N$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "importCancel": {
+    "message": "Abbrechen"
+  },
+  "importDone": {
+    "message": "$COUNT$ Konten importiert. Löschen Sie die unverschlüsselte Datei jetzt: Sie enthält Ihre geheimen Schlüssel im Klartext.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "importCancelled": {
+    "message": "Import abgebrochen. Es wurde nichts gespeichert."
+  },
+  "reason_import_name": {
+    "message": "jedes Konto ohne Namen braucht einen Namen"
+  },
+  "reason_import_nothing": {
+    "message": "nichts zu importieren (nur Duplikate oder ungültige Einträge)"
+  },
+  "reason_import_too_many": {
+    "message": "insgesamt mehr als 1.000 Konten"
+  },
+  "reason_parameters": {
+    "message": "Algorithmus, Stellen oder Intervall fehlen"
+  },
+  "reason_file_hash": {
+    "message": "Dateiprüfung fehlgeschlagen"
+  },
+  "importing": {
+    "message": "Importiere…"
+  },
+  "importGeneratedName": {
+    "message": "erzeugter Name, änderbar"
   }
 }

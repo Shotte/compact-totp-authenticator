@@ -157,16 +157,16 @@
     "message": "Permission not granted; the idle lock stays off."
   },
   "importTitle": {
-    "message": "Import from the original extension (totp.json)"
+    "message": "Import (original extension totp.json or CTA unencrypted export)"
   },
   "importPreviewNote": {
-    "message": "Preview only. Importing is enabled once the encrypted vault is available."
+    "message": "Choose a file to see a preview. Nothing is saved until you confirm with your master password. Existing accounts are never changed; duplicates are skipped; accounts with the same name are kept."
   },
   "importApply": {
     "message": "Import"
   },
   "importCounts": {
-    "message": "$NEW$ new, $DUP$ duplicates, $CONFLICT$ name conflicts, $INVALID$ invalid",
+    "message": "$NEW$ new, $DUP$ duplicates, $CONFLICT$ name conflicts, $NONAME$ without a name, $INVALID$ invalid",
     "placeholders": {
       "new": {
         "content": "$1"
@@ -177,8 +177,11 @@
       "conflict": {
         "content": "$3"
       },
-      "invalid": {
+      "noname": {
         "content": "$4"
+      },
+      "invalid": {
+        "content": "$5"
       }
     }
   },
@@ -502,5 +505,54 @@
   },
   "savedWeak": {
     "message": "Saved. Note: the key is shorter than 16 characters (weak but usable)."
+  },
+  "statusNeedsName": {
+    "message": "No name: enter one"
+  },
+  "importNameLabel": {
+    "message": "Name for the account without a name"
+  },
+  "importUnnamed": {
+    "message": "Unnamed $N$",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "importCancel": {
+    "message": "Cancel"
+  },
+  "importDone": {
+    "message": "$COUNT$ accounts imported. Delete the unencrypted file now: it contains your secret keys in plain text.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "importCancelled": {
+    "message": "Import cancelled. Nothing was saved."
+  },
+  "reason_import_name": {
+    "message": "every account without a name needs a name"
+  },
+  "reason_import_nothing": {
+    "message": "nothing to import (only duplicates or invalid entries)"
+  },
+  "reason_import_too_many": {
+    "message": "more than 1,000 accounts in total"
+  },
+  "reason_parameters": {
+    "message": "algorithm, digits or period missing"
+  },
+  "reason_file_hash": {
+    "message": "file check failed"
+  },
+  "importing": {
+    "message": "Importing…"
+  },
+  "importGeneratedName": {
+    "message": "generated name, editable"
   }
 }

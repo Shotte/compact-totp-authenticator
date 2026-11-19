@@ -272,8 +272,8 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
 
 ## 8. Import and export
 
-- Legacy `totp.json` import: see MIGRATION.md. Disabled in production builds until the vault
-  (Phase C) is operational (B0-3).
+- Import of a legacy `totp.json` or a `cta-plain` v1 file (C5): preview, then apply.
+  Rules and flow in MIGRATION.md §2; security properties in §14.
 - Export (C4): encrypted by default; unencrypted CTA format and legacy `totp.json` only
   after a warning and confirmation, legacy only when lossless. Specified in §13.
 
@@ -295,7 +295,7 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
 - **B0-3:** satisfied by C2. Persistence is enabled only together with authenticated
   encryption and the master password; the Phase B `devUnlock` and its fixtures are removed
   from the product (fixtures live in `test/helpers/`; static test and package check). The
-  legacy import apply step stays disabled until C5.
+  import apply step arrives with C5 (§14).
 
 Sources (checked 2026-11-18):
 
@@ -725,7 +725,8 @@ vault. Restoring is a persistent, security-sensitive write, so the order is:
 
 The two passwords stay separate: the master password never opens an export, and the
 export password is never accepted as the master password (tested both ways). Nothing is
-written on any failure. Merging into existing accounts and the legacy import are C5.
+written on any failure. The import into existing accounts (legacy `totp.json`, `cta-plain`)
+is C5 (§14); merging an encrypted export stays out of scope.
 
 ### 13.5 Download status with the current permissions
 
@@ -769,3 +770,58 @@ the import (approved C5 rule). TOTP test vectors are unchanged.
   until the user deletes it (the UI says so).
 - The export password has the same rules as the master password (12+ code points), no
   strength meter.
+
+## 14. Import (C5)
+
+Implementation: `planImport` in [`legacy.js`](../src/lib/legacy.js) and `importPreview`,
+`importApply`, `importCancel` in [`service.js`](../src/lib/service.js).
+
+- **Gate (C5 review).** The preview needs a valid session. The apply is a sensitive
+  persistent change and runs, in this order:
+  1. a valid session and the current master password, verified fresh through
+     `authorizeSensitive` (§12.3);
+  2. a preview bound to this session id;
+  3. the same file hash;
+  4. the preview's vault revision, equal to the verified one;
+  5. `recheck()`, then the vault is re-read right before the write;
+  6. the epoch check and compare-and-set inside `commitAccounts`.
+
+  A wrong or missing password (`current-password`), an expired or locked session, another
+  file or a changed vault aborts without writing.
+- **File text and its lifetime.** It goes from the page to the background once, with
+  `importPreview`, and is never echoed back or written to storage. The background keeps it
+  in event-page memory only, bound to the session id, the preview's vault revision and a
+  SHA-256 of the text. The reference is dropped:
+  - on apply, cancel and the next preview;
+  - on every failed apply except a fixable input error (wrong password, missing name);
+  - on every session end through `wipe()`: explicit lock, expiry (gate or auto-lock alarm),
+    system idle lock, password change, changed key generation, unreadable vault;
+  - on a new session (`startSession`).
+
+  A preview that ends after a lock caches nothing (epoch check before caching). An
+  event-page restart loses the text with the page. Dropping the reference does not zeroize
+  memory: JavaScript cannot overwrite strings, so the text stays in the heap until garbage
+  collection. Tests: `test/import-auth.test.mjs` checks every session end through a hook
+  that messages cannot reach (`hasPendingImport`).
+- **Apply exactly what was shown (I1).** `importApply` carries the preview's revision and
+  file hash. A different revision, hash, session or a missing preview answers `conflict`
+  and writes nothing. The plan is recomputed from the kept text against the current vault,
+  which is identical to the preview because the revision is unchanged.
+- **Validation.** Every row goes through `addAccount`, the same validation as manual entry,
+  including the shared secret policy (§13.6). Empty names are `needs-name` rows that need a
+  replacement name (validated like a typed name) before apply. Legacy rows use the legacy
+  extension's fixed SHA-1, 6 digits, 30 s; `cta-plain` rows must carry all three
+  parameters, missing ones make the row invalid (never defaulted).
+- **Duplicates and names.** Same normalized secret as an existing account or an earlier row
+  → `duplicate`, skipped. Same name with another secret → `name-conflict`, imported. Existing
+  accounts are never changed or reordered; imports are appended in file order.
+- **One write.** All rows are appended in one `commitAccounts` call (§7.6): a failure writes
+  nothing, a lock during the write reports the import with `locked: true`, an unresolved
+  failure reports `unknown`. At most 1,000 accounts in total (`import-too-many`); nothing
+  importable answers `import-nothing`.
+- **After success** the page tells the user to delete the unencrypted file.
+- **Generated names.** Unnamed rows get an editable placeholder ("Ohne Namen 1", "Unnamed
+  1", …) marked as a generated name in the preview; importing without editing it is allowed.
+- **Not in C5:** merging an encrypted `cta-export` into a non-empty vault (approved in
+  principle, issue #17; restore stays "empty vault only", §13.4); importing the legacy
+  colour settings.

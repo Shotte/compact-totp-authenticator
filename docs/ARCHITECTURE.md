@@ -115,7 +115,9 @@ Background message API (all from own pages only; errors reduced to `locked`, `co
 | `getCodes` | yes | no | `{ revision, codes: [{ id, name, url, period, code, validUntil }] }` |
 | `listAccounts` | yes | no | `{ revision, accounts: [{ id, name, url, algorithm, digits, period }] }` |
 | `addAccount`, `updateAccount`, `deleteAccount`, `moveAccount` (+`revision`) | yes | yes | `{ revision, locked }`; add/update also `warnings` (`short-secret`, SECURITY.md §13.6) |
-| `importPreview {text}` | yes | no | `{ format, rows, counts }` (no secrets) |
+| `importPreview {text}` | yes | no | `{ format, rows, counts, revision, fileHash }` (no secrets; keeps the text in memory, SECURITY.md §14) |
+| `importApply {revision, fileHash, names, masterPassword}` | yes + fresh master password | yes | `{ revision, locked, imported }`; appends the importable rows of that preview in one commit |
+| `importCancel` | no | no | `{}`; drops the kept import text |
 | `exportVault {kind, password, exportPassword, confirm, useMasterPassword, confirmed}` | yes + fresh master password | no | `{ fileName, text, count }`; encrypted text has no secrets in the clear (SECURITY.md §13) |
 | `importExport {text, password, masterPassword}` | yes + fresh master password | yes | `{ revision, locked, imported }`; empty vault only; `password` is the export password (SECURITY.md §13.4) |
 
@@ -220,8 +222,8 @@ export and recovery come before production legacy import.
 | C1 ✔ | `vault.js`: format v1, authenticated metadata, fresh nonce; `create`/`commit`/`rotate` authenticate the key before writing, read-only `load`, explicit same-generation `restoreBackup`, staged rotation (SECURITY.md §6–7); not yet wired to storage | Tampering, wrong keys, different salts, stale/damaged copies, concurrency; fault injection at every step of commit and rotation; at least one password always opens the data |
 | C2 ✔ | Master-password setup and unlock (PBKDF2-SHA-256, NFC, 12+ chars), confirmed recovery, password change with immediate lock, persistence on `storage.local`, development unlock removed | Wrong passwords never write; old key/password dead after change; kill/restart during writes and rotation recover; latency measured (SECURITY.md §11) |
 | C3 ✔ | Session lifecycle on the persistent vault: deadline gate, alarms, `onStartup` clear, auto-lock setting on the running session, optional system-idle lock, fresh password gate `authorizeSensitive` for sensitive actions (SECURITY.md §12) | B0-2/B6 checks against the real vault; every sensitive message rejected after expiry or lock |
-| C4 (PR open, review pending) | Encrypted backup export (`cta-export` v1, separate export password, self-check), restore into an empty vault, complete plaintext export (`cta-plain` v1) and lossless-only legacy `totp.json` after warning and confirmation (SECURITY.md §13) | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |
-| C5 | Production legacy `totp.json` import: preview, validation, duplicates, append-only atomic commit | Duplicates skipped; failed or interrupted import changes nothing |
+| C4 ✔ | Encrypted backup export (`cta-export` v1, separate export password, self-check), restore into an empty vault, complete plaintext export (`cta-plain` v1) and lossless-only legacy `totp.json` after warning and confirmation (SECURITY.md §13) | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |
+| C5 (PR open, review pending) | Legacy `totp.json` and `cta-plain` v1 import: preview, validation, duplicates, names for unnamed entries, append-only single commit (SECURITY.md §14) | Duplicates skipped; failed or interrupted import changes nothing |
 | C6 | Comprehensive security, regression and browser testing incl. the real toolbar popup | All suites green; evidence refreshed; release gate passes without demo code |
 
 ### Phase D – Release preparation

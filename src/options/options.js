@@ -27,6 +27,7 @@ async function showLocked(mode) {
   if (!mode) mode = (await call("status")).initialized ? "unlock" : "setup";
   state = { revision: 0, accounts: [] };
   $("accounts").tBodies[0].replaceChildren();
+  clearImport();
   $("lockedView").hidden = false;
   $("unlockedView").hidden = true;
   $("lockBtn").hidden = true;
@@ -166,32 +167,95 @@ async function submitAccount(ev) {
   if (ok) resetForm();
 }
 
+// Import (C5): the file text goes to the background once, for the preview; the page keeps
+// only the preview's revision and file hash, and the replacement names the user types.
+let importPlan = null;
+
+function clearImport() {
+  importPlan = null;
+  $("preview").hidden = true;
+  $("preview").tBodies[0].replaceChildren();
+  $("importSummary").textContent = "";
+  $("importApply").disabled = true;
+  $("importCancel").hidden = true;
+  $("importMasterLabel").hidden = true;
+  $("importMasterPassword").value = "";
+}
+
 async function previewFile() {
   const input = $("importFile");
   const file = input.files[0];
   input.value = "";
-  $("preview").hidden = true;
-  $("importSummary").textContent = "";
+  clearImport();
   if (!file) return;
   if (file.size > MAX_IMPORT_BYTES) { say(t("errMalformed"), "error"); return; }
   const text = await file.text();
   const p = await run(() => call("importPreview", { text }));
   if (!p) return;
   say("");
-  const label = { new: "statusNew", duplicate: "statusDuplicate", "name-conflict": "statusNameConflict", invalid: "statusInvalid" };
+  const label = { new: "statusNew", duplicate: "statusDuplicate", "name-conflict": "statusNameConflict",
+    "needs-name": "statusNeedsName", invalid: "statusInvalid" };
+  let unnamed = 0;
+  const nameInputs = [];
   $("preview").tBodies[0].replaceChildren(...p.rows.map((r) => {
     const tr = document.createElement("tr");
     let status = t(label[r.status]);
+    if (r.status === "invalid" && r.reason) status += ` (${browser.i18n.getMessage(`reason_${r.reason.replace(/-/g, "_")}`) || r.reason})`;
     if (r.warnings.includes("short-secret")) status += ` (${t("warnShort")})`;
     const st = cell(`status-${r.status}`, status);
     tr.dataset.status = r.status;
-    tr.append(cell("name", r.name), cell("site", r.url), st);
+    const name = cell("name", r.name);
+    if (r.status === "needs-name") { // editable replacement name, validated again on apply
+      const field = document.createElement("input");
+      field.type = "text";
+      field.maxLength = 100;
+      field.required = true;
+      field.value = t("importUnnamed", [String(++unnamed)]);
+      field.setAttribute("aria-label", `${t("importNameLabel")} (${t("importGeneratedName")})`);
+      field.dataset.index = String(r.index);
+      nameInputs.push(field);
+      const hint = document.createElement("span"); // the name was generated, not in the file
+      hint.className = "generated";
+      hint.textContent = t("importGeneratedName");
+      name.replaceChildren(field, " ", hint);
+    }
+    tr.append(name, cell("site", r.url), st);
     return tr;
   }));
   const c = p.counts;
-  $("importSummary").textContent = t("importCounts",
-    [String(c.new ?? 0), String(c.duplicate ?? 0), String(c["name-conflict"] ?? 0), String(c.invalid ?? 0)]);
+  $("importSummary").textContent = t("importCounts", [String(c.new ?? 0), String(c.duplicate ?? 0),
+    String(c["name-conflict"] ?? 0), String(c["needs-name"] ?? 0), String(c.invalid ?? 0)]);
+  importPlan = { revision: p.revision, fileHash: p.fileHash, nameInputs };
   $("preview").hidden = false;
+  $("importCancel").hidden = false;
+  $("importMasterLabel").hidden = false;
+  $("importApply").disabled = !((c.new ?? 0) + (c["name-conflict"] ?? 0) + (c["needs-name"] ?? 0));
+}
+
+async function applyImport() {
+  if (!importPlan) return;
+  const { revision, fileHash, nameInputs } = importPlan;
+  const names = Object.fromEntries(nameInputs.map((f) => [f.dataset.index, f.value]));
+  const masterPassword = $("importMasterPassword").value;
+  $("importMasterPassword").value = ""; // never kept in the page longer than needed
+  $("importApply").disabled = true;
+  say(t("importing"), "progress");
+  let r;
+  try { r = await call("importApply", { revision, fileHash, names, masterPassword }); } catch (e) {
+    // Only a fixable input error (e.g. a missing name) keeps this preview; anything else
+    // (conflict, lock, unknown outcome) needs a new preview of the current vault.
+    if (e.code === "invalid") $("importApply").disabled = false; else clearImport();
+    say(errorText(e), "error");
+    if (e.code === "locked") await showLocked();
+    else if (e.code !== "invalid") await refresh(false);
+    return;
+  }
+  clearImport();
+  const done = t("importDone", [String(r.imported)]);
+  if (r.locked) { await showLocked(); say(`${done} ${t("errLocked")}`); return; }
+  state.revision = r.revision;
+  await refresh(false);
+  say(done);
 }
 
 // Appearance and behaviour settings (storage.local "settings", never vault data).
@@ -338,6 +402,12 @@ async function init() {
   });
   $("cancelEdit").addEventListener("click", resetForm);
   $("importFile").addEventListener("change", previewFile);
+  $("importApply").addEventListener("click", applyImport);
+  $("importCancel").addEventListener("click", async () => {
+    clearImport();
+    await call("importCancel").catch(() => {});
+    say(t("importCancelled"));
+  });
   $("lockBtn").addEventListener("click", async () => { await call("lock"); await showLocked("unlock"); });
   passwordForm("setupForm", async ({ password, confirm }) => {
     await call("setup", { password, confirm });
