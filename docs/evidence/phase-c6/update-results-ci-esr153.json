@@ -1,0 +1,149 @@
+{
+  "startedAt": "2026-11-19T21:56:32.137Z",
+  "kind": "local unsigned upgrade via the AddonManager update path (not a signed update)",
+  "browser": {
+    "version": "153.7.0",
+    "platform": "linux"
+  },
+  "results": [
+    {
+      "id": "U-1",
+      "name": "0.1.0 installed permanently (not a temporary add-on), unsigned, active",
+      "verdict": "PASS",
+      "details": {
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.1.0",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 0,
+          "scope": 1,
+          "uuid": "121b8239-1e63-4ebc-8e69-9b6eede185ba"
+        }
+      }
+    },
+    {
+      "id": "U-2",
+      "name": "update found through update_url and installed by AddonManager (updates.json fetched, XPI downloaded, hash checked)",
+      "verdict": "PASS",
+      "details": {
+        "update": {
+          "found": true,
+          "version": "0.1.1",
+          "state": 10,
+          "error": 0
+        },
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.1.1",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 0,
+          "scope": 1,
+          "uuid": "121b8239-1e63-4ebc-8e69-9b6eede185ba"
+        },
+        "updateRequests": 1,
+        "xpiRequests": 1
+      }
+    },
+    {
+      "id": "U-3",
+      "name": "extension ID and moz-extension UUID unchanged; still a permanent install",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.1.0",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 0,
+          "scope": 1,
+          "uuid": "121b8239-1e63-4ebc-8e69-9b6eede185ba"
+        },
+        "after": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.1.1",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 0,
+          "scope": 1,
+          "uuid": "121b8239-1e63-4ebc-8e69-9b6eede185ba"
+        }
+      }
+    },
+    {
+      "id": "U-4",
+      "name": "storage.local unchanged by the update: encrypted vault, backup and settings byte-identical, nothing reinitialized",
+      "verdict": "PASS",
+      "details": {
+        "keysBefore": [
+          "settings",
+          "vault",
+          "vault_backup"
+        ],
+        "keysAfter": [
+          "settings",
+          "vault",
+          "vault_backup"
+        ],
+        "vaultRevision": 20
+      }
+    },
+    {
+      "id": "U-5",
+      "name": "after the update: initialized, a wrong password is refused, the master password unlocks; accounts, order and revision unchanged",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795125393837
+        },
+        "wrongPassword": "invalid",
+        "unlock": true,
+        "accounts": 18
+      }
+    },
+    {
+      "id": "U-6",
+      "name": "TOTP codes after the update equal RFC 6238 codes computed outside Firefox; all secrets and parameters intact",
+      "verdict": "PASS",
+      "details": {
+        "ok": true,
+        "count": 18,
+        "mismatches": []
+      }
+    },
+    {
+      "id": "U-7",
+      "name": "browser restart after the update: 0.1.1 still installed and active, session locked with no key in storage.session, master password unlocks, data and settings intact",
+      "verdict": "PASS",
+      "details": {
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.1.1",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 0,
+          "scope": 1,
+          "uuid": "121b8239-1e63-4ebc-8e69-9b6eede185ba"
+        },
+        "status": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795125397385
+        },
+        "sessionKeys": [],
+        "unlock": true
+      }
+    },
+    {
+      "id": "U-signed",
+      "name": "signed extension update (AMO-signed 0.1.0 → signed 0.1.1)",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "needs signed builds; signing requires operator authorization (Phase D)"
+      }
+    }
+  ]
+}
