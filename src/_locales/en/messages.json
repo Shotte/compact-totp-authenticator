@@ -144,6 +144,18 @@
   "autoLock": {
     "message": "Auto-lock after (minutes)"
   },
+  "idleLock": {
+    "message": "Also lock when the computer is idle"
+  },
+  "idleLockMinutes": {
+    "message": "Idle time before locking (minutes)"
+  },
+  "idleLockNote": {
+    "message": "Uses Firefox's system idle detection and needs the optional “idle” permission. A locked screen alone is not detected; the auto-lock time above always applies."
+  },
+  "idlePermissionDenied": {
+    "message": "Permission not granted; the idle lock stays off."
+  },
   "importTitle": {
     "message": "Import from the original extension (totp.json)"
   },

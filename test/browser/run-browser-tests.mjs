@@ -128,11 +128,12 @@ try {
     }
     return revision;
   }
-  // Hard kill (simulated crash), relaunch with the same profile, reinstall the extension.
-  async function restart() {
+  // Hard kill (simulated crash) or graceful quit (C3), relaunch with the same profile,
+  // reinstall the extension.
+  async function restart({ graceful = false } = {}) {
     const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
     const profile = ff.profile;
-    await ff.kill(pid);
+    if (graceful) await ff.close({ keepProfile: true }); else await ff.kill(pid);
     ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS, profile });
     await call("session.new", { capabilities: {} });
     await call("webExtension.install", { extensionData: { type: "path", path: join(root, "src") } });
@@ -1050,6 +1051,118 @@ try {
       everyCallDerives && slow("first derivation") && slow("different password") && slow("different salt") && slow("iterations + 1") &&
       slow("raw Web Crypto deriveBits (no app code), first"),
       { measurements: exp, identicalInputFast: fast("identical input again") && fast("raw Web Crypto deriveBits, identical input again") });
+  }
+
+  {
+  // C3 session security on the real browser. Session fields are read by the harness only
+  // (pages of the product never read storage.session).
+  const sessionRec = () => evalJson(opt, `async () => { const { session: s } = await browser.storage.session.get("session");
+    return s ? { id: s.id, timeoutMs: s.timeoutMs, lastActivity: s.lastActivity, deadline: s.deadline } : null; }`);
+  const sessionKeys = () => evalJson(opt, `async () => Object.keys(await browser.storage.session.get())`);
+  const vaultJson = () => evalJson(opt, `async () => JSON.stringify(await browser.storage.local.get(["vault", "vault_backup", "vault_next"]))`);
+  const setField = (name, value) => evalJson(opt, `async () => { const f = document.getElementById("settingsForm").elements[${JSON.stringify(name)}];
+    f.value = ${JSON.stringify(value)}; f.dispatchEvent(new Event("change", { bubbles: true })); }`);
+  const until = async (fn, ms) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await fn(); if (v) return v; await sleep(250); } return v; };
+
+  // C3-1: graceful browser quit and restart (the hard-kill variant is C2-6/C2-7/C2-8).
+  {
+    await resetVault(3); current = PW;
+    const before = await vaultJson();
+    const unlockedBefore = (await msg(opt, "status")).result.unlocked;
+    await restart({ graceful: true });
+    const st = await msg(opt, "status");
+    const keys = await sessionKeys();
+    const sensitive = await Promise.all(["getCodes", "listAccounts", "activity", "importPreview"].map((c) => msg(opt, c, c === "importPreview" ? { text: "{}" } : {})));
+    const after = await vaultJson();
+    await open(pop, "popup/popup.html");
+    const popupLocked = await waitFor(pop, "document.body.dataset.state === 'locked' && document.body.dataset.locked === 'unlock'");
+    const wrong = await msg(opt, "unlock", { password: "definitely not the right password C3" });
+    const right = await msg(opt, "unlock", { password: PW });
+    const list = await msg(opt, "listAccounts");
+    const responses = JSON.stringify([st, sensitive, wrong, right, list]);
+    record("C3-1", "graceful browser restart: locked, no session state, every sensitive command rejected, popup asks for the password, vault intact",
+      unlockedBefore && st.result.unlocked === false && keys.length === 0 && sensitive.every((r) => r.error === "locked") &&
+      after === before && popupLocked && !wrong.ok && right.ok && list.result?.accounts.length === 3 && leaks(responses).length === 0,
+      { sessionKeysAfterRestart: keys, sensitive: sensitive.map((r) => r.error), vaultUnchanged: after === before, popupLocked, leaks: leaks(responses) });
+  }
+
+  // C3-2: auto-lock setting changed in the options UI applies to the running session:
+  // shorter at once (from the last activity), longer never without new activity.
+  {
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const s0 = await sessionRec();
+    await setField("autoLockMinutes", "1");
+    const s1 = await until(async () => { const s = await sessionRec(); return s?.timeoutMs === 60_000 && s; }, 5000);
+    await setField("autoLockMinutes", "30");
+    await sleep(1500);
+    const s2 = await sessionRec();
+    await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    await open(opt, "options/options.html");
+    record("C3-2", "auto-lock setting from the options page: shorter applies at once, longer does not extend without activity",
+      s0?.timeoutMs === 15 * 60_000 && s1 && s1.id === s0.id && s1.lastActivity === s0.lastActivity && s1.deadline === s0.lastActivity + 60_000 &&
+      s2?.timeoutMs === 60_000 && s2.deadline === s1.deadline, { before: s0, shorter: s1, longerWithoutActivity: s2 });
+  }
+
+  // C3-3: the popup's TOTP refresh across a period boundary is not user activity.
+  {
+    await msg(opt, "lock");
+    await msg(opt, "unlock", { password: PW });
+    await open(pop, "popup/popup.html");
+    await waitFor(pop, "document.body.dataset.state === 'unlocked' && document.body.dataset.rendered === '3'");
+    await sleep(800); // opening the popup counted as activity; let it settle
+    const s0 = await sessionRec();
+    const codes = () => evalJson(pop, `async () => [...document.querySelectorAll(".row .code")].map((e) => e.textContent)`);
+    const c0 = await codes();
+    await sleep(30_000 - (Date.now() % 30_000) + 2500);
+    const c1 = await codes();
+    const s1 = await sessionRec();
+    record("C3-3", "popup code refresh across a period boundary does not extend the session",
+      c0.length === 3 && c1.some((c, i) => c !== c0[i]) && s1?.id === s0?.id && s1.deadline === s0.deadline && s1.lastActivity === s0.lastActivity,
+      { codesChanged: c1.filter((c, i) => c !== c0[i]).length, deadlineBefore: s0?.deadline, deadlineAfter: s1?.deadline });
+  }
+
+  // C3-4: optional system-idle lock. Real permission flow (trusted click on the checkbox,
+  // "idle" is granted without a prompt) and real idle detection (60 s, no input). If the
+  // platform never reports idle, the check is NOT_TESTED, never PASS.
+  {
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const hadPermission = await evalJson(opt, `async () => browser.permissions.contains({ permissions: ["idle"] })`);
+    await evalJson(opt, `async () => document.querySelector("[name=idleLock]").scrollIntoView({ block: "center" })`);
+    await clickAt(opt, "[name=idleLock]");
+    const granted = await waitFor(opt, `browser.permissions.contains({ permissions: ["idle"] })`, 10_000);
+    await setField("idleLockMinutes", "1");
+    const saved = await until(() => evalJson(opt, `async () => { const s = (await browser.storage.local.get("settings")).settings;
+      return s?.idleLock === true && s.idleLockMinutes === 1 ? s : null; }`), 5000);
+    await msg(opt, "lock");
+    await msg(opt, "unlock", { password: PW });
+    const t0 = Date.now();
+    let wipedAfterMs = null, everIdle = false, idleSeenAt = null;
+    while (Date.now() - t0 < 150_000) {
+      const state = await evalJson(opt, `async () => browser.idle ? browser.idle.queryState(60) : "no-api"`);
+      if (state === "idle" && !everIdle) { everIdle = true; idleSeenAt = Date.now() - t0; }
+      if ((await sessionKeys()).length === 0) { wipedAfterMs = Date.now() - t0; break; }
+      if (everIdle && Date.now() - t0 - idleSeenAt > 30_000) break; // idle reported, no lock: FAIL
+      await sleep(2000);
+    }
+    const codes = await msg(opt, "getCodes");
+    // Cleanup: switch it off again (removes the permission) and restore default settings.
+    await open(opt, "options/options.html");
+    await msg(opt, "unlock", { password: PW });
+    await open(opt, "options/options.html");
+    await evalJson(opt, `async () => document.querySelector("[name=idleLock]").scrollIntoView({ block: "center" })`);
+    await clickAt(opt, "[name=idleLock]");
+    const removed = await waitFor(opt, `browser.permissions.contains({ permissions: ["idle"] }).then((v) => !v)`, 10_000);
+    await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    const details = { hadPermission, granted, saved: !!saved, wipedAfterSeconds: wipedAfterMs && Math.round(wipedAfterMs / 1000),
+      idleReportedAfterSeconds: idleSeenAt && Math.round(idleSeenAt / 1000), lockedAfter: codes.error, permissionRemovedOnUncheck: removed };
+    if (!granted || !saved) record("C3-4", "optional idle lock: permission request from the options checkbox", false, details);
+    else if (wipedAfterMs !== null) record("C3-4", "optional idle lock: permission granted from the checkbox, system idle locks the session, unchecking removes the permission",
+      codes.error === "locked" && wipedAfterMs < 14 * 60_000 && removed, details);
+    else if (!everIdle) notTested("C3-4", "optional idle lock", `system idle never reported within 150 s (${JSON.stringify(details)})`);
+    else record("C3-4", "optional idle lock: idle reported but the session stayed unlocked", false, details);
+  }
   }
 
   evidence.finalPasswordIsPW = current === PW;

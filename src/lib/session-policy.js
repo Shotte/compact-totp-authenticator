@@ -1,4 +1,5 @@
-// Promoted unchanged from the B0 spike (spikes/b0-cryptokey), where it was browser-verified.
+// Promoted from the B0 spike (spikes/b0-cryptokey), where it was browser-verified; C3 added
+// the optional timeout argument of touch().
 // Lock deadline policy (B0-2). Pure functions; storage access lives in the callers.
 // A session is valid only while lastActivity <= now < deadline. The deadline moves only
 // through touch() on a still-valid session, so an expired session can never be revived,
@@ -20,8 +21,9 @@ export function checkSession(session, now) {
 }
 
 // Qualifying user activity: returns a new session with a fresh deadline, or null if the
-// session is no longer valid (caller must then wipe it).
-export function touch(session, now) {
-  if (checkSession(session, now) !== "ok") return null;
-  return { ...session, lastActivity: now, deadline: now + session.timeoutMs };
+// session is no longer valid (caller must then wipe it). timeoutMs (C3) applies a changed
+// auto-lock setting from this activity on; validity is always checked with the old values.
+export function touch(session, now, timeoutMs = session.timeoutMs) {
+  if (checkSession(session, now) !== "ok" || !(timeoutMs > 0)) return null;
+  return { ...session, timeoutMs, lastActivity: now, deadline: now + timeoutMs };
 }

@@ -144,6 +144,18 @@
   "autoLock": {
     "message": "Automatisch sperren nach (Minuten)"
   },
+  "idleLock": {
+    "message": "Auch sperren, wenn der Computer nicht benutzt wird"
+  },
+  "idleLockMinutes": {
+    "message": "Leerlaufzeit bis zur Sperre (Minuten)"
+  },
+  "idleLockNote": {
+    "message": "Nutzt die Leerlauferkennung von Firefox und braucht die optionale Berechtigung „idle“. Ein gesperrter Bildschirm allein wird nicht erkannt; die automatische Sperrzeit oben gilt immer."
+  },
+  "idlePermissionDenied": {
+    "message": "Berechtigung nicht erteilt; die Leerlaufsperre bleibt aus."
+  },
   "importTitle": {
     "message": "Import aus der Originalerweiterung (totp.json)"
   },

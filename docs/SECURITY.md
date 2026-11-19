@@ -53,7 +53,7 @@ Verified 2026-11-18 against the sources in §10.
 | KDF | PBKDF2-HMAC-SHA-256, 600,000 iterations, 16-byte random salt | OWASP Password Storage Cheat Sheet: "600,000 iterations (recommended)" |
 | Key | `deriveKey(..., extractable=false, ["encrypt","decrypt"])` | B0-1: non-extractable key survives `storage.session` |
 | Password check | Successful GCM decryption; no separate verifier stored | Avoids a fast offline oracle |
-| Master password | Mandatory, minimum 8 characters, strength hint, no recovery | Loss of password = loss of vault; encrypted export is the backup |
+| Master password | Mandatory, at least 12 code points (C2, §11.1), confirmation, no character-class rules, no recovery | Loss of password = loss of vault; encrypted export is the backup |
 
 Argon2id (OWASP minimum m=19 MiB, t=2, p=1) is stronger against GPUs but not in Web Crypto;
 it would need third-party WASM and `wasm-unsafe-eval`. Kept as a future option: `kdf.name`
@@ -118,7 +118,8 @@ Session record in `storage.session`:
 - **Alarm:** `alarms.create("autolock", { when: deadline })` after every touch; on firing
   the background re-checks and wipes or re-arms.
 - **Defaults:** 15 minutes (operator decision), configurable; always lock on browser
-  restart (§4 rule 5).
+  restart (§4 rule 5). A changed setting applies to the running session as described in
+  §12.1; the optional system-idle lock is in §12.4.
 - **Clock:** wall-clock time (`Date.now()`) is required because the deadline must survive
   event page restarts. A backwards jump locks; a forward jump locks early (safe direction).
 
@@ -475,3 +476,124 @@ Evidence:
   run on Windows, Linux and macOS in CI. After each restart exactly one password opened
   intact data, and no torn value was observed.
 - **Not proven:** single-key atomicity is Firefox behaviour that a kill can only sample.
+
+## 12. Session security (C3)
+
+C3 completes the session lifecycle on the persistent vault. It keeps the B0/B6 rules
+(§4, §5) and adds the parts below. Evidence: [evidence/phase-c3](evidence/phase-c3/README.md),
+[`test/session-c3.test.mjs`](../test/session-c3.test.mjs).
+
+### 12.1 Session expiration
+
+| Requirement | Implementation |
+|---|---|
+| Default 15 minutes, configurable | `autoLockMinutes` (1–240) on the options page; default 15 |
+| Checked before every sensitive operation | `requireSession()` at the start, `recheck()` after async work and before any result or write (§5.1) |
+| No revival by delayed activity | `touch()` only accepts a valid session; validity is checked with the session's own values before a new timeout is applied |
+| Changed setting | A **shorter** time applies at once, measured from the last activity, and locks immediately if already exceeded. A **longer** time applies from the next qualifying activity, so a settings write never extends a session by itself |
+| TOTP refresh is not activity | `getCodes` and `listAccounts` never touch the session (unit test and browser check C3-3) |
+| Alarms are cleanup only | The gate decides; the `autolock` alarm only wipes earlier (B6-5) |
+| Clock changes | Backwards → `clock`, locked; forwards → early lock (safe direction) |
+| Event-page restarts | All state is in `storage.session`; a new instance applies the same deadline (unit test, B6-4) |
+
+Settings changes reach the background through `storage.onChanged`
+(`onSettingsChanged`), serialized with all other session updates.
+
+### 12.2 Browser restart
+
+`storage.session` is memory-only, and `runtime.onStartup` clears it (§4 rule 5). Pages
+never hold the key or secrets, so no page state can stand in for a session. Tested:
+
+- C3-1, graceful quit and restart: no session record, every sensitive command returns
+  `locked`, the popup asks for the password, the vault is byte-identical and opens with
+  the password.
+- C2-6/C2-7/C2-8, hard kill, including during writes and password changes (§11.8).
+
+### 12.3 Fresh password verification for sensitive operations
+
+| Operation | Verification |
+|---|---|
+| Change master password | Valid session **and** the current password, re-derived; the session is locked before any key work (§11.4) |
+| Restore from a backup copy | Password + explicit confirmation; same key generation only; never replaces a current vault that still opens (§7.2) |
+| Future export (C4) | `authorizeSensitive(password)`, below |
+
+`authorizeSensitive(password)` is the reusable gate for C4 and later sensitive features:
+
+1. `requireSession()`: a locked or expired session fails before PBKDF2.
+2. Reads the **current** vault header; its key generation must equal the session's,
+   else the session is wiped (`generation`).
+3. Derives a new key from the supplied password and must open the current vault.
+4. `recheck()`: a lock, expiry or re-unlock during PBKDF2 aborts the operation.
+5. Returns the freshly verified key, revision and payload to the calling background code.
+
+The session key is never consulted, so possessing an unlocked session is not enough
+(unit test: the session's own `CryptoKey`, offered as a password, is rejected before any
+crypto). A wrong password does not write and does not lock. The function is not
+reachable through messages; C4 calls it inside its own `exclusive()` section.
+
+Not implemented: a retry limit for wrong passwords during an unlocked session. Each
+attempt costs a full PBKDF2, and an attacker with an unlocked session already sees the
+codes. A limit is a C4 design question (§12.6).
+
+### 12.4 Optional system-idle lock
+
+Firefox facts, read from the Firefox 160 implementation (`ext-idle.js`, `idle.json` in
+`omni.ja`):
+
+- States are only `active` and `idle`. **Firefox has no `locked` state**, so a locked
+  screen alone is not detected.
+- Idle time comes from `nsIUserIdleService`, the platform idle time.
+- The minimum detection interval is 15 s.
+- `onStateChanged` is a persistent event: it wakes the event page. The interval is
+  stored in the extension's startup data.
+
+Implementation:
+
+- Off by default. The options checkbox requests the optional `idle` permission inside
+  the click handler; Firefox grants it without a prompt. Unchecking removes the
+  permission. A revoked permission switches the setting off on the next options load.
+- Idle time 1–60 minutes (`idleLockMinutes`, default 5), applied with
+  `setDetectionInterval`.
+- On `idle`, the background wipes the session if the setting is on. It only ever
+  shortens a session; the deadline gate stays the security boundary.
+- No host permissions; the manifest gains only `optional_permissions: ["idle"]`.
+
+Limitations:
+
+- No screen-lock detection in Firefox.
+- What counts as input depends on the platform idle service: system-wide on Windows and
+  macOS (expected, not verified here), and display-server dependent on Linux.
+- Browser check C3-4 verifies the real permission flow and a real idle transition in the
+  test environment (no input for 60 s), where the platform reports idle. Real desktop
+  behaviour with a user away from the keyboard is MANUAL_REVIEW.
+
+### 12.5 Recovery with an unverifiable vault generation (issue #8): proposal only
+
+Current state: `restoreBackup(key, { allowUnverifiedGeneration: true })` exists in the
+store (§7.2) but the service never passes it. If the current header is unreadable,
+recovery is refused. No unsafe fallback exists, and a current vault that still opens is
+never replaced (unit test C3.5, §7.2 `current-valid`).
+
+Proposed design (needs an architecture decision before implementation):
+
+1. Offered only when the current vault header is unreadable **and** a backup or staged
+   copy opens with the entered password.
+2. A separate dialog explains that the current vault's generation cannot be verified,
+   that an older generation may be restored, and that newer changes may be lost. It
+   names the revision of the copy that would be restored.
+3. Two confirmations: the existing checkbox plus typing a fixed word (or a second,
+   separate button). The password is entered again in the dialog.
+4. Before the write, the unreadable current value is preserved under a separate
+   `vault_damaged` key, so the step can be undone by hand. This is a new storage key and
+   a format decision.
+5. Never automatic, never from a copy of another generation than the password opens.
+
+Open decisions: points 3 and 4 (confirmation form, keeping the damaged copy), and
+whether this lands in C3 or together with export in C4, which gives a safer recovery
+path (restore from an export file).
+
+### 12.6 Open questions for review
+
+- Retry limit or delay for `authorizeSensitive` and unlock (currently PBKDF2 cost only).
+- Whether the idle lock should become the default once desktop behaviour is reviewed.
+- Issue #8 decisions (§12.5).

@@ -73,9 +73,11 @@ export function createService({ session, local, alarms, now = Date.now,
     return { revision: r.revision, accounts: r.payload.accounts };
   }
 
+  // Qualifying user activity. A changed auto-lock setting takes effect here (C3.1).
   async function activity(ctx) {
+    const { autoLockMinutes } = await loadSettings(local);
     const { session: s } = await session.get("session");
-    const next = s && s.id === ctx.s.id ? touch(s, now()) : null;
+    const next = s && s.id === ctx.s.id ? touch(s, now(), autoLockMinutes * 60_000) : null;
     if (!next || ctx.e !== epoch) { await wipe(); throw new LockedError("expired"); }
     await session.set({ session: next });
     await alarms.create("autolock", { when: next.deadline });
@@ -117,11 +119,36 @@ export function createService({ session, local, alarms, now = Date.now,
     catch { throw new acc.InputError("unlock"); }
   }
 
+  // Fresh password verification for sensitive operations (C3.3), e.g. the C4 export.
+  // Requires a valid session AND the password: the key is derived anew from the password
+  // and must open the CURRENT vault of the session's key generation. The session key is
+  // never consulted, so holding an unlocked session is not enough. A wrong password does
+  // not write and does not lock. Call it inside exclusive(); returns the verified state.
+  async function authorizeSensitive(password) {
+    const ctx = await requireSession();
+    if (typeof password !== "string" || !password || [...password].length > MAX_PASSWORD_LENGTH) {
+      throw new acc.InputError("current-password");
+    }
+    const { vault } = await store.read();
+    try { validateVault(vault); } catch { await wipe(); throw new LockedError("vault"); }
+    if (vault.kdf.salt !== ctx.s.generation) { await wipe(); throw new LockedError("generation"); }
+    let key, r;
+    try { key = await deriveKey(password, vault.kdf); r = await store.load(key); } catch { r = null; }
+    await recheck(ctx); // lock, expiry or re-unlock during PBKDF2 aborts the operation
+    if (r?.status !== "ok") throw new acc.InputError("current-password");
+    const cur = await store.read();
+    if (cur.vault?.kdf?.salt !== ctx.s.generation || r.revision !== cur.vault.revision) {
+      throw new LockedError("changed");
+    }
+    return { ctx, key, revision: r.revision, payload: r.payload };
+  }
+
   const api = {
     async status() {
       const { session: s } = await session.get("session");
+      const valid = checkSession(s, now()) === "ok"; // read-only; sensitive commands wipe via the gate
       const st = await store.read();
-      return { initialized: !!(st.vault || st.backup || st.staged), unlocked: checkSession(s, now()) === "ok", startedAt };
+      return { initialized: !!(st.vault || st.backup || st.staged), unlocked: valid, startedAt };
     },
 
     setup({ password, confirm }) {
@@ -287,5 +314,34 @@ export function createService({ session, local, alarms, now = Date.now,
       if (checkSession(s, now()) !== "ok") await wipe();
       else await alarms.create("autolock", { when: s.deadline });
     },
+
+    // Settings changed (storage.onChanged, C3.1): a shorter auto-lock time applies to the
+    // running session at once, measured from the last activity; a longer one only from the
+    // next qualifying activity, so a settings write never extends a session by itself.
+    onSettingsChanged() {
+      return exclusive(async () => {
+        const e = epoch;
+        const { session: s } = await session.get("session");
+        if (!s) return;
+        if (checkSession(s, now()) !== "ok") { await wipe(); return; }
+        const timeoutMs = (await loadSettings(local)).autoLockMinutes * 60_000;
+        if (timeoutMs >= s.timeoutMs) return;
+        const next = { ...s, timeoutMs, deadline: s.lastActivity + timeoutMs };
+        if (checkSession(next, now()) !== "ok") { await wipe(); return; }
+        if (e !== epoch) return; // locked or re-unlocked meanwhile
+        await session.set({ session: next });
+        await alarms.create("autolock", { when: next.deadline });
+      });
+    },
+
+    // System idle (C3.4, optional "idle" permission): locks if the user enabled it.
+    // Only ever shortens a session; the deadline gate stays the security boundary.
+    async onIdleState(state) {
+      if (state !== "idle" && state !== "locked") return;
+      if ((await loadSettings(local)).idleLock) await wipe();
+    },
+
+    // Not reachable by messages (handle() dispatches only api); for sensitive features.
+    authorizeSensitive: (password) => exclusive(() => authorizeSensitive(password)),
   };
 }
