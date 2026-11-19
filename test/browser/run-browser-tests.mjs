@@ -86,8 +86,15 @@ async function evalJson(ctx, fnSource) {
   if (r.type === "exception") throw new Error(`eval: ${r.exceptionDetails.text}`);
   return JSON.parse(r.result.value);
 }
-const msg = (ctx, cmd, args = {}) =>
-  evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`);
+// A message sent exactly while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in
+// this profile) is not delivered ("Receiving end does not exist"); it was not processed,
+// so sending it again is safe. Seen once on Windows CI during a 1,000-message loop.
+async function msg(ctx, cmd, args = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try { return await evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`); }
+    catch (e) { if (attempt >= 3 || !/Receiving end does not exist/.test(e.message)) throw e; await sleep(300); }
+  }
+}
 async function waitFor(ctx, cond, timeout = 5000) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
