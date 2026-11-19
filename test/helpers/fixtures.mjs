@@ -1,6 +1,6 @@
-// Synthetic development accounts (Phase B only). Secrets are the Base32 encoding of the
+// Synthetic test accounts (tests only, never shipped). Secrets are the Base32 encoding of the
 // readable ASCII string "CTA-SYNTHETIC-<nnnnnn>" and protect nothing.
-import { encodeBase32 } from "./base32.js";
+import { encodeBase32 } from "../../src/lib/base32.js";
 
 const SERVICES = ["Example Mail", "Demo Cloud", "Test Bank", "Sample Forge", "Mock Shop",
   "Fake Social", "Dummy VPN", "Placeholder Hosting with a deliberately long account name"];

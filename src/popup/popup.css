@@ -24,9 +24,15 @@ footer {
 
 #locked { padding: 12px; font-size: 13px; }
 #locked .title { margin: 0 0 10px; font-size: 16px; }
-#locked button {
-  width: 100%; height: 28px; border: 1px solid var(--line); border-radius: 3px;
-  background: var(--hover); cursor: pointer;
+#locked button, #locked input {
+  box-sizing: border-box; width: 100%; height: 28px; border: 1px solid var(--line); border-radius: 3px;
+  font: inherit; color: var(--fg);
 }
-#locked button:hover { background: var(--active); }
+#locked button { background: var(--hover); cursor: pointer; }
+#locked button:hover:not(:disabled) { background: var(--active); }
+#locked button:disabled, #locked input:disabled { opacity: .6; cursor: progress; }
+#locked input { background: var(--bg); padding: 0 8px; margin-bottom: 6px; }
+#locked :focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
 #locked .note { margin: 10px 0 0; color: var(--muted); line-height: 1.35; }
+#locked .note:empty { display: none; }
+#openOptions { margin-top: 10px; }

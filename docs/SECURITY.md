@@ -293,11 +293,10 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
 - Default MV3 CSP, no inline scripts, no `eval`, no remote code, no content scripts.
 - Synthetic secrets only. Never log accounts, secrets, codes, keys or passwords. Gate before
   each phase: `console.` grep reviewed, fixtures checked.
-- **B0-3:** until Phase C is complete, builds use synthetic fixture accounts only; no
-  account persistence and no legacy import apply step. Phase B implementation: `devUnlock`
-  creates a fresh non-extractable key and an AES-GCM encrypted working copy of the
-  fixtures in `storage.session` (memory only); lock or browser exit discards both.
-  `devUnlock` is removed when the master password arrives in Phase C.
+- **B0-3:** satisfied by C2. Persistence is enabled only together with authenticated
+  encryption and the master password; the Phase B `devUnlock` and its fixtures are removed
+  from the product (fixtures live in `test/helpers/`; static test and package check). The
+  legacy import apply step stays disabled until C5.
 
 Sources (checked 2026-11-18):
 
@@ -305,3 +304,174 @@ Sources (checked 2026-11-18):
 - NIST SP 800-38D and Rev. 1 drafts – https://csrc.nist.gov/pubs/sp/800/38/d/r1/2prd
 - MDN `storage.session` – https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/session
 - Mozilla bug 1724754 (`setAccessLevel`) – https://bugzilla.mozilla.org/show_bug.cgi?id=1724754
+
+## 11. Master password, key derivation and key lifetimes (C2)
+
+Implemented in [`src/lib/kdf.js`](../src/lib/kdf.js) and
+[`src/lib/service.js`](../src/lib/service.js); evidence in
+[evidence/phase-c2](evidence/phase-c2/README.md).
+
+### 11.1 Password rules
+
+- At least 12 Unicode code points, at most 1024; long passphrases welcome; no
+  character-class rules. Setup and change require confirmation.
+- NFC normalization is applied identically for setup, unlock and change (tested with
+  composed/decomposed input; the password-based portability fixture opens with both forms
+  on Windows, Linux and macOS in CI).
+- The UI warns that there is no recovery without the password. Encrypted export (C4) is
+  the planned backup path; until then a forgotten password means data loss.
+
+### 11.2 Unlock sequence (untrusted header)
+
+1. Strict header validation (`validateVault`): exact fields, base64 lengths checked before
+   decoding, salt 16 bytes, iterations in [600,000, 10,000,000], ciphertext ≤ 8 MB.
+2. `deriveKey` re-validates the KDF parameters (`isValidKdf`) before PBKDF2.
+3. PBKDF2-HMAC-SHA-256 → non-extractable AES-256-GCM key.
+4. AES-GCM decryption with the header as AAD. Only a successful decryption makes the vault
+   – including its KDF parameters – trusted. A wrong password and a damaged or manipulated
+   vault are indistinguishable and never write storage (`storage.local` compared
+   byte-for-byte in the browser tests).
+
+If the current header is unreadable, the KDF parameters of a structurally valid backup or
+staged copy are used; recovery then follows §7 (explicit confirmation).
+
+### 11.3 Measurements (Firefox 160.0.1, Windows 11, AMD Ryzen 7 3700X)
+
+| Case | Time |
+|---|---|
+| Cold unlock (fresh browser process), 600,000 iterations | 126 ms |
+| Wrong password, new guess (full PBKDF2) | 116 ms |
+| Repeated attempt with byte-identical input (password, salt, iterations) in the same process | 3–5 ms; PBKDF2 is still called, Firefox's crypto library returns a cached result (11.7) |
+| Forged, structurally valid header with 10,000,000 iterations | 1.87 s, then fails at AES-GCM; UI stayed responsive (max 2 ms ping) |
+| Out-of-bounds iterations (1e12) | rejected in 2 ms, no PBKDF2 |
+| Node 24 reference (same machine): 600k / 2M / 10M | 105 ms / 348 ms / 1.74 s |
+
+Denial of service: a forged header costs at most about 2 s per unlock attempt on this
+machine (perhaps 5–10 s on slow hardware) and then fails without writing. Web Crypto
+runs asynchronously and the UI shows progress, so nothing freezes. An attacker able to
+write `storage.local` can delete the vault anyway, so the header bound does not create a
+new capability. Recommendation: keep the current reader bound; if slow target hardware
+shows unacceptable times, lower `MAX_ITERATIONS` (e.g. to 2,000,000) as an explicit,
+documented reader-rule change – legitimate vaults use 600,000 and stay compatible.
+
+### 11.4 Session invalidation on password change (C2-A3)
+
+`changePassword` re-derives the current key from the password (re-authentication), locks
+the session **before** any key work, rotates the vault (§7.3) and leaves the session
+locked; the user unlocks with the new password. Every operation reads the key through the
+deadline gate and compares the session's key generation (salt) with the vault's; a stale
+session record is rejected and wiped. Tested in Node and in Firefox: the old session key
+cannot decrypt the new vault; operations during the change are rejected; the old password
+neither unlocks nor restores; hard kills at 100/350/800 ms into a change always leave
+exactly one working password and intact data.
+
+### 11.5 Lifetimes of the password and keys
+
+| Item | Where | Lifetime |
+|---|---|---|
+| Password string | page input → message → background | until the request ends; inputs are cleared after every attempt; JavaScript strings cannot be zeroed, they are garbage-collected |
+| PBKDF2 base key | Web Crypto, non-extractable | inside one `deriveKey` call |
+| Vault key (`CryptoKey`) | `storage.session` (memory), non-extractable | until lock, expiry, password change or browser exit; never in page realms (static test) |
+| Decrypted payload | background, per operation | transient JS objects |
+| PBKDF2 output cached by NSS | Firefox's crypto library, process memory | measured: byte-identical input returns in 0–1 ms after lock and expiry, so the material outlives the session until the browser process exits (11.7); never persisted; a browser restart clears it |
+
+Nothing password-derived is persisted except the encrypted vault (verified by scanning
+`storage.local`/`storage.session` for passwords and synthetic secrets).
+
+### 11.6 Remaining assumptions
+
+- Single-key `storage.local.set` atomicity and read-after-write visibility: consistent with
+  the kill/restart tests (no torn vault observed in 5 crash scenarios), not proven (11.8).
+- The NSS PBKDF2 cache is measured behaviour, not documented Web Crypto behaviour; its size
+  and eviction policy in current Firefox are not verified (11.7).
+- Malware with access to the running browser process remains out of scope (§2).
+
+### 11.7 Why a repeated unlock takes 3–5 ms (C2 review)
+
+Question: is the fast repeated unlock caused by application caching, a reused session or
+`CryptoKey`, an authentication bypass, or Firefox itself?
+
+**Proven by tests in the repository:**
+
+- **The application derives on every attempt.** A test-only spy on
+  `crypto.subtle.deriveKey` counts exactly one PBKDF2 derivation per unlock attempt in
+  every scenario of [`test/auth-invariant.test.mjs`](../test/auth-invariant.test.mjs).
+  The scenarios cover:
+  - after setup and after a successful unlock,
+  - after lock, expiry, event-page restart and browser restart,
+  - after rotation,
+  - distinct string instances, and NFC/NFD input.
+
+  `unlock` never reads the session key. It derives from the supplied password and must
+  decrypt the **current** vault with AES-GCM (§11.2).
+- **The speedup sits inside Firefox Web Crypto, below the application.** Browser check
+  C2-10 runs the same spy in an extension page. These inputs each take about 110–170 ms:
+  - the first derivation,
+  - a different password,
+  - a different salt,
+  - 600,001 iterations.
+
+  Byte-identical input takes 0–1 ms, while the spy still counts one PBKDF2 call. This also
+  holds for a new string instance and for NFD input that normalizes to the same bytes. Raw
+  `importKey` + `deriveBits`, without any application code, shows the same pattern: about
+  110 ms the first time, 0 ms on repeat. In an exploratory probe outside the suite, keys
+  from repeated derivations interoperated, so the cached output is the correct one.
+- **No authentication bypass.** Browser check C2-9 runs scenarios 2–10 on real storage.
+  Every wrong password fails and leaves `storage.local` byte-identical, and every correct
+  password opens. This holds after lock, expiry, event-page restart, browser restart and
+  rotation. A byte-identical wrong guess repeated three times is also served from the
+  cache in a few ms and still fails: the cached value is the PBKDF2 output of that wrong
+  input, so it cannot decrypt the vault.
+- **The cache is per process.** After a browser restart, the first attempts (correct and
+  wrong) take the full time again. The old password after a rotation also takes the full
+  time, because the new vault has a new salt.
+
+**Strong evidence from source code, not run:** NSS softoken keeps a PBKDF2 result cache,
+`PBECache` in `lib/softoken/lowpbe.c`. It was introduced for Firefox's own repeated
+password-based derivations and later enlarged:
+
+- [Bug 1606927 commit](https://source-hub.etos-pro.ru/mozilla/gecko-dev/commit/c70fa24ea8d55927f8b5fef9c8ba607b7053bf0b)
+- [nss-3.79 "increase pbe cache" patch (RHEL)](https://git.almalinux.org/rpms/nss/src/branch/c8-beta/SOURCES/nss-3.79-increase-pbe-cache.patch)
+- [Bug 1726022](https://bugzilla.mozilla.org/show_bug.cgi?id=1726022)
+- [lowpbe.h](https://searchfox.org/firefox-main/source/security/nss/lib/softoken/lowpbe.h)
+
+Firefox implements Web Crypto PBKDF2 on NSS softoken, which matches the measurements.
+
+**Not verified (hypotheses):**
+
+- the exact cache size and eviction policy in Firefox 160;
+- whether other builds or future NSS versions keep the cache.
+
+**Security assessment:**
+
+- **Brute force is not accelerated.** Each new guess is a new input and costs the full
+  PBKDF2 time. Re-trying an identical guess gains no information.
+- **The invariant holds.** A locked vault never opens because derived material exists in
+  memory: every attempt re-derives and must authenticate the current vault generation.
+- **Residual exposure.** PBKDF2 output for recently used passwords stays in Firefox process
+  memory after lock and expiry, until the browser exits. Reading it requires access to the
+  running browser process, which is out of scope (§2).
+- **No correction possible or needed in CTA.** Web Crypto offers no way to clear the NSS
+  cache.
+
+### 11.8 Storage atomicity (C2 review)
+
+The implementation does not depend on atomic multi-key writes:
+
+- Every step of `commit` and `rotate` writes exactly one key and is followed by a read-back
+  check (§7.2, §7.3).
+- The interruption table in §7.3 covers a stop between any two steps.
+
+The remaining assumptions are per key (§7.5): one `storage.local.set` of one key is
+all-or-nothing, and a resolved `set` is visible to the next `get`.
+
+Evidence:
+
+- **Node fault injection** at every write step of commit and rotation: `set` throws, the
+  value lands damaged, or storage dies before or after a write (§7.4,
+  [`test/vault.test.mjs`](../test/vault.test.mjs)).
+- **Firefox hard kills** (C2-7, C2-8, [evidence](evidence/phase-c2/README.md)): five crash
+  scenarios in total, during a write burst and at 100/350/800 ms into a password change,
+  run on Windows, Linux and macOS in CI. After each restart exactly one password opened
+  intact data, and no torn value was observed.
+- **Not proven:** single-key atomicity is Firefox behaviour that a kill can only sample.

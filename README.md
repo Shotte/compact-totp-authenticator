@@ -12,8 +12,9 @@ continuation of the original extension.
 
 ## Status
 
-**Development build (0.x) – not for everyday use yet.** It runs on synthetic demo accounts
-only; nothing is saved, and there is no master password yet.
+**Development build (0.x) – not ready for production use.** Accounts are stored encrypted
+under a master password, but there is no export or backup yet (Phase C4): if the master
+password is forgotten, the accounts are lost.
 
 Implemented (Phase B):
 
@@ -25,14 +26,20 @@ Implemented (Phase B):
   font size 12–20 px, row height.
 - Legacy `totp.json` import **preview** (validation, duplicates; no import yet).
 - Security foundation: non-extractable session key used only by the background,
-  fail-closed lock deadline, auto-lock, encrypted in-memory working copy.
+  fail-closed lock deadline, auto-lock.
 
-Planned (Phase C) – not implemented yet:
+Implemented (Phase C1–C2):
 
-- Persistent AES-256-GCM vault and master password (PBKDF2); the "Unlock with demo data"
-  button is a development stand-in, not a security mechanism, and is removed then
-  (enforced by a release-gate test before 1.0.0).
+- Persistent AES-256-GCM vault (versioned, authenticated metadata, safe writes with
+  backup, verified read-back and explicit recovery).
+- Master password (12+ characters, NFC) with PBKDF2-SHA-256 (600,000 iterations); setup,
+  unlock, confirmed recovery and password change (locks the session immediately).
+
+Planned (Phase C3–C6) – not implemented yet:
+
+- Session lifecycle refinements, recovery UX for unverifiable vault generations.
 - Encrypted export, confirmed plaintext export, applying the legacy import.
+- Final security, regression and browser testing on all platforms.
 
 Known limitations are documented in [docs/SECURITY.md](docs/SECURITY.md).
 

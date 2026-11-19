@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as acc from "../src/lib/accounts.js";
-import { syntheticSecret } from "../src/lib/fixtures.js";
+import { syntheticSecret } from "./helpers/fixtures.mjs";
 
 const S1 = syntheticSecret(1), S2 = syntheticSecret(2);
 const base = acc.addAccount([], { name: "Alpha", secret: S1, url: "example.com" }, "a");

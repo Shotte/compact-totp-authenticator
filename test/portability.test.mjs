@@ -32,3 +32,17 @@ test("non-ASCII account names survive the round trip unchanged (UTF-8)", async (
   assert.ok(p.accounts.every((a) => a.name.endsWith("– Ünïcödé ✓")));
   assert.equal(p.accounts[0].name.normalize("NFC"), p.accounts[0].name);
 });
+
+// Password-based workflow (C2): same password + KDF header → same key on every platform.
+const pw = JSON.parse(readFileSync(new URL("./fixtures/vault-v1-password.json", import.meta.url), "utf8"));
+
+test("password-based vault opens with the same password on this platform (NFC and NFD input)", async () => {
+  const { deriveKey } = await import("../src/lib/kdf.js");
+  assert.notEqual(pw.passwordNfc, pw.passwordNfd, "fixture really contains two encodings");
+  for (const password of [pw.passwordNfc, pw.passwordNfd]) {
+    const key = await deriveKey(password, pw.vault.kdf);
+    assert.deepEqual(await openVault(key, pw.vault), pw.payload);
+  }
+  assert.equal(aad(pw.vault), pw.aad);
+  await assert.rejects(openVault(await deriveKey(pw.passwordNfc + "x", pw.vault.kdf), pw.vault));
+});

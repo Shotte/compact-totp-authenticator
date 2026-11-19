@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sealVault, openVault, validateVault, createVaultStore, aad, VaultError, sameGeneration,
-  MIN_ITERATIONS, MAX_ITERATIONS } from "../src/lib/vault.js";
+  MIN_ITERATIONS, MAX_ITERATIONS, MAX_CIPHERTEXT_LENGTH } from "../src/lib/vault.js";
 import { newAesKey, toB64, fromB64 } from "../src/lib/crypto.js";
-import { syntheticAccounts } from "../src/lib/fixtures.js";
+import { syntheticAccounts } from "./helpers/fixtures.mjs";
 import { fakeArea } from "./helpers/fakes.mjs";
 
 const KDF = { iterations: MIN_ITERATIONS, salt: toB64(new Uint8Array(16).fill(7)) };
@@ -66,6 +66,8 @@ test("header validation rejects before decrypting", async () => {
     ["cipher name", (x) => { x.cipher.name = "AES-CBC"; }, "header"],
     ["tag length", (x) => { x.cipher.tagLength = 96; }, "header"],
     ["empty ciphertext", (x) => { x.ciphertext = ""; }, "header"],
+    ["oversized ciphertext", (x) => { x.ciphertext = "A".repeat(MAX_CIPHERTEXT_LENGTH + 4); }, "header"],
+    ["oversized salt string", (x) => { x.kdf.salt = "A".repeat(1_000_000); }, "header"],
     ["unknown top-level key", (x) => { x.extra = 1; }, "header"],
     ["unknown kdf key", (x) => { x.kdf.extra = 1; }, "header"],
     ["missing cipher", (x) => { delete x.cipher; }, "header"],

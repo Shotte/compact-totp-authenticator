@@ -15,18 +15,41 @@
       <h1 data-i18n="optionsTitle"></h1>
       <button id="lockBtn" type="button" data-i18n="lock" hidden></button>
     </header>
+    <p id="devNotice" class="note" data-i18n="devNotice"></p>
     <p id="message" role="status"></p>
 
     <section id="lockedView" hidden>
-      <p data-i18n="errLocked"></p>
-      <button id="unlockDemo" type="button" data-i18n="unlockDemo"></button>
-      <p class="note" data-i18n="demoNote"></p>
+      <form id="setupForm" class="auth" autocomplete="off" hidden>
+        <h2 data-i18n="setupTitle"></h2>
+        <p class="warning" data-i18n="setupWarning"></p>
+        <label><span data-i18n="newPassword"></span>
+          <input name="password" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
+        <label><span data-i18n="confirmPassword"></span>
+          <input name="confirm" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
+        <p class="note" data-i18n="passwordRules"></p>
+        <div class="actions"><button type="submit" class="primary" data-i18n="setupButton"></button></div>
+      </form>
+
+      <form id="unlockForm" class="auth" autocomplete="off" hidden>
+        <h2 data-i18n="lockedTitle"></h2>
+        <label><span data-i18n="passwordLabel"></span>
+          <input name="password" type="password" required maxlength="1024" autocomplete="current-password"></label>
+        <div class="actions"><button type="submit" class="primary" data-i18n="unlockButton"></button></div>
+      </form>
+
+      <form id="recoveryForm" class="auth" autocomplete="off" hidden>
+        <h2 data-i18n="recoverableTitle"></h2>
+        <p class="warning" data-i18n="recoverableText"></p>
+        <label><span data-i18n="passwordLabel"></span>
+          <input name="password" type="password" required maxlength="1024" autocomplete="current-password"></label>
+        <label class="check"><input name="confirmed" type="checkbox" required><span data-i18n="restoreConfirm"></span></label>
+        <div class="actions"><button type="submit" class="primary" data-i18n="restoreButton"></button></div>
+      </form>
     </section>
 
     <div id="unlockedView" hidden>
       <section>
         <h2 data-i18n="accounts"></h2>
-        <p class="note" data-i18n="demoNote"></p>
         <table id="accounts">
           <thead><tr>
             <th data-i18n="colName"></th><th data-i18n="colSite"></th>
@@ -70,6 +93,20 @@
           <tbody></tbody>
         </table>
         <button id="importApply" type="button" data-i18n="importApply" disabled></button>
+      </section>
+
+      <section>
+        <h2 data-i18n="changePasswordTitle"></h2>
+        <form id="changeForm" class="auth" autocomplete="off">
+          <label><span data-i18n="currentPassword"></span>
+            <input name="current" type="password" required maxlength="1024" autocomplete="current-password"></label>
+          <label><span data-i18n="newPassword"></span>
+            <input name="next" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
+          <label><span data-i18n="confirmPassword"></span>
+            <input name="confirm" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
+          <p class="note" data-i18n="changePasswordNote"></p>
+          <div class="actions"><button type="submit" data-i18n="changePasswordButton"></button></div>
+        </form>
       </section>
     </div>
 

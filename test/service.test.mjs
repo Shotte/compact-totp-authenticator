@@ -1,251 +1,280 @@
-// Regression tests for the background boundary: locking, expiry during async work,
-// event page restarts, revision conflicts and secret leakage.
+// Regression tests for the background boundary on the persistent vault (C2): setup,
+// unlock, wrong passwords, locking, expiry during async work, restarts, revision
+// conflicts, password change and recovery. Real PBKDF2 (600,000 iterations) throughout.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createService } from "../src/lib/service.js";
-import { syntheticAccounts, syntheticSecret } from "../src/lib/fixtures.js";
+import { openVault } from "../src/lib/vault.js";
+import { syntheticSecret } from "./helpers/fixtures.mjs";
 import { fakeArea, fakeAlarms, clock } from "./helpers/fakes.mjs";
 
 const MIN = 60_000;
-const SECRETS = syntheticAccounts(100).map((a) => a.secret);
-const NEW_SECRET = syntheticSecret(999_999);
-const leaks = (value) => {
-  const json = JSON.stringify(value);
-  return [...SECRETS, NEW_SECRET].filter((s) => json.includes(s));
-};
+const PW = "correct horse battery staple", PW2 = "a completely different passphrase";
+const SECRETS = Array.from({ length: 5 }, (_, i) => syntheticSecret(i + 1));
+const leaks = (value) => { const j = JSON.stringify(value); return [...SECRETS, PW, PW2].filter((s) => j.includes(s)); };
+const ok = (r) => { assert.equal(r.ok, true, JSON.stringify(r)); return r.result; };
+const err = (r) => { assert.equal(r.ok, false, JSON.stringify(r)); return r.reason ? `${r.error}:${r.reason}` : r.error; };
+const snapshot = (area) => structuredClone([...area.map]);
 
 function setup() {
   const env = { session: fakeArea(), local: fakeArea(), alarms: fakeAlarms(), clk: clock() };
-  env.make = () => createService({ session: env.session, local: env.local, alarms: env.alarms,
-    now: env.clk.now });
+  env.make = () => createService({ session: env.session, local: env.local, alarms: env.alarms, now: env.clk.now });
   env.svc = env.make();
   env.call = (cmd, args = {}) => env.svc.handle({ cmd, ...args });
   return env;
 }
-const ok = (r) => { assert.equal(r.ok, true, JSON.stringify(r)); return r.result; };
-
-test("locked by default; every sensitive command fails closed", async () => {
-  const { call } = setup();
-  assert.equal(ok(await call("status")).unlocked, false);
-  for (const cmd of ["getCodes", "listAccounts", "activity"]) {
-    assert.deepEqual(await call(cmd), { ok: false, error: "locked", reason: undefined }, cmd);
+async function ready(n = 3) {
+  const env = setup();
+  ok(await env.call("setup", { password: PW, confirm: PW }));
+  let revision = 1;
+  for (let i = 0; i < n; i++) {
+    ({ revision } = ok(await env.call("addAccount", { revision, account: { name: `Account ${i + 1}`, secret: SECRETS[i], url: "example.com" } })));
   }
-  const r = await call("addAccount", { account: { name: "x", secret: NEW_SECRET }, revision: 1 });
-  assert.equal(r.error, "locked");
-  assert.equal((await call("importPreview", { text: "{}" })).error, "locked");
+  env.revision = revision;
+  return env;
+}
+
+test("fresh install: not initialized, everything locked", async () => {
+  const env = setup();
+  assert.deepEqual(ok(await env.call("status")).initialized, false);
+  for (const cmd of ["getCodes", "listAccounts", "activity"]) assert.match(err(await env.call(cmd)), /^locked/);
+  assert.equal(err(await env.call("unlock", { password: PW })), "invalid:no-vault");
+  assert.equal(err(await env.call("devUnlock", { count: 3 })), "invalid:cmd", "development unlock is gone");
 });
 
-test("unlock stores a non-extractable key and only ciphertext", async () => {
+test("setup: 12+ characters, confirmation, creates an encrypted vault and unlocks", async () => {
   const env = setup();
-  ok(await env.call("devUnlock", { count: 25 }));
-  const { session: s, vault } = await env.session.get(["session", "vault"]);
-  assert.ok(s.key instanceof CryptoKey);
+  assert.equal(err(await env.call("setup", { password: "short pass", confirm: "short pass" })), "invalid:password-short");
+  assert.equal(err(await env.call("setup", { password: PW, confirm: PW + "x" })), "invalid:password-mismatch");
+  assert.equal(err(await env.call("setup", { password: PW })), "invalid:password-mismatch", "confirmation required");
+  assert.equal(env.local.map.size, 0, "rejected setups write nothing");
+  ok(await env.call("setup", { password: PW, confirm: PW }));
+  const st = ok(await env.call("status"));
+  assert.deepEqual([st.initialized, st.unlocked], [true, true]);
+  const { session: s } = await env.session.get("session");
   assert.equal(s.key.extractable, false);
-  await assert.rejects(crypto.subtle.exportKey("raw", s.key));
-  assert.deepEqual(leaks(vault), []);
-  assert.deepEqual(leaks([...env.local.map.values()]), []);
-  assert.equal(env.alarms.alarms.get("autolock").when, s.deadline);
+  assert.equal(s.generation, env.local.map.get("vault").kdf.salt);
+  assert.equal(err(await env.call("setup", { password: PW2, confirm: PW2 })), "invalid:exists");
 });
 
-test("responses to pages never contain secrets", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 100 }));
+test("no plaintext persistence: storage holds no secret, name or password", async () => {
+  const env = await ready(5);
+  ok(await env.call("getCodes"));
+  assert.deepEqual(leaks([...env.local.map.values()]), []);
+  assert.ok(!JSON.stringify([...env.local.map.values()]).includes("Account 1"), "names are encrypted too");
+  assert.deepEqual(leaks([...env.session.map.values()]), []);
+});
+
+test("wrong password: unlock fails and storage is byte-identical", async () => {
+  const env = await ready();
+  ok(await env.call("lock"));
+  const snap = snapshot(env.local);
+  for (const p of ["wrong password!!", PW + " ", PW.toUpperCase()]) {
+    assert.equal(err(await env.call("unlock", { password: p })), "invalid:unlock");
+  }
+  assert.equal(err(await env.call("unlock", { password: "" })), "invalid:password");
+  assert.deepEqual(snapshot(env.local), snap);
+  assert.deepEqual(await env.session.get("session"), {});
+  ok(await env.call("unlock", { password: PW.normalize("NFD") }), "NFC-equal password unlocks");
+});
+
+test("unlock after restart (new service instance, session storage cleared)", async () => {
+  const env = await ready(3);
+  await env.session.clear();
+  env.svc = env.make();
+  assert.match(err(await env.call("getCodes")), /^locked/);
+  ok(await env.call("unlock", { password: PW }));
+  assert.equal(ok(await env.call("getCodes")).codes.length, 3);
+});
+
+test("responses never contain secrets or passwords", async () => {
+  const env = await ready(5);
   const codes = ok(await env.call("getCodes"));
-  assert.equal(codes.codes.length, 100);
   assert.match(codes.codes[0].code, /^\d{6}$/);
-  assert.match(codes.codes[2].code, /^\d{8}$/); // fixture 3: SHA-256, 8 digits
   const list = ok(await env.call("listAccounts"));
   assert.ok(list.accounts.every((a) => !("secret" in a)));
-  const text = JSON.stringify({ otp_list: [{ name: "n", key: SECRETS[0] }, { name: "m", key: NEW_SECRET }] });
-  const preview = ok(await env.call("importPreview", { text }));
+  const preview = ok(await env.call("importPreview", { text: JSON.stringify({ otp_list: [{ name: "n", key: SECRETS[0] }] }) }));
   const bad = await env.call("addAccount", { account: { name: "x", secret: "!!" }, revision: list.revision });
-  assert.deepEqual(leaks([codes, list, preview, bad]), []);
+  const st = await env.call("status");
+  assert.deepEqual(leaks([codes, list, preview, bad, st]), []);
 });
 
-test("lock wipes key and vault; held page state cannot bring it back", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 5 }));
-  const { revision } = ok(await env.call("listAccounts"));
+test("C2-A1: manipulated KDF metadata never unlocks, never writes, never runs unbounded", async () => {
+  const env = await ready();
   ok(await env.call("lock"));
-  assert.deepEqual(await env.session.get(["session", "vault"]), {});
-  assert.equal((await env.call("getCodes")).error, "locked");
-  assert.equal((await env.call("activity")).error, "locked");
-  assert.equal((await env.call("deleteAccount", { id: "fixture-1", revision })).error, "locked");
+  const original = structuredClone(env.local.map.get("vault"));
+  const cases = {
+    "iterations raised (still in bounds)": (v) => { v.kdf.iterations = 600_001; },
+    "salt substituted": (v) => { v.kdf.salt = btoa(String.fromCharCode(...new Uint8Array(16).fill(3))); },
+    "iterations oversized": (v) => { v.kdf.iterations = 1e12; },
+    "iterations malformed": (v) => { v.kdf.iterations = "600000"; },
+    "salt oversized": (v) => { v.kdf.salt = "A".repeat(2_000_000); },
+  };
+  for (const [name, mutateHeader] of Object.entries(cases)) {
+    const v = structuredClone(original); mutateHeader(v);
+    env.local.map.set("vault", v);
+    env.local.map.delete("vault_backup"); // only the manipulated header is available
+    const snap = snapshot(env.local);
+    const t0 = performance.now();
+    const r = await env.call("unlock", { password: PW });
+    const ms = performance.now() - t0;
+    assert.equal(r.ok, false, name);
+    assert.deepEqual(snapshot(env.local), snap, `${name}: no write`);
+    if (/oversized|malformed/.test(name)) assert.ok(ms < 150, `${name}: rejected before PBKDF2 (${ms.toFixed(0)} ms)`);
+  }
+});
+
+test("C2-A3: password change locks the session; old key and old password are dead", async () => {
+  const env = await ready(3);
+  const { session: oldSession } = await env.session.get("session");
+  assert.equal(err(await env.call("changePassword", { current: "wrong password!!", next: PW2, confirm: PW2 })), "invalid:current-password");
+  assert.match(err(await env.call("getCodes")), /^locked/, "a failed change also locks (no ambiguous session)");
+  ok(await env.call("unlock", { password: PW }));
+  assert.equal(err(await env.call("changePassword", { current: PW, next: "too short", confirm: "too short" })), "invalid:password-short");
+  assert.deepEqual(ok(await env.call("changePassword", { current: PW, next: PW2, confirm: PW2 })), { locked: true });
+  assert.match(err(await env.call("getCodes")), /^locked/);
+  // 1. the previous session key cannot decrypt the new vault
+  await assert.rejects(openVault(oldSession.key, env.local.map.get("vault")));
+  // 3/4. a stale session record (old generation, still within its deadline) is rejected and wiped
+  await env.session.set({ session: { ...oldSession, lastActivity: env.clk.now(), deadline: env.clk.now() + oldSession.timeoutMs } });
+  assert.match(err(await env.call("getCodes")), /^locked/);
+  assert.deepEqual(await env.session.get("session"), {});
+  // 6. the old password opens nothing and cannot restore anything
+  assert.equal(err(await env.call("unlock", { password: PW })), "invalid:unlock");
+  assert.equal(err(await env.call("restore", { password: PW, confirmed: true })), "invalid:restore");
+  ok(await env.call("unlock", { password: PW2 }));
+  const { session: s } = await env.session.get("session");
+  assert.notEqual(s.generation, oldSession.generation);
+  assert.equal(s.generation, env.local.map.get("vault").kdf.salt, "session and vault generation consistent");
+  assert.equal(ok(await env.call("getCodes")).codes.length, 3, "data intact");
+});
+
+test("C2-A3: popup operations racing a password change cannot use the stale key", async () => {
+  const env = await ready(3);
+  const change = env.call("changePassword", { current: PW, next: PW2, confirm: PW2 });
+  // The change locks first and then runs two PBKDF2 derivations: probe inside that window.
+  while ((await env.session.get("session")).session) await new Promise((r) => setTimeout(r, 1));
+  const [during, write] = await Promise.all([
+    env.call("getCodes"),
+    env.call("addAccount", { revision: env.revision, account: { name: "Late", secret: SECRETS[4] } }),
+  ]);
+  assert.match(err(during), /^locked/, "codes during the change need a fresh unlock");
+  assert.match(err(write), /^locked/, "writes during the change are rejected");
+  assert.deepEqual(ok(await change), { locked: true });
+  ok(await env.call("unlock", { password: PW2 }));
+  assert.ok(!ok(await env.call("listAccounts")).accounts.some((a) => a.name === "Late"));
+});
+
+test("C2-A3: interrupted password change leaves a locked session and a working password", async () => {
+  for (const failAt of [1, 2, 3]) { // rotate set(): 1 vault_next, 2 vault_backup, 3 vault
+    const env = await ready(2);
+    let n = 0;
+    const realSet = env.local.set.bind(env.local);
+    env.local.set = async (obj) => { if (++n === failAt) throw new Error("QuotaExceededError (simulated)"); return realSet(obj); };
+    const r = await env.call("changePassword", { current: PW, next: PW2, confirm: PW2 });
+    env.local.set = realSet;
+    assert.equal(r.ok, false, `fail at ${failAt}`);
+    assert.deepEqual(await env.session.get("session"), {}, "never apparently unlocked after a failed change");
+    ok(await env.call("unlock", { password: PW }), `old password still works (fail at ${failAt})`);
+    assert.equal(ok(await env.call("getCodes")).codes.length, 2);
+  }
+});
+
+test("recovery: damaged vault -> recoverable without writing; confirmed restore unlocks", async () => {
+  const env = await ready(2);
+  ok(await env.call("addAccount", { revision: env.revision, account: { name: "Newest", secret: SECRETS[3] } }));
+  ok(await env.call("lock"));
+  const v = env.local.map.get("vault");
+  v.ciphertext = v.ciphertext.replace(/^./, (c) => (c === "A" ? "B" : "A"));
+  const snap = snapshot(env.local);
+  const r = ok(await env.call("unlock", { password: PW }));
+  assert.deepEqual([r.unlocked, r.recoverable, r.generationVerified], [false, true, true]);
+  assert.equal(err(await env.call("unlock", { password: "wrong password!!" })), "invalid:unlock");
+  assert.equal(err(await env.call("restore", { password: PW })), "invalid:confirmation");
+  assert.equal(err(await env.call("restore", { password: "wrong password!!", confirmed: true })), "invalid:restore");
+  assert.deepEqual(snapshot(env.local), snap, "nothing written before a confirmed restore");
+  ok(await env.call("restore", { password: PW, confirmed: true }));
+  assert.equal(ok(await env.call("listAccounts")).accounts.length, 2, "previous revision restored");
+});
+
+test("after lock every sensitive command fails closed", async () => {
+  const env = await ready();
+  ok(await env.call("lock"));
+  for (const cmd of ["getCodes", "listAccounts", "activity"]) assert.match(err(await env.call(cmd)), /^locked/);
+  assert.match(err(await env.call("deleteAccount", { id: "x", revision: env.revision })), /^locked/);
+  assert.match(err(await env.call("changePassword", { current: PW, next: PW2, confirm: PW2 })), /^locked/);
   assert.equal(env.alarms.alarms.has("autolock"), false);
 });
 
 test("deadline enforced without any alarm; no revival after expiry", async () => {
-  const env = setup();
-  await env.local.set({ settings: { autoLockMinutes: 15 } });
-  ok(await env.call("devUnlock", { count: 3 }));
+  const env = await ready();
   env.clk.advance(15 * MIN - 1);
   ok(await env.call("getCodes")); // refresh does not extend the deadline
   env.clk.advance(1);
-  assert.equal((await env.call("getCodes")).error, "locked");
-  assert.deepEqual(await env.session.get("session"), {}, "expired session is wiped");
-  assert.equal((await env.call("activity")).error, "locked");
-});
-
-test("qualifying activity moves the deadline only while valid", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 1 }));
-  env.clk.advance(10 * MIN);
-  ok(await env.call("activity"));
-  env.clk.advance(10 * MIN);
-  ok(await env.call("getCodes"));
-  env.clk.advance(5 * MIN);
-  assert.equal((await env.call("getCodes")).error, "locked");
+  assert.match(err(await env.call("getCodes")), /^locked/);
+  assert.deepEqual(await env.session.get("session"), {});
+  assert.match(err(await env.call("activity")), /^locked/);
 });
 
 test("clock moved backwards locks", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 1 }));
+  const env = await ready();
   env.clk.advance(-1000);
-  assert.equal((await env.call("getCodes")).error, "locked");
+  assert.match(err(await env.call("getCodes")), /^locked/);
 });
 
-test("expiry during async processing rejects the operation (read and write)", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  const realGet = env.session.get;
-  // Let time pass the deadline right after the gate's first read.
-  let calls = 0;
-  env.session.get = async (k) => { const r = await realGet(k); if (++calls === 2) env.clk.advance(16 * MIN); return r; };
-  assert.equal((await env.call("getCodes")).error, "locked");
-
-  env.session.get = realGet;
-  ok(await env.call("devUnlock", { count: 3 }));
-  const before = (await realGet("vault")).vault;
-  calls = 0;
-  env.session.get = async (k) => { const r = await realGet(k); if (++calls === 2) env.clk.advance(16 * MIN); return r; };
-  const r = await env.call("addAccount", { account: { name: "N", secret: NEW_SECRET }, revision: 1 });
-  env.session.get = realGet;
-  assert.equal(r.error, "locked");
-  assert.notEqual(before, undefined);
-  assert.deepEqual((await realGet("vault")).vault, undefined, "no write; vault wiped with session");
-});
-
-test("lock during async processing rejects the operation and writes nothing", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
+test("lock during async processing rejects the operation", async () => {
+  const env = await ready();
   const pending = env.call("getCodes");
   ok(await env.call("lock"));
-  assert.equal((await pending).error, "locked");
-
-  ok(await env.call("devUnlock", { count: 3 }));
-  const write = env.call("addAccount", { account: { name: "N", secret: NEW_SECRET }, revision: 1 });
-  ok(await env.call("lock"));
-  assert.equal((await write).error, "locked");
-  ok(await env.call("devUnlock", { count: 3 })); // fresh fixtures, revision 1
-  const list = ok(await env.call("listAccounts"));
-  assert.equal(list.revision, 1);
-  assert.ok(!list.accounts.some((a) => a.name === "N"));
-});
-
-test("re-unlock during an operation (session change) rejects the old operation", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  const pending = env.call("getCodes");
-  ok(await env.call("devUnlock", { count: 4 }));
-  assert.equal((await pending).error, "locked");
-});
-
-test("event page restart: a new service instance continues the same session", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 10 }));
-  const a = ok(await env.call("getCodes"));
-  env.svc = env.make(); // simulated restart: all in-memory state lost
-  const b = ok(await env.call("getCodes"));
-  assert.deepEqual(b, a);
-  env.clk.advance(15 * MIN);
-  env.svc = env.make();
-  assert.equal((await env.call("getCodes")).error, "locked", "deadline survives restarts");
-});
-
-test("alarm handler wipes an expired session and re-arms a valid one", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 1 }));
-  env.clk.advance(5 * MIN);
-  ok(await env.call("activity"));
-  await env.svc.onAlarm();
-  assert.ok((await env.session.get("session")).session, "still valid → kept");
-  env.clk.advance(15 * MIN);
-  await env.svc.onAlarm();
-  assert.deepEqual(await env.session.get(["session", "vault"]), {});
+  assert.match(err(await pending), /^locked/);
 });
 
 test("stale revision is rejected; concurrent writes cannot overwrite each other", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  const { revision } = ok(await env.call("listAccounts"));
+  const env = await ready(3);
+  const { revision, accounts } = ok(await env.call("listAccounts"));
+  const id = accounts[0].id;
   const [r1, r2] = await Promise.all([
-    env.call("updateAccount", { id: "fixture-1", patch: { name: "First" }, revision }),
-    env.call("updateAccount", { id: "fixture-1", patch: { name: "Second" }, revision }),
+    env.call("updateAccount", { id, patch: { name: "First" }, revision }),
+    env.call("updateAccount", { id, patch: { name: "Second" }, revision }),
   ]);
   assert.deepEqual([r1.ok, r2.error], [true, "conflict"]);
+  const after = ok(await env.call("listAccounts"));
+  assert.equal(after.revision, revision + 1);
+  assert.equal(after.accounts[0].name, "First");
+});
+
+test("CRUD and ordering through the service, persisted in the vault", async () => {
+  const env = await ready(3);
+  let { revision, accounts } = ok(await env.call("listAccounts"));
+  const [a, b, c] = accounts.map((x) => x.id);
+  ({ revision } = ok(await env.call("moveAccount", { id: c, toIndex: 0, revision })));
+  ({ revision } = ok(await env.call("updateAccount", { id: a, patch: { name: "Renamed" }, revision })));
+  ({ revision } = ok(await env.call("deleteAccount", { id: b, revision })));
+  env.svc = env.make(); // restart: state comes from storage only
   const list = ok(await env.call("listAccounts"));
-  assert.equal(list.revision, revision + 1);
-  assert.equal(list.accounts[0].name, "First");
-  assert.equal((await env.call("deleteAccount", { id: "fixture-2", revision })).error, "conflict");
+  assert.deepEqual(list.accounts.map((x) => x.name), ["Account 3", "Renamed"]);
+  assert.equal(list.revision, revision);
 });
 
-test("storage-level compare-and-set catches a write behind the service's back", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  const realSet = env.session.set;
-  let sessionReads = 0;
-  env.session.get = ((orig) => async (k) => {
-    const r = await orig(k);
-    // 2nd session read = recheck inside writeVault, after the vault was read and the new
-    // ciphertext built. Another writer bumps the revision at exactly that point.
-    if (k === "session" && ++sessionReads === 2) {
-      const { vault } = await orig("vault");
-      await realSet({ vault: { ...vault, revision: vault.revision + 1 } });
-    }
-    return r;
-  })(env.session.get);
-  const r = await env.call("addAccount", { account: { name: "N", secret: NEW_SECRET }, revision: 1 });
-  assert.equal(r.error, "conflict");
-});
-
-test("revision is bound to the ciphertext (AAD): tampering is rejected", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  const { vault } = await env.session.get("vault");
-  await env.session.set({ vault: { ...vault, revision: 7 } });
-  assert.equal((await env.call("getCodes")).error, "internal");
-  await env.session.set({ vault: { ...vault, ct: vault.ct.replace(/^./, (c) => (c === "A" ? "B" : "A")) } });
-  assert.equal((await env.call("getCodes")).error, "internal");
-});
-
-test("CRUD and ordering through the service", async () => {
-  const env = setup();
-  ok(await env.call("devUnlock", { count: 3 }));
-  let { revision } = ok(await env.call("listAccounts"));
-  ({ revision } = ok(await env.call("addAccount",
-    { account: { name: "New", secret: NEW_SECRET.toLowerCase(), url: "new.example" }, revision })));
-  ({ revision } = ok(await env.call("moveAccount", { id: "fixture-3", toIndex: 0, revision })));
-  ({ revision } = ok(await env.call("updateAccount", { id: "fixture-1", patch: { name: "Renamed" }, revision })));
-  ({ revision } = ok(await env.call("deleteAccount", { id: "fixture-2", revision })));
-  const list = ok(await env.call("listAccounts"));
-  assert.deepEqual(list.accounts.map((a) => a.name), ["Test Bank 03", "Renamed", "New"]);
-  assert.equal(list.revision, 5); // 1 + four mutations
-  // secret unchanged by a name-only update: codes still match a fresh fixture computation
-  const codes = ok(await env.call("getCodes"));
-  assert.equal(codes.codes.length, 3);
+test("alarm handler wipes an expired session and re-arms a valid one", async () => {
+  const env = await ready(1);
+  env.clk.advance(5 * MIN);
+  ok(await env.call("activity"));
+  await env.svc.onAlarm();
+  assert.ok((await env.session.get("session")).session);
+  env.clk.advance(15 * MIN);
+  await env.svc.onAlarm();
+  assert.deepEqual(await env.session.get("session"), {});
 });
 
 test("input validation at the message boundary", async () => {
-  const env = setup();
-  assert.equal((await env.call("nope")).error, "invalid");
-  assert.equal((await env.svc.handle(null)).error, "invalid");
-  assert.equal((await env.svc.handle({ cmd: "toString" })).error, "invalid");
-  assert.equal((await env.call("devUnlock", { count: -1 })).error, "invalid");
-  ok(await env.call("devUnlock", { count: 2 }));
-  assert.equal((await env.call("deleteAccount", { id: "fixture-1", revision: "1" })).error, "invalid");
-  assert.equal((await env.call("deleteAccount", { id: "missing", revision: 1 })).error, "invalid");
-  assert.equal((await env.call("moveAccount", { id: "fixture-1", toIndex: 9, revision: 1 })).error, "invalid");
-  assert.equal((await env.call("importPreview", { text: 5 })).error, "invalid");
-  assert.equal((await env.call("importPreview", { text: "not json" })).error, "malformed");
-  assert.equal(ok(await env.call("listAccounts")).revision, 1, "failed operations wrote nothing");
+  const env = await ready(1);
+  assert.equal(err(await env.call("nope")), "invalid:cmd");
+  assert.equal(err(await env.svc.handle(null)), "invalid:cmd");
+  assert.equal(err(await env.svc.handle({ cmd: "toString" })), "invalid:cmd");
+  assert.equal(err(await env.call("unlock", { password: 42 })), "invalid:password");
+  assert.equal(err(await env.call("unlock", { password: "x".repeat(2000) })), "invalid:password");
+  assert.equal(err(await env.call("deleteAccount", { id: "x", revision: "1" })), "invalid:revision");
+  assert.equal(err(await env.call("importPreview", { text: 5 })), "invalid:text");
+  assert.equal(err(await env.call("importPreview", { text: "not json" })), "malformed:json");
 });

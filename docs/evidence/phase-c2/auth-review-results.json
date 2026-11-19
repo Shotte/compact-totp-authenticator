@@ -1,0 +1,2135 @@
+{
+  "startedAt": "2026-11-19T00:13:44.984Z",
+  "browser": {
+    "version": "160.0.1",
+    "platform": "windows"
+  },
+  "install": {
+    "extension": "{f587432b-b553-483e-b08d-4feac6378113}"
+  },
+  "chromeScopePrivileged": true,
+  "wrongPasswordMs": [
+    119,
+    122,
+    2,
+    1
+  ],
+  "unlockLatency": {
+    "iterations600kMs": [
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "medianMs": 4,
+    "forged10MMs": 1879,
+    "oversizedRejectMs": 3,
+    "uiPingMaxMs": 2
+  },
+  "coldUnlockMsAfterRestart": 122,
+  "finalPasswordIsPW": false,
+  "layouts": {
+    "1": {
+      "rows": 1,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 56,
+      "docScrollWidth": 270,
+      "listClientHeight": 31,
+      "listScrollHeight": 31,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "14",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 144,
+      "expectedBodyHeight": 56
+    },
+    "25": {
+      "rows": 25,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 631,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "13",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 101,
+      "expectedBodyHeight": 591
+    },
+    "50": {
+      "rows": 50,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 1256,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "12",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 78,
+      "expectedBodyHeight": 591
+    },
+    "100": {
+      "rows": 100,
+      "rowHeights": [
+        25
+      ],
+      "bodyWidth": 270,
+      "bodyHeight": 591,
+      "docScrollWidth": 270,
+      "listClientHeight": 566,
+      "listScrollHeight": 2506,
+      "fontFamily": "monospace",
+      "fontSize": "16px",
+      "codesOk": true,
+      "ticker": "11",
+      "lastRowReachable": true,
+      "footerVisible": true,
+      "renderMs": 72,
+      "expectedBodyHeight": 591
+    }
+  },
+  "finishedAt": "2026-11-19T00:16:52.256Z",
+  "results": [
+    {
+      "id": "B6-1",
+      "name": "fresh install: not initialized, setup shown, sensitive commands rejected",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "ok": true,
+          "result": {
+            "initialized": false,
+            "unlocked": false,
+            "startedAt": 1795047226174
+          }
+        },
+        "responses": [
+          {
+            "ok": false,
+            "error": "locked",
+            "reason": "none"
+          },
+          {
+            "ok": false,
+            "error": "locked",
+            "reason": "none"
+          },
+          {
+            "ok": false,
+            "error": "locked",
+            "reason": "none"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B3-1",
+      "name": "popup layout with 1 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 1,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 56,
+        "docScrollWidth": 270,
+        "listClientHeight": 31,
+        "listScrollHeight": 31,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "14",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 144,
+        "expectedBodyHeight": 56
+      }
+    },
+    {
+      "id": "B3-25",
+      "name": "popup layout with 25 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 25,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 631,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "13",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 101,
+        "expectedBodyHeight": 591
+      }
+    },
+    {
+      "id": "B3-50",
+      "name": "popup layout with 50 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 50,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 1256,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "12",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 78,
+        "expectedBodyHeight": 591
+      }
+    },
+    {
+      "id": "B3-100",
+      "name": "popup layout with 100 account(s)",
+      "verdict": "PASS",
+      "details": {
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "listClientHeight": 566,
+        "listScrollHeight": 2506,
+        "fontFamily": "monospace",
+        "fontSize": "16px",
+        "codesOk": true,
+        "ticker": "11",
+        "lastRowReachable": true,
+        "footerVisible": true,
+        "renderMs": 72,
+        "expectedBodyHeight": 591
+      }
+    },
+    {
+      "id": "B7-12px/auto/dark",
+      "name": "appearance 12px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          19
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 19
+      }
+    },
+    {
+      "id": "B7-12px/22/light",
+      "name": "appearance 12px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-12px/25/auto",
+      "name": "appearance 12px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-12px/30/custom",
+      "name": "appearance 12px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 12,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "12px",
+        "codeFont": "12px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-13px/auto/dark",
+      "name": "appearance 13px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 13,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          20
+        ],
+        "nameFont": "13px",
+        "codeFont": "13px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 20
+      }
+    },
+    {
+      "id": "B7-13px/22/light",
+      "name": "appearance 13px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 13,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "13px",
+        "codeFont": "13px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-13px/25/auto",
+      "name": "appearance 13px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 13,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "13px",
+        "codeFont": "13px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-13px/30/custom",
+      "name": "appearance 13px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 13,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "13px",
+        "codeFont": "13px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-14px/auto/dark",
+      "name": "appearance 14px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 14,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "14px",
+        "codeFont": "14px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-14px/22/light",
+      "name": "appearance 14px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 14,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "14px",
+        "codeFont": "14px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-14px/25/auto",
+      "name": "appearance 14px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 14,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "14px",
+        "codeFont": "14px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-14px/30/custom",
+      "name": "appearance 14px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 14,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "14px",
+        "codeFont": "14px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-15px/auto/dark",
+      "name": "appearance 15px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 15,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          23
+        ],
+        "nameFont": "15px",
+        "codeFont": "15px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 23
+      }
+    },
+    {
+      "id": "B7-15px/22/light",
+      "name": "appearance 15px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 15,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "15px",
+        "codeFont": "15px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-15px/25/auto",
+      "name": "appearance 15px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 15,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "15px",
+        "codeFont": "15px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-15px/30/custom",
+      "name": "appearance 15px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 15,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "15px",
+        "codeFont": "15px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-16px/auto/dark",
+      "name": "appearance 16px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 16,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "16px",
+        "codeFont": "16px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-16px/22/light",
+      "name": "appearance 16px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 16,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          22
+        ],
+        "nameFont": "16px",
+        "codeFont": "16px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 22
+      }
+    },
+    {
+      "id": "B7-16px/25/auto",
+      "name": "appearance 16px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 16,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "16px",
+        "codeFont": "16px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-16px/30/custom",
+      "name": "appearance 16px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 16,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "16px",
+        "codeFont": "16px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-17px/auto/dark",
+      "name": "appearance 17px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 17,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          27
+        ],
+        "nameFont": "17px",
+        "codeFont": "17px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 27
+      }
+    },
+    {
+      "id": "B7-17px/22/light",
+      "name": "appearance 17px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 17,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          24
+        ],
+        "nameFont": "17px",
+        "codeFont": "17px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 24
+      }
+    },
+    {
+      "id": "B7-17px/25/auto",
+      "name": "appearance 17px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 17,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "17px",
+        "codeFont": "17px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-17px/30/custom",
+      "name": "appearance 17px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 17,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "17px",
+        "codeFont": "17px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-18px/auto/dark",
+      "name": "appearance 18px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 18,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          28
+        ],
+        "nameFont": "18px",
+        "codeFont": "18px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 28
+      }
+    },
+    {
+      "id": "B7-18px/22/light",
+      "name": "appearance 18px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 18,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "18px",
+        "codeFont": "18px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-18px/25/auto",
+      "name": "appearance 18px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 18,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          25
+        ],
+        "nameFont": "18px",
+        "codeFont": "18px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 25
+      }
+    },
+    {
+      "id": "B7-18px/30/custom",
+      "name": "appearance 18px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 18,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "18px",
+        "codeFont": "18px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-19px/auto/dark",
+      "name": "appearance 19px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 19,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "19px",
+        "codeFont": "19px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-19px/22/light",
+      "name": "appearance 19px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 19,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          26
+        ],
+        "nameFont": "19px",
+        "codeFont": "19px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 26
+      }
+    },
+    {
+      "id": "B7-19px/25/auto",
+      "name": "appearance 19px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 19,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          26
+        ],
+        "nameFont": "19px",
+        "codeFont": "19px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 26
+      }
+    },
+    {
+      "id": "B7-19px/30/custom",
+      "name": "appearance 19px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 19,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "19px",
+        "codeFont": "19px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-20px/auto/dark",
+      "name": "appearance 20px/auto/dark with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": "auto",
+          "theme": "dark"
+        },
+        "rows": 100,
+        "rowHeights": [
+          31
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 31
+      }
+    },
+    {
+      "id": "B7-20px/22/light",
+      "name": "appearance 20px/22/light with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 22,
+          "theme": "light"
+        },
+        "rows": 100,
+        "rowHeights": [
+          27
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(12, 12, 13)",
+        "bg": "rgb(255, 255, 255)",
+        "mode": "light",
+        "contrast": 19.55,
+        "expectedRowHeight": 27
+      }
+    },
+    {
+      "id": "B7-20px/25/auto",
+      "name": "appearance 20px/25/auto with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 25,
+          "theme": "auto"
+        },
+        "rows": 100,
+        "rowHeights": [
+          27
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(232, 230, 227)",
+        "bg": "rgb(28, 27, 34)",
+        "mode": "dark",
+        "contrast": 13.71,
+        "expectedRowHeight": 27
+      }
+    },
+    {
+      "id": "B7-20px/30/custom",
+      "name": "appearance 20px/30/custom with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 30,
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#1a1a1a",
+          "bg": "#f0efe6"
+        },
+        "rows": 100,
+        "rowHeights": [
+          30
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(26, 26, 26)",
+        "bg": "rgb(240, 239, 230)",
+        "mode": "dark",
+        "contrast": 15.08,
+        "expectedRowHeight": 30
+      }
+    },
+    {
+      "id": "B7-20px/22/custom-low-contrast",
+      "name": "appearance 20px/22/custom-low-contrast with 100 accounts",
+      "verdict": "PASS",
+      "details": {
+        "settings": {
+          "fontSize": 20,
+          "rowHeight": 22,
+          "theme": "dark",
+          "customColors": true,
+          "fg": "#777777",
+          "bg": "#808080"
+        },
+        "rows": 100,
+        "rowHeights": [
+          27
+        ],
+        "nameFont": "20px",
+        "codeFont": "20px",
+        "bodyWidth": 270,
+        "bodyHeight": 591,
+        "docScrollWidth": 270,
+        "issues": [],
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "fg": "rgb(0, 0, 0)",
+        "bg": "rgb(128, 128, 128)",
+        "mode": "dark",
+        "contrast": 5.32,
+        "expectedRowHeight": 27
+      }
+    },
+    {
+      "id": "B7-auto",
+      "name": "theme auto follows live prefers-color-scheme changes",
+      "verdict": "PASS",
+      "details": {
+        "transitions": [
+          {
+            "want": "dark",
+            "ok": true,
+            "bg": "rgb(28, 27, 34)"
+          },
+          {
+            "want": "light",
+            "ok": true,
+            "bg": "rgb(255, 255, 255)"
+          },
+          {
+            "want": "dark",
+            "ok": true,
+            "bg": "rgb(28, 27, 34)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "B7-options",
+      "name": "options: live preview, saved separately, hints, reset keeps behaviour settings",
+      "verdict": "PASS",
+      "details": {
+        "livePreview": "20px",
+        "stored": {
+          "theme": "auto",
+          "customColors": true,
+          "fg": "#777777",
+          "bg": "#808080",
+          "fontSize": 20,
+          "rowHeight": 22,
+          "sort": "alpha",
+          "autoLockMinutes": 7
+        },
+        "hints": {
+          "contrast": true,
+          "row": true,
+          "rowText": "Bei dieser Schriftgröße werden Zeilen 27 px hoch, damit kein Text abgeschnitten wird.",
+          "out": "20 px"
+        },
+        "reset": {
+          "theme": "auto",
+          "customColors": false,
+          "fg": "#e8e6e3",
+          "bg": "#1c1b22",
+          "fontSize": 16,
+          "rowHeight": "auto",
+          "sort": "alpha",
+          "autoLockMinutes": 7
+        },
+        "previewAfterReset": "16px"
+      }
+    },
+    {
+      "id": "B8-1",
+      "name": "hover highlights the whole row (name/code/free space/icon, scrolled rows) in light/dark/auto, no layout shift, contrast >= 4.5",
+      "verdict": "PASS",
+      "details": {
+        "cases": [
+          {
+            "theme": "dark",
+            "system": "-",
+            "expectedHover": "#302f35",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#302f35"
+            },
+            "contrastOnHover": 10.65,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "light",
+            "system": "-",
+            "expectedHover": "#e7e7e7",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#e7e7e7"
+            },
+            "contrastOnHover": 15.81,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "auto",
+            "system": "dark",
+            "expectedHover": "#302f35",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#302f35",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#302f35"
+            },
+            "contrastOnHover": 10.65,
+            "transition": "0.08s",
+            "ok": true
+          },
+          {
+            "theme": "auto",
+            "system": "light",
+            "expectedHover": "#e7e7e7",
+            "idleBg": "#000000",
+            "hovered": {
+              "name": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "code": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "free": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              },
+              "icon": {
+                "hover": true,
+                "bg": "#e7e7e7",
+                "sameRect": true
+              }
+            },
+            "scrolledLastRow": {
+              "hover": true,
+              "bg": "#e7e7e7"
+            },
+            "contrastOnHover": 15.81,
+            "transition": "0.08s",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "B8-2",
+      "name": "keyboard focus shows a visible inset outline without layout shift",
+      "verdict": "PASS",
+      "details": {
+        "isRow": true,
+        "focusVisible": true,
+        "outline": "solid 2px",
+        "offset": "-2px",
+        "rect": [
+          0,
+          6,
+          262,
+          25
+        ]
+      }
+    },
+    {
+      "id": "B8-3",
+      "name": "prefers-reduced-motion disables the hover transition",
+      "verdict": "PASS",
+      "details": {
+        "transitionDuration": "0s"
+      }
+    },
+    {
+      "id": "B3-copy",
+      "name": "click copies (writeText resolved), indicator shown and reset",
+      "verdict": "PASS",
+      "details": {
+        "copied": true,
+        "announce": "Code kopiert",
+        "indicatorReset": true
+      }
+    },
+    {
+      "id": "B6-2",
+      "name": "no secrets in responses, DOM or storage; key non-extractable",
+      "verdict": "PASS",
+      "details": {
+        "leaksFound": {
+          "responses": [],
+          "popupDom": [],
+          "optionsDom": [],
+          "storageLocal": [],
+          "storageSession": []
+        },
+        "keyType": "[object CryptoKey]",
+        "extractable": false,
+        "exportKey": "InvalidAccessError",
+        "sessionKeys": [
+          "session"
+        ],
+        "previewCounts": {
+          "new": 4,
+          "duplicate": 1,
+          "name-conflict": 1,
+          "invalid": 5
+        }
+      }
+    },
+    {
+      "id": "B4-1",
+      "name": "create, edit, reorder, delete via options UI; stale revision rejected",
+      "verdict": "PASS",
+      "details": {
+        "before": [
+          "Example Mail 01",
+          "Demo Cloud 02",
+          "Test Bank 03"
+        ],
+        "after": [
+          "Demo Cloud 02",
+          "UI Renamed",
+          "Test Bank 03"
+        ],
+        "added": true,
+        "secretFieldClearedAfterSave": true,
+        "renamed": true,
+        "moved": true,
+        "deleted": true,
+        "staleWrite": {
+          "ok": false,
+          "error": "conflict"
+        }
+      }
+    },
+    {
+      "id": "B5-1",
+      "name": "legacy preview via file upload; no persistence; apply disabled; malformed rejected",
+      "verdict": "PASS",
+      "details": {
+        "statuses": [
+          "new",
+          "new",
+          "new",
+          "duplicate",
+          "name-conflict",
+          "new",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid"
+        ],
+        "summary": "4 neu, 1 Duplikate, 1 Namenskonflikte, 5 ungültig",
+        "applyDisabled": true,
+        "revisionUnchanged": true,
+        "storageLocalUnchanged": true,
+        "malformed": {
+          "ok": false,
+          "error": "malformed",
+          "reason": "json"
+        }
+      }
+    },
+    {
+      "id": "B3-real-1",
+      "name": "real toolbar popup size and rows",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "headless run: no toolbar popup panel"
+      }
+    },
+    {
+      "id": "B3-real-2",
+      "name": "active-site highlight via toolbar click",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "headless run: no toolbar popup panel"
+      }
+    },
+    {
+      "id": "B3-real-3",
+      "name": "real popup scrolling",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "headless run: no toolbar popup panel"
+      }
+    },
+    {
+      "id": "B3-real-4",
+      "name": "real popup click-to-copy",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "headless run: no toolbar popup panel"
+      }
+    },
+    {
+      "id": "B8-real",
+      "name": "real popup hover",
+      "verdict": "NOT_TESTED",
+      "details": {
+        "reason": "headless run: no toolbar popup panel"
+      }
+    },
+    {
+      "id": "B6-3",
+      "name": "lock wipes key and vault; popup shows locked view",
+      "verdict": "PASS",
+      "details": {
+        "getCodes": {
+          "ok": false,
+          "error": "locked",
+          "reason": "none"
+        },
+        "sessionKeys": [],
+        "lockedView": true
+      }
+    },
+    {
+      "id": "B6-4",
+      "name": "works after event page suspension and restart",
+      "verdict": "PASS",
+      "details": {
+        "startedAtBefore": 1795047226174,
+        "startedAtAfter": 1795047252062,
+        "restarted": true,
+        "revision": 26
+      }
+    },
+    {
+      "id": "B6-5",
+      "name": "auto-lock after 1 min: locked at the deadline; alarm wipes the idle session",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "initialized": true,
+          "unlocked": true,
+          "startedAt": 1795047252062
+        },
+        "atDeadline": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795047312235
+        },
+        "alarmWipedAfterSeconds": 61
+      }
+    },
+    {
+      "id": "C2-1",
+      "name": "setup via UI: 12+ characters, confirmation required, vault created and unlocked, inputs cleared",
+      "verdict": "PASS",
+      "details": {
+        "setupShown": true,
+        "shortBlocked": true,
+        "mismatch": "Ungültige Eingabe: die Passwörter stimmen nicht überein",
+        "noVaultAfterRejected": true,
+        "unlocked": true,
+        "inputsCleared": true
+      }
+    },
+    {
+      "id": "C2-2",
+      "name": "popup unlock: wrong passwords rejected, storage.local byte-identical, correct password shows codes",
+      "verdict": "PASS",
+      "details": {
+        "unlockMode": true,
+        "failShown": true,
+        "wrongAttemptsRejected": true,
+        "storageUnchanged": true,
+        "rendered": true
+      }
+    },
+    {
+      "id": "C2-3",
+      "name": "unlock latency measured; 10M-iteration header fails without freezing the UI; oversized rejected before PBKDF2",
+      "verdict": "PASS",
+      "details": {
+        "iterations600kMs": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "medianMs": 4,
+        "forged10MMs": 1879,
+        "oversizedRejectMs": 3,
+        "uiPingMaxMs": 2,
+        "forgedResult": "unlock",
+        "oversizedResult": "no-vault",
+        "storageUnchangedByForgedAttempt": true
+      }
+    },
+    {
+      "id": "C2-4",
+      "name": "password change via UI locks at once; old key and old password dead; no rollback; new password (NFD) unlocks",
+      "verdict": "PASS",
+      "details": {
+        "lockedAfter": true,
+        "getCodesAfterChange": "locked",
+        "oldKeyCannotDecrypt": true,
+        "oldPassword": "unlock",
+        "oldPasswordRestore": "restore",
+        "storageUnchanged": true,
+        "sessionGenerationMatchesVault": true,
+        "accounts": [
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "id": "C2-5",
+      "name": "damaged vault: recovery offered without writing; confirmation and correct password required; previous revision restored",
+      "verdict": "PASS",
+      "details": {
+        "recoverShown": true,
+        "withoutConfirmation": "confirmation",
+        "wrongPassword": "restore",
+        "storageUnchangedBeforeConfirm": true,
+        "accounts": [
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "id": "C2-6",
+      "name": "after a hard kill and restart: locked, session storage empty, vault persists and unlocks",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795047318845
+        },
+        "sessionKeys": [],
+        "unlockMode": true,
+        "accounts": [
+          5,
+          5
+        ],
+        "coldUnlockMs": 122
+      }
+    },
+    {
+      "id": "C2-7-400",
+      "name": "kill 400 ms into a write burst: vault opens (directly or via confirmed restore), data consistent",
+      "verdict": "PASS",
+      "details": {
+        "delayMs": 400,
+        "accountsBefore": 5,
+        "accountsAfter": 66,
+        "restoredFromBackup": false
+      }
+    },
+    {
+      "id": "C2-7-1200",
+      "name": "kill 1200 ms into a write burst: vault opens (directly or via confirmed restore), data consistent",
+      "verdict": "PASS",
+      "details": {
+        "delayMs": 1200,
+        "accountsBefore": 66,
+        "accountsAfter": 188,
+        "restoredFromBackup": false
+      }
+    },
+    {
+      "id": "C2-8-100",
+      "name": "kill 100 ms into a password change: exactly one password opens the intact vault",
+      "verdict": "PASS",
+      "details": {
+        "delayMs": 100,
+        "oldPassword": "no",
+        "newPassword": "ok",
+        "accounts": [
+          188,
+          188
+        ]
+      }
+    },
+    {
+      "id": "C2-8-350",
+      "name": "kill 350 ms into a password change: exactly one password opens the intact vault",
+      "verdict": "PASS",
+      "details": {
+        "delayMs": 350,
+        "oldPassword": "no",
+        "newPassword": "ok",
+        "accounts": [
+          188,
+          188
+        ]
+      }
+    },
+    {
+      "id": "C2-8-800",
+      "name": "kill 800 ms into a password change: exactly one password opens the intact vault",
+      "verdict": "PASS",
+      "details": {
+        "delayMs": 800,
+        "oldPassword": "no",
+        "newPassword": "ok",
+        "accounts": [
+          188,
+          188
+        ]
+      }
+    },
+    {
+      "id": "C2-9",
+      "name": "authentication scenarios 2-10: wrong passwords fail without writing, correct ones open, after lock/expiry/restarts/rotation",
+      "verdict": "PASS",
+      "details": {
+        "scenarios": [
+          {
+            "id": "2 wrong right after a successful unlock",
+            "ok": true,
+            "right": {
+              "unlocked": true,
+              "ms": 7,
+              "unchanged": true
+            },
+            "wrong": {
+              "unlocked": false,
+              "ms": 168,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "3/4 explicit lock, then wrong and correct",
+            "ok": true,
+            "wrong": {
+              "unlocked": false,
+              "ms": 170,
+              "unchanged": true
+            },
+            "right": {
+              "unlocked": true,
+              "ms": 6,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "5 automatic expiration, then wrong and correct",
+            "ok": true,
+            "expired": true,
+            "wrong": {
+              "unlocked": false,
+              "ms": 165,
+              "unchanged": true
+            },
+            "right": {
+              "unlocked": true,
+              "ms": 8,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "6 event page restart, then wrong and correct",
+            "ok": true,
+            "eventPageRestarted": true,
+            "wrong": {
+              "unlocked": false,
+              "ms": 119,
+              "unchanged": true
+            },
+            "right": {
+              "unlocked": true,
+              "ms": 7,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "7 browser restart, then wrong and correct",
+            "ok": true,
+            "wrong": {
+              "unlocked": false,
+              "ms": 125,
+              "unchanged": true
+            },
+            "right": {
+              "unlocked": true,
+              "ms": 123,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "8 rotation, then old and new password",
+            "ok": true,
+            "old": {
+              "unlocked": false,
+              "ms": 164,
+              "unchanged": true
+            },
+            "new": {
+              "unlocked": true,
+              "ms": 9,
+              "unchanged": true
+            }
+          },
+          {
+            "id": "9 distinct string instances, identical content",
+            "ok": true,
+            "attempts": [
+              {
+                "unlocked": true,
+                "ms": 7,
+                "unchanged": true
+              },
+              {
+                "unlocked": true,
+                "ms": 8,
+                "unchanged": true
+              },
+              {
+                "unlocked": true,
+                "ms": 10,
+                "unchanged": true
+              }
+            ]
+          },
+          {
+            "id": "10 NFC and NFD input",
+            "ok": true,
+            "attempts": [
+              {
+                "form": "NFD",
+                "unlocked": true,
+                "ms": 7,
+                "unchanged": true
+              },
+              {
+                "form": "NFC",
+                "unlocked": true,
+                "ms": 6,
+                "unchanged": true
+              },
+              {
+                "form": "NFD",
+                "unlocked": true,
+                "ms": 6,
+                "unchanged": true
+              }
+            ]
+          },
+          {
+            "id": "identical wrong guess repeated (NSS-cached derivation) still fails",
+            "ok": true,
+            "attempts": [
+              {
+                "unlocked": false,
+                "ms": 118,
+                "unchanged": true
+              },
+              {
+                "unlocked": false,
+                "ms": 6,
+                "unchanged": true
+              },
+              {
+                "unlocked": false,
+                "ms": 8,
+                "unchanged": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "C2-10",
+      "name": "repeated-derivation speedup is inside Firefox Web Crypto for byte-identical input; the app derives every time",
+      "verdict": "PASS",
+      "details": {
+        "measurements": [
+          {
+            "label": "first derivation",
+            "ms": 112,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "identical input again",
+            "ms": 1,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "same content, new string instance",
+            "ms": 0,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "NFD form (same normalized bytes)",
+            "ms": 0,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "different password",
+            "ms": 112,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "different salt",
+            "ms": 112,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "iterations + 1",
+            "ms": 111,
+            "pbkdf2Calls": 1
+          },
+          {
+            "label": "raw Web Crypto deriveBits (no app code), first",
+            "ms": 113,
+            "pbkdf2Calls": 0
+          },
+          {
+            "label": "raw Web Crypto deriveBits, identical input again",
+            "ms": 0,
+            "pbkdf2Calls": 0
+          }
+        ],
+        "identicalInputFast": true
+      }
+    }
+  ],
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v24.20.0",
+    "headless": true
+  }
+}
