@@ -212,7 +212,7 @@
     }
   },
   "errMalformed": {
-    "message": "Die Datei ist keine gültige totp.json."
+    "message": "Die Datei ist ungültig oder wird nicht unterstützt."
   },
   "errInternal": {
     "message": "Unerwarteter Fehler."
@@ -386,5 +386,112 @@
   },
   "reason_confirmation": {
     "message": "bitte die Wiederherstellung bestätigen"
+  },
+  "exportTitle": {
+    "message": "Export und Sicherung"
+  },
+  "exportKind": {
+    "message": "Format"
+  },
+  "exportEncrypted": {
+    "message": "Verschlüsselte CTA-Sicherung (empfohlen)"
+  },
+  "exportPlain": {
+    "message": "Unverschlüsselte CTA-Datei (alle Parameter)"
+  },
+  "exportLegacy": {
+    "message": "Unverschlüsselte totp.json für die Originalerweiterung"
+  },
+  "exportEncryptedNote": {
+    "message": "Die Datei ist mit einem eigenen Export-Passwort geschützt. Ohne dieses Passwort lässt sie sich nicht öffnen – bewahre das Passwort sicher und getrennt von der Datei auf."
+  },
+  "exportPassword": {
+    "message": "Export-Passwort"
+  },
+  "exportConfirm": {
+    "message": "Export-Passwort wiederholen"
+  },
+  "exportUseMaster": {
+    "message": "Stattdessen mein Master-Passwort als Export-Passwort verwenden (nicht empfohlen)"
+  },
+  "exportPlainWarning": {
+    "message": "Achtung: Diese Datei enthält alle Secrets unverschlüsselt. Wer sie erhält, kann deine Codes erzeugen. Erstelle sie nur bei Bedarf, bewahre sie offline auf und lösche sie danach."
+  },
+  "exportPlainConfirm": {
+    "message": "Mir ist klar, dass diese Datei nicht verschlüsselt ist"
+  },
+  "legacyCompatible": {
+    "message": "Alle $COUNT$ Konten lassen sich ohne Informationsverlust als totp.json speichern.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "legacyIncompatible": {
+    "message": "Nicht ohne Informationsverlust möglich: Die Originalerweiterung kennt nur SHA-1, 6 Stellen und 30 Sekunden. Nutze stattdessen die unverschlüsselte CTA-Datei. Betroffene Konten:"
+  },
+  "exportButton": {
+    "message": "Exportieren"
+  },
+  "exporting": {
+    "message": "Export wird erstellt…"
+  },
+  "exportDone": {
+    "message": "Verschlüsselter Export erstellt ($COUNT$ Konten). Bewahre Datei und Passwort sicher auf.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "exportPlainDone": {
+    "message": "Unverschlüsselte Datei erstellt ($COUNT$ Konten). Lösche sie, sobald du sie nicht mehr brauchst.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "restoreExportTitle": {
+    "message": "Aus verschlüsselter Sicherung wiederherstellen"
+  },
+  "restoreExportNote": {
+    "message": "Nur in einen leeren Tresor. Das Zusammenführen mit vorhandenen Konten folgt in einer späteren Version."
+  },
+  "exportFile": {
+    "message": "Sicherungsdatei"
+  },
+  "restoreExportButton": {
+    "message": "Wiederherstellen"
+  },
+  "restoreExportDone": {
+    "message": "$COUNT$ Konten wiederhergestellt.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "reason_export_password_same": {
+    "message": "das Export-Passwort muss sich vom Master-Passwort unterscheiden (oder wähle die Master-Passwort-Option)"
+  },
+  "reason_kind": {
+    "message": "unbekanntes Exportformat"
+  },
+  "reason_legacy_incompatible": {
+    "message": "einige Konten lassen sich in totp.json nicht darstellen"
+  },
+  "reason_export_verify": {
+    "message": "der Export konnte nicht überprüft werden; es wurde keine Datei erstellt"
+  },
+  "reason_vault_not_empty": {
+    "message": "Wiederherstellen ist nur in einen leeren Tresor möglich"
+  },
+  "reason_import_decrypt": {
+    "message": "falsches Export-Passwort oder beschädigte Datei"
+  },
+  "reason_text": {
+    "message": "die Datei ist zu groß oder nicht lesbar"
   }
 }

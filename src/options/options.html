@@ -96,6 +96,49 @@
       </section>
 
       <section>
+        <h2 data-i18n="exportTitle"></h2>
+        <form id="exportForm" class="auth" autocomplete="off">
+          <fieldset class="radios">
+            <legend data-i18n="exportKind"></legend>
+            <label><input type="radio" name="kind" value="encrypted" checked><span data-i18n="exportEncrypted"></span></label>
+            <label><input type="radio" name="kind" value="plain"><span data-i18n="exportPlain"></span></label>
+            <label><input type="radio" name="kind" value="legacy"><span data-i18n="exportLegacy"></span></label>
+          </fieldset>
+          <div id="exportEncryptedFields">
+            <p class="note" data-i18n="exportEncryptedNote"></p>
+            <label><span data-i18n="exportPassword"></span>
+              <input name="exportPassword" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+            <label><span data-i18n="exportConfirm"></span>
+              <input name="confirm" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+            <label class="check"><input name="useMasterPassword" type="checkbox"><span data-i18n="exportUseMaster"></span></label>
+          </div>
+          <div id="exportPlainFields" hidden>
+            <p class="warning" data-i18n="exportPlainWarning"></p>
+            <div id="legacyReport" hidden>
+              <p id="legacyStatus"></p>
+              <ul id="legacyList"></ul>
+            </div>
+            <label class="check"><input name="confirmed" type="checkbox"><span data-i18n="exportPlainConfirm"></span></label>
+          </div>
+          <label><span data-i18n="currentPassword"></span>
+            <input name="password" type="password" required maxlength="1024" autocomplete="current-password"></label>
+          <div class="actions"><button id="exportButton" type="submit" class="primary" data-i18n="exportButton"></button></div>
+        </form>
+      </section>
+
+      <section>
+        <h2 data-i18n="restoreExportTitle"></h2>
+        <p class="note" data-i18n="restoreExportNote"></p>
+        <form id="restoreExportForm" class="auth" autocomplete="off">
+          <label><span data-i18n="exportFile"></span>
+            <input name="file" type="file" accept=".json,application/json" required></label>
+          <label><span data-i18n="exportPassword"></span>
+            <input name="password" type="password" required maxlength="1024" autocomplete="off"></label>
+          <div class="actions"><button type="submit" data-i18n="restoreExportButton"></button></div>
+        </form>
+      </section>
+
+      <section>
         <h2 data-i18n="changePasswordTitle"></h2>
         <form id="changeForm" class="auth" autocomplete="off">
           <label><span data-i18n="currentPassword"></span>

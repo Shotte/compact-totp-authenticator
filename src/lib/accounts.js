@@ -74,6 +74,19 @@ function indexOf(list, id) {
   return i;
 }
 
+// The original extension's totp.json stores only name, key and url; it always uses
+// SHA-1, 6 digits and 30 s. Pure (no secrets needed), so pages can show the result.
+export function legacyCompatibility(accounts) {
+  const incompatible = accounts.map((a, index) => {
+    const reasons = [];
+    if (a.algorithm !== "SHA-1") reasons.push("algorithm");
+    if (a.digits !== 6) reasons.push("digits");
+    if (a.period !== 30) reasons.push("period");
+    return { index, name: a.name, algorithm: a.algorithm, digits: a.digits, period: a.period, reasons };
+  }).filter((r) => r.reasons.length);
+  return { compatible: incompatible.length === 0, incompatible };
+}
+
 // The only account shape that may leave the background.
 export function publicView({ id, name, url, algorithm, digits, period }) {
   return { id, name, url, algorithm, digits, period };

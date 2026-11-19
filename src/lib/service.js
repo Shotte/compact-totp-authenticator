@@ -10,7 +10,9 @@ import * as acc from "./accounts.js";
 import { previewImport, MAX_IMPORT_BYTES } from "./legacy.js";
 import { loadSettings } from "./settings.js";
 import { createVaultStore, validateVault, isValidKdf, VaultError } from "./vault.js";
-import { deriveKey, newKdf, checkNewPassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
+import { deriveKey, newKdf, checkNewPassword, normalizePassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
+import { parseExport, sealExport, openExport, plainExport, legacyExport, accountsFromPortable, sameAccounts,
+  MAX_EXPORT_BYTES } from "./export.js";
 
 export class LockedError extends Error {
   constructor(reason) { super(`locked:${reason}`); this.code = "locked"; this.reason = reason; }
@@ -260,6 +262,74 @@ export function createService({ session, local, alarms, now = Date.now,
       return mutate(revision, (list) => acc.moveAccount(list, id, toIndex));
     },
 
+    // Export (C4): valid session + fresh master password (authorizeSensitive) for every
+    // export. "encrypted" needs a NEW export password (confirmed, different from the master
+    // password unless useMasterPassword is chosen explicitly); "plain" and "legacy" need
+    // confirmed === true. The encrypted file is decrypted again with a fresh derivation
+    // before it is handed out (self-check). Only the file text leaves the background.
+    exportVault({ password, kind, exportPassword, confirm, useMasterPassword, confirmed }) {
+      return exclusive(async () => {
+        let exportPw = null;
+        if (kind === "encrypted") {
+          if (!useMasterPassword) {
+            exportPw = checkNewPassword(exportPassword, confirm ?? "");
+            if (typeof password === "string" && exportPw === normalizePassword(password)) {
+              throw new acc.InputError("export-password-same");
+            }
+          }
+        } else if (kind === "plain" || kind === "legacy") {
+          if (confirmed !== true) throw new acc.InputError("confirmation");
+        } else throw new acc.InputError("kind");
+        const auth = await authorizeSensitive(password);
+        const { accounts } = auth.payload;
+        const exportedAt = new Date(now()).toISOString();
+        let file;
+        if (kind === "encrypted") {
+          const pw = exportPw ?? password;
+          const kdf = newKdf();
+          const text = JSON.stringify(await sealExport(await deriveKey(pw, kdf), kdf, accounts, exportedAt), null, 2);
+          let verified = false;
+          try {
+            const back = parseExport(text);
+            verified = sameAccounts((await openExport(await deriveKey(pw, back.kdf), back)).accounts, accounts);
+          } catch { /* reported below */ }
+          if (!verified) throw new acc.InputError("export-verify"); // no file is handed out
+          file = { name: `cta-export-${exportedAt.slice(0, 10)}.json`, text };
+        } else if (kind === "plain") {
+          file = { name: `cta-plaintext-${exportedAt.slice(0, 10)}.json`, text: JSON.stringify(plainExport(accounts, exportedAt), null, 2) };
+        } else {
+          file = { name: "totp.json", text: JSON.stringify(legacyExport(accounts), null, 2) };
+        }
+        await recheck(auth.ctx); // lock or expiry during the export work: nothing is returned
+        return { fileName: file.name, text: file.text, count: accounts.length };
+      });
+    },
+
+    // Minimal restore of a cta-export into an EMPTY vault (C4.4). Merging into a vault
+    // with accounts is C5. Wrong password and tampered file both report "import-decrypt";
+    // nothing is written unless the whole file decrypts and every account validates.
+    importExport({ text, password }) {
+      return exclusive(async () => {
+        const ctx = await requireSession();
+        if (typeof password !== "string" || !password || [...password].length > MAX_PASSWORD_LENGTH) {
+          throw new acc.InputError("password");
+        }
+        const file = parseExport(text);
+        const { revision, accounts } = await readVault(ctx);
+        if (accounts.length) throw new acc.InputError("vault-not-empty");
+        let payload;
+        try { payload = await openExport(await deriveKey(password, file.kdf), file); }
+        catch (e) { if (e.reason === "payload") throw e; throw new acc.InputError("import-decrypt"); }
+        const next = accountsFromPortable(payload.accounts, randomId);
+        await recheck(ctx);
+        let newRevision;
+        try { newRevision = await store.commit(ctx.s.key, { accounts: next }, { expectedRevision: revision }); }
+        catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
+        await activity(ctx);
+        return { revision: newRevision, imported: next.length };
+      });
+    },
+
     // Preview only; nothing is stored (production import arrives in C5).
     async importPreview({ text }) {
       const ctx = await requireSession();
@@ -280,6 +350,12 @@ export function createService({ session, local, alarms, now = Date.now,
     updateAccount: (m) => ({ id: id(m), patch: m.patch, revision: rev(m) }),
     deleteAccount: (m) => ({ id: id(m), revision: rev(m) }),
     moveAccount: (m) => ({ id: id(m), toIndex: m.toIndex, revision: rev(m) }),
+    exportVault: (m) => ({ password: str(m.password), kind: str(m.kind), exportPassword: str(m.exportPassword),
+      confirm: str(m.confirm), useMasterPassword: m.useMasterPassword === true, confirmed: m.confirmed === true }),
+    importExport: (m) => {
+      if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
+      return { text: m.text, password: str(m.password) };
+    },
     importPreview: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");
       return { text: m.text };

@@ -35,18 +35,24 @@ Implemented (Phase C1–C2):
 - Master password (12+ characters, NFC) with PBKDF2-SHA-256 (600,000 iterations); setup,
   unlock, confirmed recovery and password change (locks the session immediately).
 
-In review (Phase C3, not merged):
+Implemented (Phase C3):
 
 - A changed auto-lock time applies to the running session (shorter at once).
 - Optional lock when the computer is idle (off by default; uses Firefox's optional
   `idle` permission; a locked screen alone is not detected by Firefox).
-- Fresh master-password check for sensitive operations (prepared for export).
+- Fresh master-password check for sensitive operations.
 
-Planned (Phase C4–C6) – not implemented yet:
+In review (Phase C4, not merged):
 
-- Recovery UX for unverifiable vault generations (design proposal in SECURITY.md §12.5).
-- Encrypted export, confirmed plaintext export, applying the legacy import.
-- Final security, regression and browser testing on all platforms.
+- Encrypted backup export with its own export password; restore into an empty vault.
+- Unencrypted export (complete CTA format) after a warning and confirmation; legacy
+  `totp.json` only when no information is lost.
+
+Planned (Phase C5–C6) – not implemented yet:
+
+- Applying the legacy import (merge, duplicates, empty names).
+- Recovery UX for unverifiable vault generations (issue #8, proposal in SECURITY.md §12.5).
+- Final security, regression and browser testing, including a real update test.
 
 Known limitations are documented in [docs/SECURITY.md](docs/SECURITY.md).
 
@@ -56,6 +62,7 @@ toolbar popup), `npm start` (run in Firefox), `npm run spike:b0`.
 Evidence: [docs/evidence/phase-b](docs/evidence/phase-b/README.md). See:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – upstream analysis, target architecture, plan
+- [docs/PLAN-C4-C6.md](docs/PLAN-C4-C6.md) – C4–C6 decisions, C5 rules, release-blocking update test
 - [docs/SECURITY.md](docs/SECURITY.md) – upstream weaknesses, threat model, key handling
 - [docs/MIGRATION.md](docs/MIGRATION.md) – legacy `totp.json` import
 - [docs/RELEASE.md](docs/RELEASE.md) – Manifest version, extension ID, signing, updates

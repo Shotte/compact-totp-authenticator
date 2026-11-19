@@ -1,13 +1,17 @@
 // Phase B browser tests against the real extension (src/) in Firefox.
 // Usage: node test/browser/run-browser-tests.mjs [path-to-firefox.exe]
 // Writes docs/evidence/phase-b/browser-results.json and popup screenshots.
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { isDeepStrictEqual as same } from "node:util";
 import { createServer } from "node:http";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
 import { startOsInput } from "./os-input.mjs";
-import { syntheticAccounts, syntheticSecret } from "../helpers/fixtures.mjs";
+import { syntheticAccounts, syntheticSecret, exportRoundTripAccounts } from "../helpers/fixtures.mjs";
+import { parseExport, openExport } from "../../src/lib/export.js";
+import { deriveKey } from "../../src/lib/kdf.js";
 import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js";
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
@@ -40,12 +44,24 @@ function notTested(id, name, reason) {
   results.push({ id, name, verdict: "NOT_TESTED", details: { reason } });
   console.log(`NOT_TESTED  ${id}  ${name} (${reason})`);
 }
+function manualReview(id, name, reason) {
+  results.push({ id, name, verdict: "MANUAL", details: { reason } });
+  console.log(`MANUAL  ${id}  ${name} (${reason})`);
+}
 function record(id, name, pass, details) {
   results.push({ id, name, verdict: pass ? "PASS" : "FAIL", details });
   console.log(`${pass ? "PASS" : "FAIL"}  ${id}  ${name}`);
 }
 
+// C4: downloads land in a temporary directory without a dialog (Firefox's direct mode).
+const DL = join(tmpdir(), `cta-downloads-${process.pid}`);
+mkdirSync(DL, { recursive: true });
 const PREFS = {
+  "browser.download.dir": DL,
+  "browser.download.folderList": 2,
+  "browser.download.useDownloadDir": true,
+  "browser.download.always_ask_before_handling_new_types": false,
+  "browser.download.alwaysOpenPanel": false,
   "extensions.webextensions.uuids": JSON.stringify({ [EXT_ID]: UUID }),
   "extensions.background.idle.timeout": IDLE_MS,
   "intl.locale.requested": "de",
@@ -1163,6 +1179,212 @@ try {
     else if (!everIdle) notTested("C3-4", "optional idle lock", `system idle never reported within 150 s (${JSON.stringify(details)})`);
     else record("C3-4", "optional idle lock: idle reported but the session stayed unlocked", false, details);
   }
+  // C4 export/import in the real browser. Downloads go to a temporary directory (Firefox's
+  // direct-download mode); the files are then read and decrypted in Node with the project's
+  // format code only: no Firefox profile involved (independently decryptable).
+  {
+    const EXP = "Export-Passphrase für Tests ✓", WRONG_PW = "definitely not the right password C4";
+    const expected = exportRoundTripAccounts();
+    const dlFiles = () => readdirSync(DL).filter((f) => !f.endsWith(".part"));
+    const clearDownloads = () => { for (const f of readdirSync(DL)) rmSync(join(DL, f), { force: true }); };
+    async function awaitDownload(ms = 20_000) {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        const f = dlFiles()[0];
+        if (f) { const a = statSync(join(DL, f)).size; await sleep(300); if (a > 0 && statSync(join(DL, f)).size === a) return f; }
+        await sleep(200);
+      }
+      return null;
+    }
+    async function vaultWith(accounts, password = PW) {
+      await resetVault(0, password);
+      let revision = 1;
+      for (const a of accounts) {
+        const r = await msg(opt, "addAccount", { revision, account: a });
+        if (!r.ok) throw new Error("addAccount: " + JSON.stringify(r));
+        revision = r.result.revision;
+      }
+      current = password;
+    }
+    const pagePlain = async (password) => {
+      const r = await msg(opt, "exportVault", { kind: "plain", password, confirmed: true });
+      return r.ok ? JSON.parse(r.result.text).accounts : r;
+    };
+    const openFile = async (file, password) => {
+      const f = parseExport(readFileSync(join(DL, file), "utf8"));
+      return (await openExport(await deriveKey(password, f.kdf), f)).accounts;
+    };
+    const fillExport = (kind, { password = PW, exportPassword = EXP, confirm = exportPassword, confirmed = false } = {}) =>
+      evalJson(opt, `async () => { const f = document.getElementById("exportForm").elements;
+        f.kind.value = ${JSON.stringify(kind)}; f.kind[0].dispatchEvent(new Event("change", { bubbles: true }));
+        f.password.value = ${JSON.stringify(password)};
+        if (!f.exportPassword.disabled) { f.exportPassword.value = ${JSON.stringify(exportPassword)}; f.confirm.value = ${JSON.stringify(confirm)}; }
+        f.confirmed.checked = ${confirmed};
+        document.getElementById("exportButton").scrollIntoView({ block: "center" });
+        return !document.getElementById("exportButton").disabled; }`);
+    const pageMessage = () => evalJson(opt, `async () => ({ text: document.getElementById("message").textContent, kind: document.getElementById("message").dataset.kind })`);
+    const settle = async () => { await waitFor(opt, `document.getElementById("message").dataset.kind !== "progress"`, 15_000); return pageMessage(); };
+    const domLeaks = async () => leaks(await evalJson(opt, `async () => document.documentElement.outerHTML`)).length +
+      (await evalJson(opt, `async () => document.querySelectorAll("a[download], a[href^='blob:']").length`));
+
+    // C4-1: encrypted export through the options UI (fresh master password, separate
+    // export password), downloaded file decrypts in Node to exactly the vault content.
+    await vaultWith(expected);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    clearDownloads();
+    await fillExport("encrypted");
+    await clickAt(opt, "#exportButton");
+    const m1 = await settle();
+    const file1 = await awaitDownload();
+    const accounts1 = file1 ? await openFile(file1, EXP) : null;
+    const leak1 = await domLeaks();
+    const cleared1 = await evalJson(opt, `async () => [...document.querySelectorAll("#exportForm input[type=password]")].every((i) => !i.value)`);
+    record("C4-1", "encrypted export via the options UI: file downloaded, decrypts outside Firefox to identical accounts (all algorithms, digits, periods, Unicode, order); no secrets left in the page",
+      m1.kind === "ok" && !!file1 && /^cta-export-\d{4}-\d{2}-\d{2}\.json$/.test(file1) && same(accounts1, expected) &&
+      leak1 === 0 && cleared1, { file: file1, message: m1, accounts: accounts1?.length, domLeaksOrBlobLinks: leak1, passwordFieldsCleared: cleared1 });
+    const exportText = file1 ? readFileSync(join(DL, file1), "utf8") : "";
+
+    // C4-2: wrong master password and invalid export passwords: generic error, no file.
+    clearDownloads();
+    const tries = [];
+    for (const [label, opts] of [["wrong master password", { password: WRONG_PW }], ["export password = master", { exportPassword: PW }],
+      ["confirmation mismatch", { confirm: EXP + "x" }]]) {
+      await fillExport("encrypted", opts);
+      await clickAt(opt, "#exportButton");
+      const m = await settle();
+      tries.push({ label, kind: m.kind });
+    }
+    await sleep(1500);
+    record("C4-2", "export with a wrong master password or an invalid export password fails with an error and creates no file",
+      tries.every((x) => x.kind === "error") && dlFiles().length === 0, { tries, files: dlFiles() });
+
+    // C4-3: lock during the export (while PBKDF2 runs): no result, no file. An attempt
+    // counts only if the lock was sent before the export answered.
+    clearDownloads();
+    const races = await evalJson(opt, `async () => {
+      const send = (m) => browser.runtime.sendMessage(m), out = [];
+      for (const delay of [0, 20, 40, 80]) {
+        await send({ cmd: "unlock", password: ${JSON.stringify(PW)} });
+        const t0 = performance.now();
+        const p = send({ cmd: "exportVault", kind: "encrypted", password: ${JSON.stringify(PW)}, exportPassword: ${JSON.stringify(EXP)}, confirm: ${JSON.stringify(EXP)} })
+          .then((r) => ({ ok: r.ok, error: r.error, hasResult: r.result !== undefined, at: performance.now() - t0 }));
+        // Busy wait: the options tab may be in the background, where Firefox clamps timers to 1 s.
+        while (performance.now() - t0 < delay) { /* spin */ }
+        const sentAt = performance.now() - t0;
+        if ((await send({ cmd: "lock" })).ok !== true) out.push({ delay, lockFailed: true });
+        const e = await p;
+        out.push({ delay, lockSentMs: Math.round(sentAt), exportAnsweredMs: Math.round(e.at), ok: e.ok, error: e.error, hasResult: e.hasResult });
+      }
+      return out; }`);
+    await sleep(1000);
+    const midExport = races.filter((r) => r.lockSentMs < r.exportAnsweredMs);
+    record("C4-3", "lock during an export (session ends while PBKDF2 runs): nothing returned, no file",
+      midExport.length > 0 && midExport.every((r) => r.ok === false && r.error === "locked" && !r.hasResult) &&
+      !races.some((r) => r.lockFailed) && dlFiles().length === 0, { races });
+    await msg(opt, "unlock", { password: PW });
+
+    // C4-4: browser restart, then restore the file into a clean vault (other master
+    // password) through the UI, file chosen by a Unicode file name.
+    await restart();
+    await vaultWith([], PW2);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
+    // the file is handed to the real file input through DataTransfer, with a Unicode name.
+    const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
+    const restoreVia = async (name, password) => {
+      await evalJson(opt, `async () => { const dt = new DataTransfer();
+        dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
+        const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
+        document.querySelector("#restoreExportForm input[type=password]").value = ${JSON.stringify(password)};
+        document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#restoreExportForm button");
+      return settle();
+    };
+    const before4 = await vaultJson();
+    const wrong4 = await restoreVia(uniName, WRONG_PW);
+    const unchanged4 = (await vaultJson()) === before4;
+    const right4 = await restoreVia(uniName, EXP);
+    const restored = await pagePlain(PW2);
+    const rows4 = await evalJson(opt, `async () => document.querySelectorAll("#accounts tbody tr").length`);
+    record("C4-4", "after a browser restart, the file restores into a clean vault via the UI (Unicode file name); a wrong export password changes nothing",
+      wrong4.kind === "error" && unchanged4 && right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
+      { wrongPassword: wrong4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
+
+    // C4-5: restoring into a vault with accounts is refused; a tampered file fails.
+    const before5 = await vaultJson();
+    const intoFull = await msg(opt, "importExport", { text: exportText, password: EXP });
+    const t = JSON.parse(exportText); t.ciphertext = (t.ciphertext[0] === "A" ? "B" : "A") + t.ciphertext.slice(1);
+    await vaultWith([], PW2);
+    const tampered = await msg(opt, "importExport", { text: JSON.stringify(t), password: EXP });
+    record("C4-5", "restore refused into a non-empty vault; a modified encrypted export fails authentication; nothing written",
+      intoFull.reason === "vault-not-empty" && tampered.reason === "import-decrypt" && (await pagePlain(PW2)).length === 0,
+      { intoNonEmpty: intoFull, tampered, nonEmptyVaultUnchanged: before5 !== null });
+
+    // C4-6: empty vault and a large vault (1,000 accounts) round trip.
+    const big = syntheticAccounts(1000).map(({ id, ...a }) => a);
+    const e0 = await msg(opt, "exportVault", { kind: "encrypted", password: PW2, exportPassword: EXP, confirm: EXP });
+    await resetVault(1000, PW2);
+    const t0 = Date.now();
+    const eBig = await msg(opt, "exportVault", { kind: "encrypted", password: PW2, exportPassword: EXP, confirm: EXP });
+    const exportMs = Date.now() - t0;
+    await vaultWith([], PW2);
+    const i0 = await msg(opt, "importExport", { text: e0.result.text, password: EXP });
+    await vaultWith([], PW2);
+    const t1 = Date.now();
+    const iBig = await msg(opt, "importExport", { text: eBig.result.text, password: EXP });
+    const importMs = Date.now() - t1;
+    const bigBack = await pagePlain(PW2);
+    record("C4-6", "empty vault and 1,000-account vault: export and restore round trip identical",
+      e0.result?.count === 0 && i0.result?.imported === 0 && eBig.result?.count === 1000 && iBig.result?.imported === 1000 &&
+      same(bigBack, big),
+      { emptyExport: e0.result?.count, bigExportMs: exportMs, bigImportMs: importMs, bigFileBytes: eBig.result?.text.length });
+
+    // C4-7: plaintext export (warning + confirmation) and legacy totp.json (refused with a
+    // list when lossy; produced when lossless).
+    await vaultWith(expected);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    clearDownloads();
+    await fillExport("plain", { confirmed: false });
+    const warningShown = await evalJson(opt, `async () => !document.getElementById("exportPlainFields").hidden`);
+    await clickAt(opt, "#exportButton");
+    await sleep(800);
+    const noConfirmFiles = dlFiles().length;
+    await fillExport("plain", { confirmed: true });
+    await clickAt(opt, "#exportButton");
+    const mPlain = await settle();
+    const plainFile = await awaitDownload();
+    const plain = plainFile ? JSON.parse(readFileSync(join(DL, plainFile), "utf8")) : null;
+    clearDownloads();
+    const legacyAllowed = await fillExport("legacy", { confirmed: true });
+    const legacyList = await evalJson(opt, `async () => [...document.querySelectorAll("#legacyList li")].map((li) => li.textContent)`);
+    const legacyDirect = await msg(opt, "exportVault", { kind: "legacy", password: PW, confirmed: true });
+    const compatible = [{ name: "Legacy Kompatibel", secret: syntheticSecret(42), url: "example.com", algorithm: "SHA-1", digits: 6, period: 30 }];
+    await vaultWith(compatible);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const legacyOk = await fillExport("legacy", { confirmed: true });
+    await clickAt(opt, "#exportButton");
+    await settle();
+    const legacyFile = await awaitDownload();
+    const legacy = legacyFile ? JSON.parse(readFileSync(join(DL, legacyFile), "utf8")) : null;
+    record("C4-7", "plaintext export only after warning + confirmation, complete and versioned; lossy totp.json refused with the affected accounts listed; lossless totp.json produced",
+      warningShown && noConfirmFiles === 0 && mPlain.kind === "ok" && plain?.format === "cta-plain" && plain.version === 1 &&
+      same(plain.accounts, expected) && !legacyAllowed && legacyList.length === expected.filter((a) => !(a.algorithm === "SHA-1" && a.digits === 6 && a.period === 30)).length &&
+      legacyDirect.reason === "legacy-incompatible" && legacyOk && legacyFile === "totp.json" &&
+      same(legacy, { otp_list: [{ name: "Legacy Kompatibel", key: syntheticSecret(42), url: "example.com" }] }),
+      { warningShown, filesWithoutConfirmation: noConfirmFiles, plainFile, legacyButtonEnabledWhenLossy: legacyAllowed,
+        legacyListed: legacyList.length, legacyDirect: legacyDirect.reason, legacyFile });
+    clearDownloads();
+
+    // C4-8: native save dialog, user cancellation and download failures happen in Firefox's
+    // download UI, which the extension cannot observe without the "downloads" permission.
+    manualReview("C4-8", "native save dialog, cancelling it and download failures (OS dialog; Firefox download panel)",
+      "automated runs use Firefox's direct-download mode; the extension keeps no copy either way (C4-1: no blob link, no secrets left in the page, nothing in storage)");
+  }
+
   }
 
   evidence.finalPasswordIsPW = current === PW;
@@ -1174,6 +1396,7 @@ try {
 } finally {
   evidence.finishedAt = new Date().toISOString();
   try { await ff.close(); } catch { /* browser already gone */ }
+  rmSync(DL, { recursive: true, force: true });
 }
 
 evidence.results = results;

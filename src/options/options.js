@@ -2,6 +2,7 @@ import { call, t, localize, applyAppearance, followSystemScheme, errorText } fro
 import { loadSettings, validateSettings, DEFAULT_SETTINGS, APPEARANCE_KEYS } from "../lib/settings.js";
 import { rowHeightPx } from "../lib/appearance.js";
 import { MAX_IMPORT_BYTES } from "../lib/legacy.js";
+import { legacyCompatibility } from "../lib/accounts.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { revision: 0, accounts: [] };
@@ -39,17 +40,19 @@ async function showLocked(mode) {
 }
 
 // Password forms: inputs are cleared after every attempt; progress shown while PBKDF2 runs.
-function passwordForm(id, handler) {
+function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
   $(id).addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const form = $(id), fields = [...form.elements];
-    const values = Object.fromEntries(fields.filter((f) => f.name).map((f) => [f.name, f.type === "checkbox" ? f.checked : f.value]));
+    const value = (f) => (f.type === "checkbox" ? f.checked : f.type === "file" ? f.files[0] : f.value);
+    const values = Object.fromEntries(fields.filter((f) => f.name && (f.type !== "radio" || f.checked)).map((f) => [f.name, value(f)]));
     fields.forEach((f) => { f.disabled = true; });
-    say(t("unlocking"), "progress");
+    say(t(progress), "progress");
     try { await handler(values); }
     catch (e) { say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : errorText(e), "error"); }
     finally {
       fields.forEach((f) => { f.disabled = false; if (f.type === "password") f.value = ""; });
+      after?.();
     }
   });
 }
@@ -66,6 +69,7 @@ async function refresh(clearMessage = true) {
   $("unlockedView").hidden = false;
   $("lockBtn").hidden = false;
   renderAccounts();
+  updateExportForm();
   document.body.dataset.state = "unlocked";
 }
 
@@ -263,6 +267,59 @@ async function initSettings() {
   });
 }
 
+// Export (C4). The file is created in the background after a fresh master-password check;
+// the page only receives the finished text, downloads it once and keeps no copy.
+function download(fileName, text) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.hidden = true;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0); // after the download has started
+}
+
+const LEGACY_REASONS = { algorithm: (a) => a.algorithm, digits: (a) => `${a.digits}`, period: (a) => `${a.period} s` };
+function updateExportForm() {
+  const f = $("exportForm").elements;
+  const kind = f.kind.value, encrypted = kind === "encrypted", own = encrypted && !f.useMasterPassword.checked;
+  $("exportEncryptedFields").hidden = !encrypted;
+  $("exportPlainFields").hidden = encrypted;
+  f.exportPassword.disabled = f.confirm.disabled = !own;
+  f.exportPassword.required = f.confirm.required = own;
+  f.confirmed.required = !encrypted;
+  let blocked = false;
+  $("legacyReport").hidden = kind !== "legacy";
+  if (kind === "legacy") {
+    const c = legacyCompatibility(state.accounts);
+    blocked = !c.compatible;
+    $("legacyStatus").textContent = c.compatible ? t("legacyCompatible", [String(state.accounts.length)]) : t("legacyIncompatible");
+    $("legacyList").replaceChildren(...c.incompatible.map((r) => {
+      const li = document.createElement("li");
+      li.textContent = `${r.name}: ${r.reasons.map((k) => LEGACY_REASONS[k](r)).join(", ")}`;
+      return li;
+    }));
+  }
+  $("exportButton").disabled = blocked;
+}
+
+async function submitExport({ kind, password, exportPassword, confirm, useMasterPassword, confirmed }) {
+  const r = await call("exportVault", { kind, password, exportPassword, confirm, useMasterPassword, confirmed });
+  download(r.fileName, r.text);
+  $("exportForm").elements.confirmed.checked = false;
+  say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]));
+}
+
+async function submitRestoreExport({ file, password }) {
+  $("restoreExportForm").elements.file.value = "";
+  if (!file) return;
+  const r = await call("importExport", { text: await file.text(), password });
+  await refresh(false);
+  say(t("restoreExportDone", [String(r.imported)]));
+}
+
 async function init() {
   localize();
   await initSettings();
@@ -291,6 +348,9 @@ async function init() {
     await showLocked("unlock"); // the old session is gone; unlock with the new password
     say(t("passwordChanged"));
   });
+  passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
+  passwordForm("restoreExportForm", submitRestoreExport);
+  $("exportForm").addEventListener("change", updateExportForm);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
   await refresh();
 }

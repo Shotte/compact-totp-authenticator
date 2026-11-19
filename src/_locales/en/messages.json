@@ -212,7 +212,7 @@
     }
   },
   "errMalformed": {
-    "message": "The file is not a valid totp.json."
+    "message": "The file is not valid or not supported."
   },
   "errInternal": {
     "message": "Unexpected error."
@@ -386,5 +386,112 @@
   },
   "reason_confirmation": {
     "message": "please confirm the restore"
+  },
+  "exportTitle": {
+    "message": "Export and backup"
+  },
+  "exportKind": {
+    "message": "Format"
+  },
+  "exportEncrypted": {
+    "message": "Encrypted CTA backup (recommended)"
+  },
+  "exportPlain": {
+    "message": "Unencrypted CTA file (all parameters)"
+  },
+  "exportLegacy": {
+    "message": "Unencrypted totp.json for the original extension"
+  },
+  "exportEncryptedNote": {
+    "message": "The file is protected by its own export password. Without that password it cannot be opened, so store the password safely and separately from the file."
+  },
+  "exportPassword": {
+    "message": "Export password"
+  },
+  "exportConfirm": {
+    "message": "Repeat export password"
+  },
+  "exportUseMaster": {
+    "message": "Use my master password as export password instead (not recommended)"
+  },
+  "exportPlainWarning": {
+    "message": "Warning: this file contains all secrets unencrypted. Anyone who gets it can generate your codes. Create it only when needed, keep it offline and delete it afterwards."
+  },
+  "exportPlainConfirm": {
+    "message": "I understand that this file is not encrypted"
+  },
+  "legacyCompatible": {
+    "message": "All $COUNT$ accounts can be written to totp.json without losing information.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "legacyIncompatible": {
+    "message": "Not possible without losing information: the original extension supports only SHA-1, 6 digits and 30 seconds. Use the unencrypted CTA file instead. Affected accounts:"
+  },
+  "exportButton": {
+    "message": "Export"
+  },
+  "exporting": {
+    "message": "Creating export…"
+  },
+  "exportDone": {
+    "message": "Encrypted export created ($COUNT$ accounts). Store the file and its password safely.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "exportPlainDone": {
+    "message": "Unencrypted file created ($COUNT$ accounts). Delete it as soon as you no longer need it.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "restoreExportTitle": {
+    "message": "Restore from an encrypted backup"
+  },
+  "restoreExportNote": {
+    "message": "Only into an empty vault. Merging into existing accounts follows in a later version."
+  },
+  "exportFile": {
+    "message": "Backup file"
+  },
+  "restoreExportButton": {
+    "message": "Restore"
+  },
+  "restoreExportDone": {
+    "message": "$COUNT$ accounts restored.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "reason_export_password_same": {
+    "message": "the export password must differ from the master password (or choose the master-password option)"
+  },
+  "reason_kind": {
+    "message": "unknown export format"
+  },
+  "reason_legacy_incompatible": {
+    "message": "some accounts cannot be represented in totp.json"
+  },
+  "reason_export_verify": {
+    "message": "the export could not be verified; no file was created"
+  },
+  "reason_vault_not_empty": {
+    "message": "restoring is only possible into an empty vault"
+  },
+  "reason_import_decrypt": {
+    "message": "wrong export password or damaged file"
+  },
+  "reason_text": {
+    "message": "the file is too large or unreadable"
   }
 }

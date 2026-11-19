@@ -44,7 +44,7 @@ test("only background.js hands out storage.session (pages would receive the key)
   const users = stripped.filter(([, src]) => /browser\.storage\.session/.test(src)).map(([f]) => f);
   assert.deepEqual(users, ["background.js"]);
   const pages = code.filter(([f]) => /^(popup|options)\//.test(f));
-  for (const [f, src] of pages) assert.doesNotMatch(src, /service\.js|crypto\.js|fixtures\.js|totp\.js|vault\.js/, f);
+  for (const [f, src] of pages) assert.doesNotMatch(src, /service\.js|crypto\.js|fixtures\.js|totp\.js|vault\.js|export\.js|kdf\.js/, f);
 });
 
 test("release gate: the development-only demo unlock cannot ship in a 1.x release", () => {
