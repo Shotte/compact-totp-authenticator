@@ -1259,29 +1259,29 @@ try {
     record("C4-2", "export with a wrong master password or an invalid export password fails with an error and creates no file",
       tries.every((x) => x.kind === "error") && dlFiles().length === 0, { tries, files: dlFiles() });
 
-    // C4-3: lock during the export (while PBKDF2 runs): no result, no file. An attempt
-    // counts only if the lock was sent before the export answered.
+    // C4-3: lock during the export (while PBKDF2 runs): no result, no file. The delay is
+    // timed in Node: extension pages in background tabs have timers clamped to 1 s and
+    // BiDi cannot activate them. An attempt counts only if the lock was sent clearly
+    // after the export started and before it answered.
     clearDownloads();
-    const races = await evalJson(opt, `async () => {
-      const send = (m) => browser.runtime.sendMessage(m), out = [];
-      for (const delay of [0, 20, 40, 80]) {
-        await send({ cmd: "unlock", password: ${JSON.stringify(PW)} });
-        const t0 = performance.now();
-        const p = send({ cmd: "exportVault", kind: "encrypted", password: ${JSON.stringify(PW)}, exportPassword: ${JSON.stringify(EXP)}, confirm: ${JSON.stringify(EXP)} })
-          .then((r) => ({ ok: r.ok, error: r.error, hasResult: r.result !== undefined, at: performance.now() - t0 }));
-        // Busy wait: the options tab may be in the background, where Firefox clamps timers to 1 s.
-        while (performance.now() - t0 < delay) { /* spin */ }
-        const sentAt = performance.now() - t0;
-        if ((await send({ cmd: "lock" })).ok !== true) out.push({ delay, lockFailed: true });
-        const e = await p;
-        out.push({ delay, lockSentMs: Math.round(sentAt), exportAnsweredMs: Math.round(e.at), ok: e.ok, error: e.error, hasResult: e.hasResult });
-      }
-      return out; }`);
+    const races = [];
+    const exportMsg = JSON.stringify({ cmd: "exportVault", kind: "encrypted", password: PW, exportPassword: EXP, confirm: EXP });
+    for (const delay of [20, 40, 80]) {
+      await msg(opt, "unlock", { password: PW });
+      await evalJson(opt, `async () => { const race = window.__race = { t0: performance.now() };
+        race.p = browser.runtime.sendMessage(${exportMsg}).then((r) => { race.r = r; race.at = performance.now() - race.t0; }); }`);
+      await sleep(delay);
+      const sent = await evalJson(opt, `async () => { const at = performance.now() - window.__race.t0;
+        return { at, ok: (await browser.runtime.sendMessage({ cmd: "lock" })).ok }; }`);
+      const r = await evalJson(opt, `async () => { const race = window.__race; await race.p;
+        return { ok: race.r.ok, error: race.r.error, hasResult: race.r.result !== undefined, at: race.at }; }`);
+      races.push({ delay, lockSentMs: Math.round(sent.at), lockOk: sent.ok, exportAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error, hasResult: r.hasResult });
+    }
     await sleep(1000);
-    const midExport = races.filter((r) => r.lockSentMs < r.exportAnsweredMs);
+    const midExport = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.exportAnsweredMs); // clearly inside PBKDF2
     record("C4-3", "lock during an export (session ends while PBKDF2 runs): nothing returned, no file",
       midExport.length > 0 && midExport.every((r) => r.ok === false && r.error === "locked" && !r.hasResult) &&
-      !races.some((r) => r.lockFailed) && dlFiles().length === 0, { races });
+      races.every((r) => r.lockOk) && dlFiles().length === 0, { races, attemptsInsidePbkdf2: midExport.length });
     await msg(opt, "unlock", { password: PW });
 
     // C4-4: browser restart, then restore the file into a clean vault (other master
