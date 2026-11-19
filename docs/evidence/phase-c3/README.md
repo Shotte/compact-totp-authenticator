@@ -34,6 +34,22 @@ headless). CI results for Windows, Linux and macOS are in the pull request.
 Hard-kill restarts remain covered by C2-6/C2-7/C2-8, B6 checks by B6-1 … B6-5 (all PASS
 in the same run).
 
+### CI matrix (run 44431288910, head `1c451be`, headless)
+
+| Platform / Firefox | PASS | NOT_TESTED | FAIL | C3-1 | C3-2 | C3-3 | C3-4 | Idle lock after |
+|---|---|---|---|---|---|---|---|---|
+| Ubuntu / 160.0 | 71 | 5 | 0 | PASS | PASS | PASS | PASS | 48 s |
+| Ubuntu / ESR 153.7 | 71 | 5 | 0 | PASS | PASS | PASS | PASS | 48 s |
+| Ubuntu / ESR 140.17 | 69 | 8 | 0 | PASS | PASS | PASS | PASS | 44 s |
+| Windows / 160.0 | 71 | 5 | 0 | PASS | PASS | PASS | PASS | 40 s |
+| macOS / 159.0 | 71 | 5 | 0 | PASS | PASS | PASS | PASS | 34 s |
+
+NOT_TESTED: the real toolbar popup (headless), plus three checks on ESR 140 that need the
+privileged chrome scope. "Idle lock after" is counted from the unlock message; the last
+real input (the checkbox click) was about 20 s earlier, and the idle time was 60 s. On CI
+runners and headless Firefox, "no input" is the runner's state, not a user stepping away,
+so desktop behaviour stays MANUAL_REVIEW.
+
 ## Manual review
 
 - Idle lock on real desktops with a user away from the keyboard (Windows, macOS, Linux
