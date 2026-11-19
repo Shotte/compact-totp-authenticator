@@ -8,7 +8,7 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 #message[data-kind="error"] { color: var(--err); }
 #message[data-kind="ok"] { color: var(--ok); }
 #message[data-kind="progress"] { color: var(--muted); }
-.warning { margin: 4px 0 10px; padding: 8px 12px; border-left: 3px solid var(--err); background: var(--hover); }
+.warning { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--err); border-radius: 6px; background: var(--hover); }
 .auth { max-width: 560px; }
 .auth input[type="password"] { width: 100%; box-sizing: border-box; }
 
