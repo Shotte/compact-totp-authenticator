@@ -1,0 +1,101 @@
+{
+  "run": 44622947849,
+  "head": "ee76efb",
+  "platforms": {
+    "macos-latest-release": {
+      "firefox": "160.0",
+      "counts": {
+        "PASS": 86,
+        "NOT_TESTED": 5,
+        "MANUAL": 1
+      },
+      "notTested": [
+        "B3-real-1: headless run: no toolbar popup panel",
+        "B3-real-2: headless run: no toolbar popup panel",
+        "B3-real-3: headless run: no toolbar popup panel",
+        "B3-real-4: headless run: no toolbar popup panel",
+        "B8-real: headless run: no toolbar popup panel"
+      ],
+      "manual": [
+        "C4-8"
+      ]
+    },
+    "ubuntu-latest-esr-latest": {
+      "firefox": "153.7.0",
+      "counts": {
+        "PASS": 86,
+        "NOT_TESTED": 5,
+        "MANUAL": 1
+      },
+      "notTested": [
+        "B3-real-1: headless run: no toolbar popup panel",
+        "B3-real-2: headless run: no toolbar popup panel",
+        "B3-real-3: headless run: no toolbar popup panel",
+        "B3-real-4: headless run: no toolbar popup panel",
+        "B8-real: headless run: no toolbar popup panel"
+      ],
+      "manual": [
+        "C4-8"
+      ]
+    },
+    "ubuntu-latest-esr140": {
+      "firefox": "140.17.0",
+      "counts": {
+        "PASS": 82,
+        "NOT_TESTED": 10,
+        "MANUAL": 1
+      },
+      "notTested": [
+        "B7-auto: harness: privileged chrome scope unavailable in this Firefox version",
+        "B8-1-auto: harness: privileged chrome scope unavailable in this Firefox version",
+        "B8-3: harness: privileged chrome scope unavailable in this Firefox version",
+        "B3-real-1: headless run: no toolbar popup panel",
+        "B3-real-2: headless run: no toolbar popup panel",
+        "B3-real-3: headless run: no toolbar popup panel",
+        "B3-real-4: headless run: no toolbar popup panel",
+        "B8-real: headless run: no toolbar popup panel",
+        "C6-1: harness: privileged chrome scope unavailable in this Firefox version",
+        "C6-2: harness: privileged chrome scope unavailable in this Firefox version"
+      ],
+      "manual": [
+        "C4-8"
+      ]
+    },
+    "ubuntu-latest-release": {
+      "firefox": "160.0",
+      "counts": {
+        "PASS": 86,
+        "NOT_TESTED": 5,
+        "MANUAL": 1
+      },
+      "notTested": [
+        "B3-real-1: headless run: no toolbar popup panel",
+        "B3-real-2: headless run: no toolbar popup panel",
+        "B3-real-3: headless run: no toolbar popup panel",
+        "B3-real-4: headless run: no toolbar popup panel",
+        "B8-real: headless run: no toolbar popup panel"
+      ],
+      "manual": [
+        "C4-8"
+      ]
+    },
+    "windows-latest-release": {
+      "firefox": "160.0",
+      "counts": {
+        "PASS": 86,
+        "NOT_TESTED": 5,
+        "MANUAL": 1
+      },
+      "notTested": [
+        "B3-real-1: headless run: no toolbar popup panel",
+        "B3-real-2: headless run: no toolbar popup panel",
+        "B3-real-3: headless run: no toolbar popup panel",
+        "B3-real-4: headless run: no toolbar popup panel",
+        "B8-real: headless run: no toolbar popup panel"
+      ],
+      "manual": [
+        "C4-8"
+      ]
+    }
+  }
+}

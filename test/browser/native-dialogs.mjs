@@ -1,6 +1,6 @@
 // C4 manual-review evidence on Windows: Firefox's native Save dialog (completed and
 // cancelled), a reproducible download failure, the native Open dialog and restoring the
-// saved file. Visible (non-headless) Firefox; the dialogs are driven through Windows UI
+// saved file, and (C6, issue #5) the legacy import through the native Open dialog. Visible (non-headless) Firefox; the dialogs are driven through Windows UI
 // Automation (uia-dialog.ps1) restricted to this Firefox's main process: no mouse moves,
 // no keystrokes, no clipboard. Synthetic accounts and passwords only; all files live in a
 // fresh temporary directory that is removed afterwards. Not part of CI.
@@ -175,6 +175,29 @@ try {
     pick.found && picked === savedName && m4.kind === "ok" && same(restored, expected) ? "PASS" : "FAIL",
     { dialog: { title: pick.title, ok: pick.okButton, closed: pick.closed, error: pick.error }, pickedFile: picked, pageMessage: m4,
       restoredAccounts: restored?.length });
+
+  // N5 (C6, issue #5): legacy import through the native Open dialog: pick a synthetic
+  // totp.json, preview, generated name, master password, apply.
+  const legacyName = "totp.json";
+  writeFileSync(join(WORK, legacyName), readFileSync(join(root, "test/fixtures/legacy-synthetic.json")));
+  await open();
+  const before5 = (await msg(opt, "listAccounts")).result.accounts.length;
+  await clickAt(opt, "#importFile");
+  const pick5 = uia("open", join(WORK, legacyName));
+  let preview5 = false;
+  for (let i = 0; i < 50 && !preview5; i++) { preview5 = await evalJson(opt, `async () => !document.getElementById("preview").hidden`); if (!preview5) await sleep(100); }
+  const rows5 = await evalJson(opt, `async () => [...document.querySelectorAll("#preview tbody tr")].map((r) => r.dataset.status)`);
+  const generated5 = await evalJson(opt, `async () => document.querySelector("#preview input[type=text]")?.value ?? null`);
+  await evalJson(opt, `async () => { document.getElementById("importMasterPassword").value = ${JSON.stringify(PW2)};
+    document.getElementById("importApply").scrollIntoView({ block: "center" }); }`);
+  await clickAt(opt, "#importApply");
+  await sleep(2500);
+  const m5 = await pageMessage();
+  const after5 = (await msg(opt, "listAccounts")).result.accounts.length;
+  record("N5", "native Open dialog for the legacy import (issue #5): synthetic totp.json picked, preview shown with a generated name, import with the master password appends the 6 importable entries",
+    pick5.found && preview5 && rows5.length === 11 && !!generated5 && m5.kind === "ok" && after5 === before5 + 6 ? "PASS" : "FAIL",
+    { dialog: { title: pick5.title, ok: pick5.okButton, closed: pick5.closed, error: pick5.error }, previewShown: preview5, rowStatuses: rows5,
+      generatedName: generated5, pageMessage: m5, accountsBefore: before5, accountsAfter: after5 });
 } catch (e) {
   record("FATAL", e.message, "FAIL", { stack: e.stack });
 } finally {
