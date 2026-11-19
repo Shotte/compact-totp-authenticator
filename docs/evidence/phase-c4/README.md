@@ -42,6 +42,20 @@ Note on file selection: WebDriver BiDi `input.setFiles` is not supported for pri
 (extension) pages, so C4-4 hands a `File` with a Unicode name to the real file input
 through `DataTransfer`. The OS file chooser itself is MANUAL_REVIEW together with C4-8.
 
+### CI matrix (run 44562029333, head `7c0bf56`, headless)
+
+| Platform / Firefox | PASS | NOT_TESTED | MANUAL | FAIL | C4-1…C4-7 | Lock inside export (lock sent / export answered, ms) | 1,000 accounts export / restore |
+|---|---|---|---|---|---|---|---|
+| Ubuntu / 160.0 | 78 | 5 | 1 | 0 | all PASS | 23/105, 40/103, 82/106 → locked | 133 / 43 ms |
+| Ubuntu / ESR 153.7 | 78 | 5 | 1 | 0 | all PASS | 22/124, 41/123, 81/123 → locked | 167 / 56 ms |
+| Ubuntu / ESR 140.17 | 76 | 8 | 1 | 0 | all PASS | 22/125, 41/124, 81/123 → locked | 170 / 57 ms |
+| Windows / 159.0.1 | 78 | 5 | 1 | 0 | all PASS | 30/110, 56/117, 82/109 → locked | 142 / 46 ms |
+| macOS / 159.0 | 78 | 5 | 1 | 0 | all PASS | 24/100, 44/97, 85/94 → locked | 151 / 83 ms |
+
+MANUAL is C4-8. NOT_TESTED is the real toolbar popup (headless), plus three checks on
+ESR 140 that need the privileged chrome scope. C3-4 (idle lock) passed on all five CI
+browsers.
+
 ## Manual review
 
 - Native save dialog (Firefox setting "Always ask where to save files"), cancel, disk
