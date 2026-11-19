@@ -1174,12 +1174,14 @@ try {
     await open(opt, "options/options.html");
     await msg(opt, "unlock", { password: PW });
     await open(opt, "options/options.html");
+    // Wait until the page shows the saved setting; a click before that would switch it on.
+    const checkedBeforeUncheck = await waitFor(opt, "document.body.dataset.state === 'unlocked' && document.querySelector('[name=idleLock]').checked", 10_000);
     await evalJson(opt, `async () => document.querySelector("[name=idleLock]").scrollIntoView({ block: "center" })`);
     await clickAt(opt, "[name=idleLock]");
     const removed = await waitFor(opt, `browser.permissions.contains({ permissions: ["idle"] }).then((v) => !v)`, 10_000);
     await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
     const details = { hadPermission, granted, saved: !!saved, wipedAfterSeconds: wipedAfterMs && Math.round(wipedAfterMs / 1000),
-      idleReportedAfterSeconds: idleSeenAt && Math.round(idleSeenAt / 1000), lockedAfter: codes.error, permissionRemovedOnUncheck: removed };
+      idleReportedAfterSeconds: idleSeenAt && Math.round(idleSeenAt / 1000), lockedAfter: codes.error, checkedBeforeUncheck, permissionRemovedOnUncheck: removed };
     if (!granted || !saved) record("C3-4", "optional idle lock: permission request from the options checkbox", false, details);
     else if (wipedAfterMs !== null) record("C3-4", "optional idle lock: permission granted from the checkbox, system idle locks the session, unchecking removes the permission",
       codes.error === "locked" && wipedAfterMs < 14 * 60_000 && removed, details);
@@ -1533,19 +1535,20 @@ try {
       notTested("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6)", NO_CHROME);
       notTested("C6-2", "Alt+Shift+A registered for the popup and not used by a built-in Firefox shortcut (issue #6)", NO_CHROME);
     } else {
-      const placement = await evalJson(chromeTop, `async () => {
-        const { CustomizableUI } = ChromeUtils.importESModule("resource:///modules/CustomizableUI.sys.mjs");
-        return CustomizableUI.getPlacementOfWidget(${JSON.stringify(WIDGET)}); }`).catch((e) => ({ error: String(e) }));
+      // CustomizableUI is a global of every browser window (its module path differs between versions).
+      const placement = await evalJson(chromeTop, `async () => ${SVC}.wm.getMostRecentWindow("navigator:browser")
+        .CustomizableUI.getPlacementOfWidget(${JSON.stringify(WIDGET)})`).catch((e) => ({ error: String(e) }));
       record("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6, supporting evidence)",
         placement?.area === "nav-bar", { widget: WIDGET, placement });
       const keys = await evalJson(chromeTop, `async () => {
         const w = ${SVC}.wm.getMostRecentWindow("navigator:browser");
         return [...w.document.querySelectorAll("key")].filter((k) => (k.getAttribute("key") || "").toUpperCase() === "A")
-          .map((k) => ({ id: k.id, modifiers: (k.getAttribute("modifiers") || "").split(/[ ,]+/).filter(Boolean).sort().join(","), disabled: k.hasAttribute("disabled") })); }`);
+          .map((k) => ({ id: k.id, keyset: k.parentElement?.id ?? "", modifiers: (k.getAttribute("modifiers") || "").split(/[ ,]+/).filter(Boolean).sort().join(","), disabled: k.hasAttribute("disabled") })); }`);
       const cmds = await evalJson(opt, "async () => browser.commands.getAll()");
       const ours = cmds.find((c) => c.name === "_execute_action");
       const altShift = keys.filter((k) => k.modifiers === "alt,shift");
-      const builtIn = altShift.filter((k) => !k.id.startsWith("ext-key-id-"));
+      // Keys of extensions live in their own keyset (ext-keyset-id-…); everything else is Firefox's.
+      const builtIn = altShift.filter((k) => !k.keyset.startsWith("ext-keyset-id-") && !k.id.startsWith("ext-key-id-"));
       record("C6-2", "Alt+Shift+A registered for the popup; no built-in Firefox shortcut in the browser window uses it (issue #6, supporting evidence; other add-ons and OS shortcuts need the manual check)",
         ours?.shortcut === "Alt+Shift+A" && altShift.length >= 1 && builtIn.length === 0, { command: ours, altShiftAKeys: altShift, builtInConflicts: builtIn });
     }
