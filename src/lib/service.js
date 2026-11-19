@@ -330,10 +330,15 @@ export function createService({ session, local, alarms, now = Date.now,
         await recheck(auth.ctx); // lock, expiry or re-unlock during PBKDF2 aborts
         const current = await readVault(auth.ctx); // another writer may have changed the vault
         if (current.revision !== auth.revision || current.accounts.length) throw new ConflictError();
+        // Last check with no await before the write starts: a lock or re-unlock that arrived
+        // during the reads above aborts without writing.
+        if (auth.ctx.e !== epoch) throw new LockedError("changed");
         let newRevision;
         try { newRevision = await store.commit(auth.key, { accounts: next }, { expectedRevision: auth.revision }); }
         catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
-        await activity(auth.ctx);
+        // The restore is complete. A lock that arrived during the commit must not turn it
+        // into an error report; the session simply stays locked.
+        try { await activity(auth.ctx); } catch { /* locked after the write */ }
         return { revision: newRevision, imported: next.length };
       });
     },

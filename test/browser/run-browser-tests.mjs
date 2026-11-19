@@ -1395,9 +1395,10 @@ try {
       // itself would restore too fast for a lock to land inside the derivation.
       const nodeFile = async () => { const kdf = newKdf();
         return JSON.stringify(await sealExport(await deriveKey(EXP, kdf), kdf, accountsFromPortable(expected), "node")); };
-      for (const delay of [20, 60, 120]) {
+      for (const delay of [20, 50, 80, 120]) {
         const restoreMsg = JSON.stringify({ cmd: "importExport", text: await nodeFile(), password: EXP, masterPassword: PW2 });
-        await msg(opt, "unlock", { password: PW2 });
+        await vaultWith([], PW2); // fresh empty destination per attempt
+        const beforeAttempt = await vaultJson();
         await evalJson(opt, `async () => { const race = window.__race = { t0: performance.now() };
           race.p = browser.runtime.sendMessage(${restoreMsg}).then((r) => { race.r = r; race.at = performance.now() - race.t0; }); }`);
         await sleep(delay);
@@ -1405,20 +1406,25 @@ try {
           return { at, ok: (await browser.runtime.sendMessage({ cmd: "lock" })).ok }; }`);
         const r = await evalJson(opt, `async () => { const race = window.__race; await race.p;
           return { ok: race.r.ok, error: race.r.error, at: race.at }; }`);
-        races.push({ delay, lockSentMs: Math.round(sent.at), restoreAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error });
+        const changed = (await vaultJson()) !== beforeAttempt;
+        races.push({ delay, lockSentMs: Math.round(sent.at), restoreAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error, changed });
       }
+      // Inside PBKDF2: must abort without writing. Every attempt: the answer is truthful
+      // (success exactly when the vault was written), also when the lock came late.
       const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs);
-      const unchanged = (await vaultJson()) === before;
-      await msg(opt, "unlock", { password: PW2 });
+      const truthful = races.every((r) => r.ok === r.changed);
+      await vaultWith([], PW2);
+      const unchanged = inside.every((r) => !r.changed);
+      const beforeLocked = await vaultJson();
       const lockedOut = await (async () => { await msg(opt, "lock"); return msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); })();
-      const unchangedLocked = (await vaultJson()) === before;
+      const unchangedLocked = (await vaultJson()) === beforeLocked;
       await msg(opt, "unlock", { password: PW2 });
       const fromNode = await msg(opt, "importExport", { text: await nodeFile(), password: EXP, masterPassword: PW2 });
       const nodeRestored = await pagePlain(PW2);
       record("C4-9", "restore requires the fresh destination master password; lock during the restore or a locked session aborts it without writing; a file sealed outside Firefox (Node) restores identically",
         missing.reason === "current-password" && inside.length > 0 && inside.every((r) => r.ok === false && r.error === "locked") &&
-        unchanged && lockedOut.error === "locked" && unchangedLocked && fromNode.result?.imported === expected.length && same(nodeRestored, expected),
-        { missingMasterPassword: missing.reason, races, attemptsInsidePbkdf2: inside.length, vaultUnchanged: unchanged && unchangedLocked,
+        unchanged && truthful && lockedOut.error === "locked" && unchangedLocked && fromNode.result?.imported === expected.length && same(nodeRestored, expected),
+        { missingMasterPassword: missing.reason, races, attemptsInsidePbkdf2: inside.length, insideUnchanged: unchanged, truthful, lockedUnchanged: unchangedLocked,
           whileLocked: lockedOut.error, nodeFileRestored: fromNode.result?.imported });
     }
 

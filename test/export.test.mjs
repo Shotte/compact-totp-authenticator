@@ -332,3 +332,37 @@ test("restore auth: a concurrent write by another instance between verification 
   const names = portable((await dst.svc.authorizeSensitive(OTHER)).payload.accounts).map((a) => a.name);
   assert.deepEqual(names, ["Concurrent"], "only the concurrent write is in the vault; the restore wrote nothing");
 });
+
+test("restore auth: lock during the final reads aborts without writing; lock during the commit reports the completed restore", async () => {
+  // a) lock arrives while the vault is re-read right before the write
+  {
+    const { dst } = await restoreSetup();
+    const before = snap(dst.local);
+    const start = derivations;
+    let armed = false, locked = null;
+    onDerive = (n) => { if (n === start + 2) armed = true; }; // after the export-password derivation
+    const get = dst.local.get.bind(dst.local);
+    dst.local.get = async (k) => { if (armed && !locked) locked = dst.call("lock"); return get(k); };
+    const r = await dst.restore();
+    onDerive = null; dst.local.get = get;
+    await locked;
+    assert.ok(locked, "lock fired during the final reads");
+    assert.match(err(r), /^locked/);
+    assert.equal(snap(dst.local), before, "nothing written");
+  }
+  // b) lock arrives while the vault itself is being written: the write completes and the
+  // response says so truthfully; the session is locked afterwards
+  {
+    const { dst } = await restoreSetup();
+    const set = dst.local.set.bind(dst.local);
+    let locked = null;
+    dst.local.set = async (o) => { if ("vault" in o && !locked) locked = dst.call("lock"); return set(o); };
+    const r = await dst.restore();
+    dst.local.set = set;
+    await locked;
+    assert.equal(ok(r).imported, 3);
+    assert.match(err(await dst.call("getCodes")), /^locked/);
+    ok(await dst.call("unlock", { password: OTHER }));
+    assert.equal(ok(await dst.call("listAccounts")).accounts.length, 3);
+  }
+});
