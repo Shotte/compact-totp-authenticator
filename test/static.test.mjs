@@ -21,7 +21,8 @@ test("manifest: MV3, approved ID, minimal permissions, no remote surface", () =>
   assert.equal(m.browser_specific_settings.gecko.id, "{f587432b-b553-483e-b08d-4feac6378113}");
   assert.deepEqual(m.browser_specific_settings.gecko.data_collection_permissions, { required: ["none"] });
   assert.deepEqual([...m.permissions].sort(), ["activeTab", "alarms", "storage"]);
-  for (const k of ["host_permissions", "optional_permissions", "content_scripts", "web_accessible_resources",
+  assert.deepEqual(m.optional_permissions, ["idle"], "C3.4: only the optional idle lock; no host permissions");
+  for (const k of ["host_permissions", "content_scripts", "web_accessible_resources",
     "externally_connectable", "content_security_policy", "update_url"]) {
     assert.equal(k in m, false, k);
   }

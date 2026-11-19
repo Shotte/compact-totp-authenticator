@@ -196,13 +196,17 @@ function fillSettingsForm(s) {
   f.rowHeight.value = String(s.rowHeight);
   f.sort.value = s.sort;
   f.autoLockMinutes.value = String(s.autoLockMinutes);
+  f.idleLock.checked = s.idleLock;
+  f.idleLockMinutes.value = String(s.idleLockMinutes);
+  f.idleLockMinutes.disabled = !s.idleLock;
 }
 
 function readSettingsForm() {
   const f = $("settingsForm").elements;
   return validateSettings({ theme: f.theme.value, customColors: f.customColors.checked, fg: f.fg.value,
     bg: f.bg.value, fontSize: Number(f.fontSize.value), rowHeight: f.rowHeight.value, sort: f.sort.value,
-    autoLockMinutes: Number(f.autoLockMinutes.value) });
+    autoLockMinutes: Number(f.autoLockMinutes.value), idleLock: f.idleLock.checked,
+    idleLockMinutes: Number(f.idleLockMinutes.value) });
 }
 
 // Applies to this page (the preview uses the same rows.css as the popup) and shows hints.
@@ -224,17 +228,32 @@ async function saveSettings(next) {
   say(t("saved"));
 }
 
+// C3.4: the idle lock needs the optional "idle" permission. permissions.request() must run
+// directly in the user's change handler; a denied or revoked permission switches it off.
+const IDLE = { permissions: ["idle"] };
+function idlePermission(checkbox) {
+  if (checkbox.checked) return browser.permissions.request(IDLE).catch(() => false);
+  return browser.permissions.remove(IDLE).catch(() => true).then(() => true);
+}
+
 async function initSettings() {
   settings = await loadSettings(browser.storage.local);
+  if (settings.idleLock && !(await browser.permissions.contains(IDLE))) {
+    settings = { ...settings, idleLock: false };
+    await browser.storage.local.set({ settings });
+  }
   fillSettingsForm(settings);
   showAppearance(settings);
   followSystemScheme(() => settings);
   const form = $("settingsForm");
   form.addEventListener("input", () => showAppearance(readSettingsForm())); // live preview while dragging
-  form.addEventListener("change", async () => {
+  form.addEventListener("change", async (ev) => {
+    const denied = ev.target.name === "idleLock" && !(await idlePermission(ev.target));
+    if (denied) ev.target.checked = false;
     const next = readSettingsForm();
     fillSettingsForm(next); // normalizes rejected values
     await saveSettings(next);
+    if (denied) say(t("idlePermissionDenied"), "error");
   });
   $("resetAppearance").addEventListener("click", async () => {
     const next = { ...settings };

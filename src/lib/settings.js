@@ -9,6 +9,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   rowHeight: "auto",      // auto | 22 | 25 | 30
   sort: "manual",
   autoLockMinutes: 15,
+  idleLock: false,        // C3.4: also lock when the system is idle (optional "idle" permission)
+  idleLockMinutes: 5,     // 1–60
 });
 export const FONT_SIZES = { min: 12, max: 20 };
 export const ROW_HEIGHTS = ["auto", 22, 25, 30];
@@ -28,6 +30,9 @@ export function validateSettings(input = {}) {
   if (["manual", "alpha", "revalpha"].includes(input.sort)) s.sort = input.sort;
   const m = Number(input.autoLockMinutes);
   if (Number.isInteger(m) && m >= 1 && m <= 240) s.autoLockMinutes = m;
+  if (typeof input.idleLock === "boolean") s.idleLock = input.idleLock;
+  const i = Number(input.idleLockMinutes);
+  if (Number.isInteger(i) && i >= 1 && i <= 60) s.idleLockMinutes = i;
   return s;
 }
 
