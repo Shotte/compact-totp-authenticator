@@ -145,6 +145,7 @@ Session record in `storage.session`:
   write that happened in between is never overwritten silently.
 - The revision is part of the AES-GCM AAD; a manipulated revision fails decryption.
 - Phase C applies the same rules to the persistent vault in `storage.local`.
+- Write outcomes (C4 review, decision 1): see §7.6.
 
 ## 6. Vault format (version 1)
 
@@ -183,8 +184,8 @@ Implemented in C1: [`src/lib/vault.js`](../src/lib/vault.js), tests in
   password change (C2).
 - **Plaintext payload:** `{ "accounts": [ { id, name, secret, url, algorithm, digits, period } ] }`.
   Names and URLs are encrypted too.
-- **Encrypted export** (`format: "cta-export"`) uses the same structure and AAD rule with its
-  own salt and IV; password chosen at export time (may equal the master password).
+- **Encrypted export** (`format: "cta-export"`): same cipher and KDF rules with its own salt
+  and IV and its own header and AAD; specified in §13.
 
 ## 7. Writes, backup and rollback
 
@@ -273,11 +274,8 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
 
 - Legacy `totp.json` import: see MIGRATION.md. Disabled in production builds until the vault
   (Phase C) is operational (B0-3).
-- Encrypted export: default.
-- Plaintext export (operator decision): legacy-compatible `{ "otp_list": [...] }`, only after
-  an explicit warning dialog and confirmation. Generated in the background, passed to the
-  options page only after confirmation, offered as a `Blob` download, URL revoked
-  immediately. Never kept in the DOM.
+- Export (C4): encrypted by default; unencrypted CTA format and legacy `totp.json` only
+  after a warning and confirmation, legacy only when lossless. Specified in §13.
 
 ## 9. Separation of codes and secrets
 
@@ -597,3 +595,177 @@ path (restore from an export file).
 - Retry limit or delay for `authorizeSensitive` and unlock (currently PBKDF2 cost only).
 - Whether the idle lock should become the default once desktop behaviour is reviewed.
 - Issue #8 decisions (§12.5).
+
+## 13. Export and restore (C4)
+
+Implemented in [`src/lib/export.js`](../src/lib/export.js) (formats) and
+[`src/lib/service.js`](../src/lib/service.js) (`exportVault`, `importExport`); evidence in
+[evidence/phase-c4](evidence/phase-c4/README.md), tests in
+[`test/export.test.mjs`](../test/export.test.mjs).
+
+### 13.1 Encrypted export `cta-export` v1
+
+```json
+{
+  "format": "cta-export",
+  "version": 1,
+  "kdf": { "name": "PBKDF2", "hash": "SHA-256", "iterations": 600000, "salt": "<b64, 16 bytes>" },
+  "cipher": { "name": "AES-GCM", "iv": "<b64, 12 bytes>", "tagLength": 128 },
+  "ciphertext": "<b64>"
+}
+```
+
+- **Key:** PBKDF2-HMAC-SHA-256 over the NFC-normalized export password, a fresh 16-byte
+  salt per export, 600,000 iterations → AES-256-GCM, fresh 96-bit IV per export.
+- **AAD:** `JSON.stringify([format, version, kdf.name, kdf.hash, kdf.iterations, kdf.salt,
+  cipher.name, cipher.tagLength])`. The format string is authenticated, so a vault can
+  never be read as an export or the reverse (tested both ways).
+- **Reader (`parseExport`):** text length ≤ 8 MB + 4 KB before `JSON.parse`; exact key
+  sets; bounded KDF (same rules as the vault, §6); salt 16 and IV 12 bytes; ciphertext ≤ 8 MB.
+  Checked before any key derivation.
+- **Payload** (inside the ciphertext only):
+  `{ type: "cta-accounts", version: 1, exportedAt, accounts: [ { name, secret, url,
+  algorithm, digits, period } ] }`. Array order is the account order. The vault-internal
+  `id` is not exported; restore assigns new ids. No account count, names or dates appear in
+  the clear.
+- **Payload validation:** exact shape, and every account must pass the same validation as
+  manual entry. A file with one invalid account is rejected as a whole.
+- **Independent decryption:** the file plus its password are enough. Nothing from the
+  Firefox profile is needed (tested: the browser's downloaded file is decrypted in Node
+  with the format code alone, and a committed fixture opens on Windows, Linux and macOS).
+
+### 13.2 Export flow
+
+1. The options page sends `exportVault` with the kind and passwords. Input checks run
+   first: a short or unconfirmed export password, an export password equal to the master
+   password (after NFC), or a missing confirmation for unencrypted kinds fail **before**
+   any PBKDF2.
+2. `authorizeSensitive(password)` (§12.3): a valid session and a fresh master-password
+   derivation against the current vault.
+3. Encrypted: a new KDF and key from the export password; seal; **self-check**: the text
+   is parsed and decrypted again with a fresh derivation and compared with the vault
+   accounts. A mismatch returns `export-verify` and no file.
+4. `recheck()`: a lock or expiry during any of this returns nothing.
+5. The page receives `{ fileName, text, count }` once, downloads it through a Blob URL
+   and an `<a download>` element (no `downloads` permission), removes the element and
+   revokes the URL right after the click. Password fields are cleared after every
+   attempt. Nothing is written to storage.
+
+Export password: separate from the master password by default (approved decision). The
+option "use my master password" is explicit and not recommended in the UI.
+
+### 13.3 Unencrypted exports
+
+- **`cta-plain` v1:** `{ format: "cta-plain", version: 1, exportedAt, notice, accounts }`
+  with the same account fields as the encrypted payload. Complete, so no parameter is
+  converted or dropped.
+- **Legacy `totp.json`:** `{ otp_list: [ { name, key, url } ] }`. The original extension
+  supports only SHA-1, 6 digits and 30 s (ARCHITECTURE.md §1.3). The options page lists every
+  incompatible account with the parameter that cannot be expressed and disables the
+  button; the background refuses again (`legacy-incompatible`). A lossy legacy file is
+  never produced.
+- Both need the fresh master password, a separate warning and the explicit confirmation
+  checkbox. The text exists only in the message response and the Blob; no copy is kept.
+
+### 7.6 Write outcomes (C4 review, decision 1)
+
+Adding, editing, deleting and moving accounts and the restore (§13.4) share one write path
+(`commitAccounts` in [`service.js`](../src/lib/service.js)). Every answer matches the
+stored state:
+
+| Outcome | When | Answer |
+|---|---|---|
+| Rejected, nothing written | gate, revision, `recheck()` or the epoch check right before the write fails; the store refuses before writing (`conflict`, wrong key); a write fails and storage still shows the old revision | `locked`, `conflict`, `invalid` or `internal` |
+| Committed | the commit returned, or a failed write whose new revision with exactly the intended accounts is in storage | `{ revision, locked }`; `locked: true` when the session was locked or expired during or right after the write. The session then stays locked |
+| Unknown | a write failed and storage cannot show either state (for example, storage became unreadable) | `unknown`; never a success |
+
+The epoch check sits immediately before the commit with no `await` in between, so no write
+starts after a lock or re-unlock. A lock that arrives while the write is already running
+cannot stop it; it is reported as `locked: true` next to the result. Committed changes are
+never rolled back or repeated by this path, and the revision compare-and-set stays the
+store's own second line (§5.2). Tests: `test/write-outcome.test.mjs` (each mutation with a
+lock before, during and right after the write; failed writes in all three outcomes) and
+`test/export.test.mjs` (restore).
+
+### 7.7 Undelivered messages (C4 review, decision 3)
+
+A message sent while the event page restarts can fail with "Receiving end does not exist".
+`call()` in [`ui.js`](../src/lib/ui.js) sends it again only for commands that change
+nothing (`status`, `getCodes`, `listAccounts`, `importPreview`, `lock`), at most twice,
+with a short delay. Every other command (account changes, restore, export, unlock, setup,
+recovery, password change, activity) is sent exactly once. If it fails to arrive, the page
+reports `unknown` ("unknown whether the change was saved") and reloads the account list
+from the background, which shows the real state and current revision; the user decides
+whether to try again. A second attempt carries the reloaded revision, so it can never apply
+a change twice. Automatic retries of mutations with operation identifiers are not
+implemented; the reload makes them unnecessary for C4.
+
+### 13.4 Restore (C4.4, revised after the C4 review)
+
+`importExport({ text, password, masterPassword })` restores a `cta-export` into an **empty**
+vault. Restoring is a persistent, security-sensitive write, so the order is:
+
+1. Export password shape and file header are checked (bounded, before any PBKDF2).
+2. `authorizeSensitive(masterPassword)` (§12.3): a valid session and a fresh derivation of
+   the **destination's** master password that must open the current vault.
+3. The destination must be empty (`vault-not-empty`).
+4. The **export password** derives the file key; the file must authenticate and every
+   account must pass the shared validation. Wrong export password and modified file both
+   report `import-decrypt`.
+5. `recheck()`: a lock, expiry or re-unlock during the PBKDF2 work aborts.
+6. The vault is read again right before writing: it must still be empty and at the
+   revision that was verified in step 2 (`conflict` otherwise), and the single `commit`
+   uses that revision for compare-and-set (§7).
+7. Immediately before the commit, with no `await` in between, the session epoch is
+   checked: a lock or re-unlock that arrived during the reads of step 6 aborts without
+   writing. A lock that arrives while the commit is already writing cannot stop it; the
+   restore is then reported as completed with `locked: true` and the session stays locked
+   (found by CI on macOS, fixed and tested). Restore uses the shared write path and
+   outcome rules of §7.6.
+
+The two passwords stay separate: the master password never opens an export, and the
+export password is never accepted as the master password (tested both ways). Nothing is
+written on any failure. Merging into existing accounts and the legacy import are C5.
+
+### 13.5 Download status with the current permissions
+
+Measured on Windows with Firefox 160.0.1 (`test/browser/native-dialogs.mjs`, evidence
+N1–N4): with "Always ask where to save files", Firefox shows its native Save dialog for the
+extension's Blob download; saving completes; cancelling writes nothing; a target folder
+without write permission makes Firefox report the download as failed in its download
+panel; the native Open dialog selects the saved file for restore.
+
+The extension page cannot observe any of this without the `downloads` permission: an
+`<a download>` click gives no completion, cancellation or failure signal. The UI therefore
+never claims that a file was saved. After an export it says that the file was created and
+handed to Firefox for saving, and asks the user to check Firefox's downloads; a cancelled
+dialog means no file. Adding the optional `downloads` permission would allow a real
+status; the C4 review decided against it (decision 2): the permission model stays
+minimal. Native dialogs and download failures on Linux and macOS remain manual release
+checks (RELEASE.md).
+
+### 13.6 Shared secret policy (prepared for C5)
+
+`checkSecret` in [`accounts.js`](../src/lib/accounts.js) is used by manual entry, the legacy
+preview and restore:
+
+- **Malformed, rejected** (`secret-format`): not RFC 4648 Base32 (invalid characters or an
+  impossible length) or no key bytes.
+- **Weak but usable, accepted with a warning** (`short-secret`): valid Base32 with fewer
+  than 16 characters (80 bits). HMAC accepts any non-empty key, so codes are generated.
+- Manual entry shows the warning while typing and after saving; `addAccount` and
+  `updateAccount` return `warnings`; the legacy preview marks the row.
+
+Before C4 review, manual entry rejected short secrets; it now follows the same policy as
+the import (approved C5 rule). TOTP test vectors are unchanged.
+
+### 13.7 Limitations
+
+- Download completion, cancellation and failure are visible only in Firefox's download
+  UI (§13.5).
+- The plaintext of an unencrypted export exists in the extension page's memory until
+  garbage collection. JavaScript cannot zero strings.
+- A downloaded file is outside CTA's control: an unencrypted file stays readable on disk
+  until the user deletes it (the UI says so).
+- The export password has the same rules as the master password (12+ code points), no
+  strength meter.

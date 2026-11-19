@@ -24,3 +24,19 @@ export function syntheticAccounts(count) {
     };
   });
 }
+
+// C4 round trip: every supported algorithm, digit count and a range of periods, Unicode
+// names (including an NFD name, kept byte-for-byte) and a deliberate, non-sorted order.
+export function exportRoundTripAccounts() {
+  const names = ["Zeta – zuletzt", "Ärger mit Ümläuten ✓", "日本語のアカウント", "حساب عربي", "Emoji 🔐 Konto",
+    "Café (NFD)", "alpha (lower case)", "A very long name ".repeat(5).trim().slice(0, 100), "Ω", "Mixed «quotes» & <tags>"];
+  const algorithms = ["SHA-1", "SHA-256", "SHA-512"], digits = [6, 7, 8], periods = [30, 60, 15, 90, 300, 10];
+  return Array.from({ length: 18 }, (_, k) => ({
+    name: `${names[k % names.length]} ${k + 1}`,
+    url: k % 3 ? `example${k}.test` : "",
+    secret: syntheticSecret(900 + k),
+    algorithm: algorithms[k % 3],
+    digits: digits[Math.floor(k / 3) % 3],
+    period: periods[k % periods.length],
+  }));
+}

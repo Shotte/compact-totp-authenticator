@@ -1,6 +1,5 @@
 // Parser and preview for the original extension's totp.json. Never writes anything.
-import { decodeBase32, normalizeBase32 } from "./base32.js";
-import { MIN_SECRET_CHARS } from "./accounts.js";
+import { checkSecret } from "./accounts.js";
 
 export const MAX_IMPORT_BYTES = 1_000_000;
 export const MAX_IMPORT_ENTRIES = 1000;
@@ -52,10 +51,9 @@ export function previewImport(text, existing) {
       return { ...row, status: "invalid", reason: "url" };
     }
     if (typeof e.key !== "string") return { ...row, status: "invalid", reason: "secret-format" };
-    const secret = normalizeBase32(e.key);
-    try { decodeBase32(secret); } catch { return { ...row, status: "invalid", reason: "secret-format" }; }
-    if (!secret) return { ...row, status: "invalid", reason: "secret-format" };
-    if (secret.length < MIN_SECRET_CHARS) row.warnings.push("short-secret");
+    let secret; // same policy as manual entry: malformed is invalid, short is a warning
+    try { ({ secret, warnings: row.warnings } = checkSecret(e.key)); }
+    catch { return { ...row, status: "invalid", reason: "secret-format" }; }
     if (secrets.has(secret)) return { ...row, status: "duplicate" };
     secrets.add(secret);
     const key = row.name.toLowerCase();

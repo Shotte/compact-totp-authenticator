@@ -49,10 +49,13 @@ SECURITY.md §7, so a failed import never alters the existing vault.
 
 ## 3. CTA export formats
 
-- Encrypted (`cta-export`, SECURITY.md §6), with its own export password or the master
-  password. Import decrypts, then runs steps 3–6.
-- Plaintext, legacy-compatible `{ "otp_list": [ { name, key, url } ] }`, only after an
-  explicit warning and confirmation (SECURITY.md §8). Re-importable via the legacy path.
+Implemented in C4 (SECURITY.md §13):
+
+- Encrypted `cta-export` v1 with its own export password (separate by default). In C4 it
+  restores into an empty vault; merging runs through the import steps above in C5.
+- Unencrypted `cta-plain` v1 with every TOTP parameter, after a warning and confirmation.
+- Legacy-compatible `{ "otp_list": [ { name, key, url } ] }`, only when every account uses
+  SHA-1, 6 digits and 30 s; otherwise refused with the affected accounts listed.
 
 ## 4. Test data
 

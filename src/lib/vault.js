@@ -17,9 +17,9 @@ export class VaultError extends Error {
 }
 
 // Length is bounded BEFORE decoding, so untrusted header fields cannot cause large decode work.
-const b64Len = (s, n) => { try { return typeof s === "string" && s.length <= 4 * Math.ceil(n / 3) && fromB64(s).length === n; } catch { return false; } };
+export const b64Len = (s, n) => { try { return typeof s === "string" && s.length <= 4 * Math.ceil(n / 3) && fromB64(s).length === n; } catch { return false; } };
 export const MAX_CIPHERTEXT_LENGTH = 8 * 1024 * 1024; // base64 chars; ~6 MB plaintext, far above real vaults
-const exactKeys = (o, keys) => o && typeof o === "object" && !Array.isArray(o) &&
+export const exactKeys = (o, keys) => o && typeof o === "object" && !Array.isArray(o) &&
   Object.keys(o).length === keys.length && keys.every((k) => Object.hasOwn(o, k));
 
 // Bounded KDF parameters. Checked before any key derivation, so untrusted (not yet

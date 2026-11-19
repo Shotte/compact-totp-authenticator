@@ -1,9 +1,26 @@
 // Page helpers shared by popup and options: messaging, i18n, appearance. No secrets here.
 import { themeTokens, rowHeightPx, lineHeightPx } from "./appearance.js";
 
-// Calls the background. Throws an Error whose .code is locked|conflict|invalid|malformed|internal.
+// Commands that change nothing: safe to send again (C4 review, decision 3).
+const REPEATABLE = new Set(["status", "getCodes", "listAccounts", "importPreview", "lock"]);
+
+// Calls the background. Throws an Error whose .code is locked|conflict|invalid|malformed|
+// unknown|internal. A message that reaches no listener (event page restarting) is sent
+// again only for REPEATABLE commands, at most twice. Any other command is never repeated:
+// a failed delivery is reported as "unknown" and the caller reloads the real state.
 export async function call(cmd, args = {}) {
-  const r = await browser.runtime.sendMessage({ cmd, ...args });
+  let r;
+  for (let attempt = 0; ; attempt++) {
+    try { r = await browser.runtime.sendMessage({ cmd, ...args }); break; }
+    catch (e) {
+      const repeat = REPEATABLE.has(cmd);
+      if (repeat && attempt < 2 && /Receiving end does not exist/.test(e?.message)) {
+        await new Promise((ok) => setTimeout(ok, 200 * (attempt + 1)));
+        continue;
+      }
+      throw Object.assign(new Error("transport"), { code: repeat ? "internal" : "unknown" });
+    }
+  }
   if (!r?.ok) {
     throw Object.assign(new Error(r?.error ?? "internal"), { code: r?.error ?? "internal", reason: r?.reason });
   }
@@ -53,6 +70,6 @@ export function errorText(e) {
     const reason = browser.i18n.getMessage(key) || e.reason;
     return t("errInvalid", [reason]);
   }
-  const key = { locked: "errLocked", conflict: "errConflict", malformed: "errMalformed" }[e.code];
+  const key = { locked: "errLocked", conflict: "errConflict", malformed: "errMalformed", unknown: "errUnknown" }[e.code];
   return t(key ?? "errInternal");
 }

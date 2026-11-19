@@ -81,6 +81,13 @@ upload is required.
 - [ ] Permission review against SECURITY.md §5
 - [ ] Secret-leak grep, fixtures synthetic
 - [ ] Manual test on Firefox current release (160) and ESR 140, Windows
+- [ ] Manual on Linux and macOS (C4 review, decision 2): native Save dialog for an export,
+  cancel, a failing download (target folder without write permission), native Open dialog
+  and restore of the saved file. Windows is automated by `test/browser/native-dialogs.mjs`.
+- [ ] **Release-blocking: real extension update test** (approved C6 decision): the signed
+      previous version updates to the new signed version; the encrypted vault survives; the
+      extension ID is unchanged; settings and account order are intact; unlock and TOTP
+      generation work afterwards (PLAN-C4-C6.md §4)
 - [ ] `web-ext build`; XPI contains only `src/`
 - [ ] Licensing and attribution: XPI contains `LICENSE` (MIT, identical to the repository
       root, both copyright notices); no new third-party code, fonts, icons or images without

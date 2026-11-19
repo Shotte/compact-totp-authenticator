@@ -10,13 +10,19 @@ import * as acc from "./accounts.js";
 import { previewImport, MAX_IMPORT_BYTES } from "./legacy.js";
 import { loadSettings } from "./settings.js";
 import { createVaultStore, validateVault, isValidKdf, VaultError } from "./vault.js";
-import { deriveKey, newKdf, checkNewPassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
+import { deriveKey, newKdf, checkNewPassword, normalizePassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
+import { parseExport, sealExport, openExport, plainExport, legacyExport, accountsFromPortable, sameAccounts,
+  MAX_EXPORT_BYTES } from "./export.js";
 
 export class LockedError extends Error {
   constructor(reason) { super(`locked:${reason}`); this.code = "locked"; this.reason = reason; }
 }
 export class ConflictError extends Error {
   constructor() { super("conflict"); this.code = "conflict"; }
+}
+// A write failed and storage cannot show whether it took effect (C4 review, decision 1).
+export class OutcomeUnknownError extends Error {
+  constructor() { super("unknown"); this.code = "unknown"; }
 }
 
 export function createService({ session, local, alarms, now = Date.now,
@@ -83,6 +89,40 @@ export function createService({ session, local, alarms, now = Date.now,
     await alarms.create("autolock", { when: next.deadline });
   }
 
+  // The one write path for account changes and restore (C4 review, decision 1). Three
+  // outcomes: rejected before the write (throws; nothing written), committed
+  // ({ revision, locked }), or unknown (OutcomeUnknownError). A lock that arrives during or
+  // after a committed write is reported as locked: true next to the result; the session stays
+  // locked and the write is never rolled back or repeated.
+  async function commitAccounts(ctx, key, accounts, expectedRevision) {
+    if (ctx.e !== epoch) throw new LockedError("changed"); // no await between this and the write
+    let revision;
+    try { revision = await store.commit(key, { accounts }, { expectedRevision }); }
+    catch (e) {
+      if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError();
+      if (e instanceof VaultError && e.reason === "auth") throw e; // refused before any write
+      revision = await reconcile(key, accounts, expectedRevision, e);
+    }
+    let locked = false;
+    try { await activity(ctx); } catch {
+      locked = true;
+      try { await wipe(); } catch { /* storage gone; the gate still fails closed */ }
+    }
+    return { revision, locked };
+  }
+
+  // After a failed commit the store has rolled back, but the rollback can fail as well, so
+  // storage decides: old revision = not written, new revision with exactly these accounts =
+  // written, anything else = unknown.
+  async function reconcile(key, accounts, expectedRevision, error) {
+    let r;
+    try { r = await store.load(key); } catch { r = null; }
+    if (r?.status === "ok" && r.revision === expectedRevision) throw error;
+    if (r?.status === "ok" && r.revision === expectedRevision + 1
+      && JSON.stringify(r.payload.accounts) === JSON.stringify(accounts)) return r.revision;
+    throw new OutcomeUnknownError();
+  }
+
   function mutate(expectedRevision, change) {
     return exclusive(async () => {
       const ctx = await requireSession();
@@ -90,12 +130,7 @@ export function createService({ session, local, alarms, now = Date.now,
       if (revision !== expectedRevision) throw new ConflictError();
       const next = change(accounts);
       await recheck(ctx);
-      if (ctx.e !== epoch) throw new LockedError("changed");
-      let newRevision;
-      try { newRevision = await store.commit(ctx.s.key, { accounts: next }, { expectedRevision: revision }); }
-      catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
-      await activity(ctx);
-      return { revision: newRevision };
+      return commitAccounts(ctx, ctx.s.key, next, revision);
     });
   }
 
@@ -247,17 +282,92 @@ export function createService({ session, local, alarms, now = Date.now,
       return { revision, accounts: accounts.map(acc.publicView) };
     },
 
-    addAccount({ account, revision }) {
-      return mutate(revision, (list) => acc.addAccount(list, account, randomId()));
+    // warnings: ["short-secret"] for a weak but valid secret (shared policy, accounts.js).
+    async addAccount({ account, revision }) {
+      const r = await mutate(revision, (list) => acc.addAccount(list, account, randomId()));
+      return { ...r, warnings: acc.secretWarnings(account?.secret) };
     },
-    updateAccount({ id, patch, revision }) {
-      return mutate(revision, (list) => acc.updateAccount(list, id, patch));
+    async updateAccount({ id, patch, revision }) {
+      const r = await mutate(revision, (list) => acc.updateAccount(list, id, patch));
+      return { ...r, warnings: patch?.secret ? acc.secretWarnings(patch.secret) : [] };
     },
     deleteAccount({ id, revision }) {
       return mutate(revision, (list) => acc.deleteAccount(list, id));
     },
     moveAccount({ id, toIndex, revision }) {
       return mutate(revision, (list) => acc.moveAccount(list, id, toIndex));
+    },
+
+    // Export (C4): valid session + fresh master password (authorizeSensitive) for every
+    // export. "encrypted" needs a NEW export password (confirmed, different from the master
+    // password unless useMasterPassword is chosen explicitly); "plain" and "legacy" need
+    // confirmed === true. The encrypted file is decrypted again with a fresh derivation
+    // before it is handed out (self-check). Only the file text leaves the background.
+    exportVault({ password, kind, exportPassword, confirm, useMasterPassword, confirmed }) {
+      return exclusive(async () => {
+        let exportPw = null;
+        if (kind === "encrypted") {
+          if (!useMasterPassword) {
+            exportPw = checkNewPassword(exportPassword, confirm ?? "");
+            if (typeof password === "string" && exportPw === normalizePassword(password)) {
+              throw new acc.InputError("export-password-same");
+            }
+          }
+        } else if (kind === "plain" || kind === "legacy") {
+          if (confirmed !== true) throw new acc.InputError("confirmation");
+        } else throw new acc.InputError("kind");
+        const auth = await authorizeSensitive(password);
+        const { accounts } = auth.payload;
+        const exportedAt = new Date(now()).toISOString();
+        let file;
+        if (kind === "encrypted") {
+          const pw = exportPw ?? password;
+          const kdf = newKdf();
+          const text = JSON.stringify(await sealExport(await deriveKey(pw, kdf), kdf, accounts, exportedAt), null, 2);
+          let verified = false;
+          try {
+            const back = parseExport(text);
+            verified = sameAccounts((await openExport(await deriveKey(pw, back.kdf), back)).accounts, accounts);
+          } catch { /* reported below */ }
+          if (!verified) throw new acc.InputError("export-verify"); // no file is handed out
+          file = { name: `cta-export-${exportedAt.slice(0, 10)}.json`, text };
+        } else if (kind === "plain") {
+          file = { name: `cta-plaintext-${exportedAt.slice(0, 10)}.json`, text: JSON.stringify(plainExport(accounts, exportedAt), null, 2) };
+        } else {
+          file = { name: "totp.json", text: JSON.stringify(legacyExport(accounts), null, 2) };
+        }
+        await recheck(auth.ctx); // lock or expiry during the export work: nothing is returned
+        return { fileName: file.name, text: file.text, count: accounts.length };
+      });
+    },
+
+    // Restore of a cta-export into an EMPTY vault (C4.4, C4 review). A persistent,
+    // security-sensitive write, so it needs: a valid session and the destination's master
+    // password, freshly verified (authorizeSensitive); the separate export password must
+    // decrypt and authenticate the file and every account must validate; the destination
+    // must still be empty and at the verified revision right before the single commit.
+    // Wrong export password and modified file both report "import-decrypt"; nothing is
+    // written on any failure.
+    importExport({ text, password, masterPassword }) {
+      return exclusive(async () => {
+        if (typeof password !== "string" || !password || [...password].length > MAX_PASSWORD_LENGTH) {
+          throw new acc.InputError("password");
+        }
+        const file = parseExport(text); // bounded, before any PBKDF2
+        const auth = await authorizeSensitive(masterPassword);
+        if (auth.payload.accounts.length) throw new acc.InputError("vault-not-empty");
+        let payload;
+        try { payload = await openExport(await deriveKey(password, file.kdf), file); }
+        catch (e) { if (e.reason === "payload") throw e; throw new acc.InputError("import-decrypt"); }
+        const next = accountsFromPortable(payload.accounts, randomId);
+        await recheck(auth.ctx); // lock, expiry or re-unlock during PBKDF2 aborts
+        const current = await readVault(auth.ctx); // another writer may have changed the vault
+        if (current.revision !== auth.revision || current.accounts.length) throw new ConflictError();
+        // Same write path and outcome reporting as account changes: a lock during the reads
+        // above aborts without writing; a lock during the commit reports locked: true.
+        const r = await commitAccounts(auth.ctx, auth.key, next, auth.revision);
+        return { ...r, imported: next.length };
+      });
     },
 
     // Preview only; nothing is stored (production import arrives in C5).
@@ -280,6 +390,12 @@ export function createService({ session, local, alarms, now = Date.now,
     updateAccount: (m) => ({ id: id(m), patch: m.patch, revision: rev(m) }),
     deleteAccount: (m) => ({ id: id(m), revision: rev(m) }),
     moveAccount: (m) => ({ id: id(m), toIndex: m.toIndex, revision: rev(m) }),
+    exportVault: (m) => ({ password: str(m.password), kind: str(m.kind), exportPassword: str(m.exportPassword),
+      confirm: str(m.confirm), useMasterPassword: m.useMasterPassword === true, confirmed: m.confirmed === true }),
+    importExport: (m) => {
+      if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
+      return { text: m.text, password: str(m.password), masterPassword: str(m.masterPassword) };
+    },
     importPreview: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");
       return { text: m.text };
@@ -304,7 +420,7 @@ export function createService({ session, local, alarms, now = Date.now,
         const args = ARGS[msg.cmd] ? ARGS[msg.cmd](msg) : undefined;
         return { ok: true, result: await api[msg.cmd](args) };
       } catch (e) {
-        const known = ["locked", "conflict", "invalid", "malformed"].includes(e?.code);
+        const known = ["locked", "conflict", "invalid", "malformed", "unknown"].includes(e?.code);
         return { ok: false, error: known ? e.code : "internal", reason: known ? e.reason : undefined };
       }
     },

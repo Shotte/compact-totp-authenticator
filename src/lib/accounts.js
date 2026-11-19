@@ -9,11 +9,23 @@ export class InputError extends Error {
 export const MIN_SECRET_CHARS = 16; // 80 bits, the shortest secret common services issue
 const MAX_NAME = 100, MAX_URL = 200;
 
-export function normalizeSecret(input) {
+// Shared TOTP secret policy for manual entry, legacy import and restore (C4 review).
+// Malformed (rejected, "secret-format"): not RFC 4648 Base32 or no key bytes at all.
+// Weak but usable (accepted with warning "short-secret"): valid Base32 with fewer than
+// MIN_SECRET_CHARS characters; HMAC accepts any non-empty key, so TOTP still works.
+export function checkSecret(input) {
   const secret = normalizeBase32(input ?? "");
-  try { decodeBase32(secret); } catch { throw new InputError("secret-format"); }
-  if (secret.length < MIN_SECRET_CHARS) throw new InputError("secret-short");
-  return secret;
+  let bytes;
+  try { bytes = decodeBase32(secret); } catch { throw new InputError("secret-format"); }
+  if (!bytes.length) throw new InputError("secret-format");
+  return { secret, warnings: secret.length < MIN_SECRET_CHARS ? ["short-secret"] : [] };
+}
+
+export const normalizeSecret = (input) => checkSecret(input).secret;
+
+// Warnings for a secret typed or imported, without throwing (pages use it for hints).
+export function secretWarnings(input) {
+  try { return checkSecret(input).warnings; } catch { return []; }
 }
 
 function str(v, max, reason, { required = false } = {}) {
@@ -72,6 +84,19 @@ function indexOf(list, id) {
   const i = list.findIndex((a) => a.id === id);
   if (i < 0) throw new InputError("unknown-account");
   return i;
+}
+
+// The original extension's totp.json stores only name, key and url; it always uses
+// SHA-1, 6 digits and 30 s. Pure (no secrets needed), so pages can show the result.
+export function legacyCompatibility(accounts) {
+  const incompatible = accounts.map((a, index) => {
+    const reasons = [];
+    if (a.algorithm !== "SHA-1") reasons.push("algorithm");
+    if (a.digits !== 6) reasons.push("digits");
+    if (a.period !== 30) reasons.push("period");
+    return { index, name: a.name, algorithm: a.algorithm, digits: a.digits, period: a.period, reasons };
+  }).filter((r) => r.reasons.length);
+  return { compatible: incompatible.length === 0, incompatible };
 }
 
 // The only account shape that may leave the background.
