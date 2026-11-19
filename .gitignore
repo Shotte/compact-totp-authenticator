@@ -7,3 +7,4 @@ totp.json
 *.cta.json
 .amo-credentials*
 browser-results/
+dist/

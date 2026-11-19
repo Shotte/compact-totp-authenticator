@@ -224,7 +224,7 @@ export and recovery come before production legacy import.
 | C3 ✔ | Session lifecycle on the persistent vault: deadline gate, alarms, `onStartup` clear, auto-lock setting on the running session, optional system-idle lock, fresh password gate `authorizeSensitive` for sensitive actions (SECURITY.md §12) | B0-2/B6 checks against the real vault; every sensitive message rejected after expiry or lock |
 | C4 ✔ | Encrypted backup export (`cta-export` v1, separate export password, self-check), restore into an empty vault, complete plaintext export (`cta-plain` v1) and lossless-only legacy `totp.json` after warning and confirmation (SECURITY.md §13) | Export → import identical; tampered file rejected; recovery from backup tested; no plaintext export without confirmation |
 | C5 ✔ | Legacy `totp.json` and `cta-plain` v1 import: preview, validation, duplicates, names for unnamed entries, append-only single commit (SECURITY.md §14) | Duplicates skipped; failed or interrupted import changes nothing |
-| C6 (PR open, review pending) | Security regression, extension update test, release audit, cross-platform matrix, operator checklist (docs/evidence/phase-c6) | All suites green; evidence refreshed; release gate passes without demo code |
+| C6 ✔ | Security regression, extension update test, release audit, cross-platform matrix, operator checklist (docs/evidence/phase-c6) | All suites green; evidence refreshed; release gate passes without demo code |
 
 ### Phase D – Release preparation
 

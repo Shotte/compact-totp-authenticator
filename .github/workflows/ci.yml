@@ -38,6 +38,7 @@ jobs:
       - run: npm test
       - run: npm run lint -- --warnings-as-errors
       - run: npm run build
+      - run: npm run check:release
 
   unit:
     name: unit (${{ matrix.os }})

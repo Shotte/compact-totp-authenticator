@@ -54,7 +54,7 @@ test("release gate: the development-only demo unlock cannot ship in a 1.x releas
   else assert.ok(major === 0, "pre-release versions only");
 });
 
-test("release gate: 0.x shows the development / no-export notice on the options page in every state", () => {
+test("release gate: 0.x shows the development notice (with the export-only recovery warning) on the options page in every state", () => {
   const major = Number(json("manifest.json").version.split(".")[0]);
   const html = code.find(([f]) => f === "options/options.html")[1];
   const notice = html.match(/<p id="devNotice"[^>]*>/)?.[0];
@@ -62,7 +62,7 @@ test("release gate: 0.x shows the development / no-export notice on the options 
   assert.ok(notice && !/\bhidden\b/.test(notice), "devNotice present and not hidden");
   assert.ok(html.indexOf(notice) < html.indexOf("<section"), "devNotice sits outside the state sections");
   assert.doesNotMatch(readFileSync(join(SRC, "options/options.js"), "utf8"), /devNotice/, "options.js never toggles it");
-  assert.match(json("_locales/en/messages.json").devNotice.message, /not for production use.*no export/);
+  assert.match(json("_locales/en/messages.json").devNotice.message, /not for production use.*only be restored from an export/);
 });
 
 test("locales: identical keys, every referenced key exists", () => {

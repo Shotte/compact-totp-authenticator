@@ -1,7 +1,8 @@
 # Release and signing
 
-Status: Phase A research. No AMO account, API key or submission exists. Nothing is submitted
-without explicit operator approval.
+Status: Phase D prepared. Signing procedure and signed update test: [SIGNING.md](SIGNING.md).
+No AMO account, API key, submission, signed build, tag, release or published update manifest
+exists. Nothing is signed or submitted without explicit operator approval.
 
 ## 1. Manifest version
 
@@ -29,7 +30,9 @@ by ID). The old ID `authenticator@r01` is not reused. The B0 spike uses its own 
   unlisted add-ons. Unlisted = signed XPI distributed by us, not shown on AMO.
 - Requires an AMO developer account and API credentials (JWT issuer/secret), stored outside
   the repository (environment variables).
-- Command: `web-ext sign --channel=unlisted --source-dir src` (with API key/secret). Unlisted
+- Command: `web-ext sign --channel unlisted` on the directory prepared by
+  `npm run release:source` (credentials only via `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET` in the
+  environment; exact steps in SIGNING.md). Unlisted
   submissions pass automated validation and are usually signed quickly; Mozilla may still
   review them later.
 - No minified or generated code → no separate source-code submission needed.
@@ -47,6 +50,12 @@ before stable distribution. Natural host: the public GitHub repository (an `upda
 served via GitHub Pages, signed XPIs attached to GitHub Releases). The manifest key cannot
 be added retroactively to already installed versions, so it must be present in the first
 stable release.
+
+The addons linter accepts only HTTPS `update_url`s for self-hosted builds
+(`web-ext lint --self-hosted`). The signed update test therefore uses test builds 0.9.0/0.9.1
+with `https://127.0.0.1:47811/updates.json`, served by the test itself with a certificate
+trusted only in the throwaway profile (SIGNING.md §5). The production URL is still an
+operator decision.
 
 ## 4a. Repository and ownership
 
@@ -77,7 +86,9 @@ upload is required.
 
 ## 5. Release checklist (Phase D)
 
-- [ ] `npm test` green, `web-ext lint` clean
+- [ ] `npm test` green, `web-ext lint` clean, `npm run check:release` OK (package audit, also in CI)
+- [ ] Signing source prepared with `npm run release:source` from merged `main` (no uncommitted
+      `src/` changes); `SHA256SUMS` recorded
 - [ ] Permission review against SECURITY.md §5
 - [ ] Secret-leak grep, fixtures synthetic
 - [ ] Manual test on Firefox current release (160) and ESR 140, Windows
@@ -92,7 +103,10 @@ upload is required.
 - [ ] Licensing and attribution: XPI contains `LICENSE` (MIT, identical to the repository
       root, both copyright notices); no new third-party code, fonts, icons or images without
       a compatible license and required attribution; README attribution unchanged
-- [ ] Operator approval → `web-ext sign --channel=unlisted`
+- [ ] Manual acceptance by the operator: [ABNAHME.md](evidence/phase-d/ABNAHME.md) (issues #2–#6)
+- [ ] 1.0 release decision: remove the development notice (`scripts/check-release.mjs` fails a
+      1.x build that still shows it, and a 0.x build without it), production `update_url`
+- [ ] Operator approval → `web-ext sign --channel unlisted` (SIGNING.md §4)
 - [ ] Tag release, attach signed XPI, update `updates.json` if used
 
 ## Sources
