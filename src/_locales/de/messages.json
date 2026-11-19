@@ -160,7 +160,7 @@
     "message": "Import (totp.json der Originalerweiterung oder unverschlüsselter CTA-Export)"
   },
   "importPreviewNote": {
-    "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung. Vorhandene Konten werden nie geändert; Duplikate werden übersprungen."
+    "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung mit Ihrem Master-Passwort. Vorhandene Konten werden nie geändert; Duplikate werden übersprungen; Konten mit gleichem Namen bleiben erhalten."
   },
   "importApply": {
     "message": "Importieren"
@@ -551,5 +551,8 @@
   },
   "importing": {
     "message": "Importiere…"
+  },
+  "importGeneratedName": {
+    "message": "erzeugter Name, änderbar"
   }
 }

@@ -178,6 +178,8 @@ function clearImport() {
   $("importSummary").textContent = "";
   $("importApply").disabled = true;
   $("importCancel").hidden = true;
+  $("importMasterLabel").hidden = true;
+  $("importMasterPassword").value = "";
 }
 
 async function previewFile() {
@@ -209,10 +211,13 @@ async function previewFile() {
       field.maxLength = 100;
       field.required = true;
       field.value = t("importUnnamed", [String(++unnamed)]);
-      field.setAttribute("aria-label", t("importNameLabel"));
+      field.setAttribute("aria-label", `${t("importNameLabel")} (${t("importGeneratedName")})`);
       field.dataset.index = String(r.index);
       nameInputs.push(field);
-      name.replaceChildren(field);
+      const hint = document.createElement("span"); // the name was generated, not in the file
+      hint.className = "generated";
+      hint.textContent = t("importGeneratedName");
+      name.replaceChildren(field, " ", hint);
     }
     tr.append(name, cell("site", r.url), st);
     return tr;
@@ -223,6 +228,7 @@ async function previewFile() {
   importPlan = { revision: p.revision, fileHash: p.fileHash, nameInputs };
   $("preview").hidden = false;
   $("importCancel").hidden = false;
+  $("importMasterLabel").hidden = false;
   $("importApply").disabled = !((c.new ?? 0) + (c["name-conflict"] ?? 0) + (c["needs-name"] ?? 0));
 }
 
@@ -230,10 +236,12 @@ async function applyImport() {
   if (!importPlan) return;
   const { revision, fileHash, nameInputs } = importPlan;
   const names = Object.fromEntries(nameInputs.map((f) => [f.dataset.index, f.value]));
+  const masterPassword = $("importMasterPassword").value;
+  $("importMasterPassword").value = ""; // never kept in the page longer than needed
   $("importApply").disabled = true;
   say(t("importing"), "progress");
   let r;
-  try { r = await call("importApply", { revision, fileHash, names }); } catch (e) {
+  try { r = await call("importApply", { revision, fileHash, names, masterPassword }); } catch (e) {
     // Only a fixable input error (e.g. a missing name) keeps this preview; anything else
     // (conflict, lock, unknown outcome) needs a new preview of the current vault.
     if (e.code === "invalid") $("importApply").disabled = false; else clearImport();

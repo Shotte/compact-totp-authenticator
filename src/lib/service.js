@@ -39,7 +39,11 @@ export function createService({ session, local, alarms, now = Date.now,
   let epoch = 0;
   let chain = Promise.resolve();
   // The file text of the last import preview (C5, I6): kept only in event-page memory, bound
-  // to the session and the preview's vault revision, dropped on apply, cancel and lock.
+  // to the session id and the preview's vault revision. Dropped on apply, cancel, any failed
+  // apply except a fixable input error, the next preview, and every session end: wipe()
+  // (lock, expiry, idle lock, password change, changed key generation, damaged vault) and
+  // startSession() (new session). An event-page restart loses it with the page. Dropping
+  // only removes the reference; the string is freed by normal garbage collection.
   let pendingImport = null;
   const exclusive = (fn) => { const run = chain.then(fn); chain = run.catch(() => {}); return run; };
 
@@ -52,6 +56,7 @@ export function createService({ session, local, alarms, now = Date.now,
 
   async function startSession(key, generation) {
     epoch++;
+    pendingImport = null;
     const { autoLockMinutes } = await loadSettings(local);
     const s = { ...newSession(key, now(), autoLockMinutes * 60_000), id: randomId(), generation };
     await session.set({ session: s });
@@ -390,37 +395,49 @@ export function createService({ session, local, alarms, now = Date.now,
         const { candidates, ...preview } = planImport(text, accounts);
         const fileHash = await sha256(text);
         await recheck(ctx);
+        if (ctx.e !== epoch) throw new LockedError("changed"); // never cache for an ended session
         pendingImport = { sessionId: ctx.s.id, revision, fileHash, text };
         return { ...preview, revision, fileHash };
       });
     },
 
-    // Import step 2 (C5): appends exactly the importable rows of that preview (new,
-    // name-conflict, needs-name with a replacement name) in one commit. Duplicates and
-    // invalid rows are skipped; existing accounts are never changed. A changed vault,
-    // another preview, a lock or an unknown file returns conflict: preview again.
-    importApply({ revision, fileHash, names }) {
+    // Import step 2 (C5, C5 review): appends exactly the importable rows of that preview
+    // (new, name-conflict, needs-name with a replacement name) in one commit. Order: valid
+    // session and fresh master password (authorizeSensitive), preview bound to this session,
+    // same file hash, same vault revision, re-read right before the write, epoch check and
+    // compare-and-set in commitAccounts. Wrong password, lock, expiry, other file or a
+    // changed vault abort without writing. Duplicates and invalid rows are skipped; existing
+    // accounts are never changed.
+    importApply({ revision, fileHash, names, masterPassword }) {
       return exclusive(async () => {
-        const ctx = await requireSession();
-        const pending = pendingImport;
-        if (!pending || pending.sessionId !== ctx.s.id || pending.fileHash !== fileHash
-          || pending.revision !== revision) throw new ConflictError();
-        const { revision: current, accounts } = await readVault(ctx);
-        if (current !== revision) throw new ConflictError();
-        const { candidates } = planImport(pending.text, accounts);
-        let next = accounts;
-        for (const c of candidates) {
-          const { index, needsName, ...fields } = c;
-          const name = needsName ? names[index] : fields.name;
-          if (needsName && (typeof name !== "string" || !name.trim())) throw new acc.InputError("import-name");
-          next = acc.addAccount(next, { ...fields, name }, randomId()); // validated like manual entry
+        try {
+          const auth = await authorizeSensitive(masterPassword);
+          const pending = pendingImport;
+          if (!pending || pending.sessionId !== auth.ctx.s.id || pending.fileHash !== fileHash
+            || pending.revision !== revision || auth.revision !== revision) throw new ConflictError();
+          const { accounts } = auth.payload;
+          const { candidates } = planImport(pending.text, accounts);
+          let next = accounts;
+          for (const c of candidates) {
+            const { index, needsName, ...fields } = c;
+            const name = needsName ? names[index] : fields.name;
+            if (needsName && (typeof name !== "string" || !name.trim())) throw new acc.InputError("import-name");
+            next = acc.addAccount(next, { ...fields, name }, randomId()); // validated like manual entry
+          }
+          if (!candidates.length) throw new acc.InputError("import-nothing");
+          if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
+          await recheck(auth.ctx);
+          const current = await readVault(auth.ctx); // another writer may have changed the vault
+          if (current.revision !== revision) throw new ConflictError();
+          pendingImport = null;
+          const r = await commitAccounts(auth.ctx, auth.key, next, revision);
+          return { ...r, imported: candidates.length };
+        } catch (e) {
+          // A fixable input (wrong password, missing name) keeps the preview; anything else
+          // (conflict, lock, unknown outcome) makes it stale.
+          if (e?.code !== "invalid") pendingImport = null;
+          throw e;
         }
-        if (!candidates.length) throw new acc.InputError("import-nothing");
-        if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
-        await recheck(ctx);
-        pendingImport = null;
-        const r = await commitAccounts(ctx, ctx.s.key, next, current);
-        return { ...r, imported: candidates.length };
       });
     },
 
@@ -454,7 +471,8 @@ export function createService({ session, local, alarms, now = Date.now,
       if (typeof names !== "object" || Array.isArray(names) || Object.values(names).some((v) => typeof v !== "string")) {
         throw new acc.InputError("import-name");
       }
-      return { revision: rev(m), fileHash: m.fileHash, names: Object.assign(Object.create(null), names) };
+      return { revision: rev(m), fileHash: m.fileHash, names: Object.assign(Object.create(null), names),
+        masterPassword: str(m.masterPassword) };
     },
   };
   function rev(m) {
@@ -512,6 +530,9 @@ export function createService({ session, local, alarms, now = Date.now,
       if (state !== "idle" && state !== "locked") return;
       if ((await loadSettings(local)).idleLock) await wipe();
     },
+
+    // Not reachable by messages (handle() dispatches only api): tests check the cache lifetime.
+    hasPendingImport: () => pendingImport !== null,
 
     // Not reachable by messages (handle() dispatches only api); for sensitive features.
     authorizeSensitive: (password) => exclusive(() => authorizeSensitive(password)),

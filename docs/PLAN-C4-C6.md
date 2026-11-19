@@ -66,6 +66,16 @@ Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
 - Never invent missing security-sensitive parameters.
 - A failed import leaves the existing vault unchanged.
 
+C5 architecture review decisions (CTA-001, 2026-11-19), as implemented:
+
+- The apply needs a fresh master password (`authorizeSensitive`), a preview bound to the
+  session, the same file hash and revision, and a final session check (SECURITY.md §14).
+- The cached import text is dropped on every session end (lock, expiry, idle lock,
+  password change, changed key generation, new session) and after any stale apply.
+- Generated placeholder names stay, marked as generated and editable. Same-name accounts
+  stay distinct; the name never proves a duplicate. Short valid secrets get a warning.
+- Merging an encrypted `cta-export` into a non-empty vault: separate enhancement, issue #17.
+
 ### 3.2 Acceptance criteria (proposed for the C5 review)
 
 | # | Criterion |

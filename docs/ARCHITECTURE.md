@@ -116,7 +116,7 @@ Background message API (all from own pages only; errors reduced to `locked`, `co
 | `listAccounts` | yes | no | `{ revision, accounts: [{ id, name, url, algorithm, digits, period }] }` |
 | `addAccount`, `updateAccount`, `deleteAccount`, `moveAccount` (+`revision`) | yes | yes | `{ revision, locked }`; add/update also `warnings` (`short-secret`, SECURITY.md §13.6) |
 | `importPreview {text}` | yes | no | `{ format, rows, counts, revision, fileHash }` (no secrets; keeps the text in memory, SECURITY.md §14) |
-| `importApply {revision, fileHash, names}` | yes | yes | `{ revision, locked, imported }`; appends the importable rows of that preview in one commit |
+| `importApply {revision, fileHash, names, masterPassword}` | yes + fresh master password | yes | `{ revision, locked, imported }`; appends the importable rows of that preview in one commit |
 | `importCancel` | no | no | `{}`; drops the kept import text |
 | `exportVault {kind, password, exportPassword, confirm, useMasterPassword, confirmed}` | yes + fresh master password | no | `{ fileName, text, count }`; encrypted text has no secrets in the clear (SECURITY.md §13) |
 | `importExport {text, password, masterPassword}` | yes + fresh master password | yes | `{ revision, locked, imported }`; empty vault only; `password` is the export password (SECURITY.md §13.4) |

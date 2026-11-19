@@ -160,7 +160,7 @@
     "message": "Import (original extension totp.json or CTA unencrypted export)"
   },
   "importPreviewNote": {
-    "message": "Choose a file to see a preview. Nothing is saved until you confirm. Existing accounts are never changed; duplicates are skipped."
+    "message": "Choose a file to see a preview. Nothing is saved until you confirm with your master password. Existing accounts are never changed; duplicates are skipped; accounts with the same name are kept."
   },
   "importApply": {
     "message": "Import"
@@ -551,5 +551,8 @@
   },
   "importing": {
     "message": "Importing…"
+  },
+  "importGeneratedName": {
+    "message": "generated name, editable"
   }
 }

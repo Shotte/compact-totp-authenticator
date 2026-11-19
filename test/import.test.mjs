@@ -36,7 +36,7 @@ test("legacy totp.json: appends new, name-conflict and named needs-name rows; sk
   assert.equal(p.revision, env.revision);
   assert.match(p.fileHash, /^[0-9a-f]{64}$/);
   const unnamed = p.rows.find((r) => r.status === "needs-name");
-  const r = ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash, names: { [unnamed.index]: "Named later" } }));
+  const r = ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash, names: { [unnamed.index]: "Named later" } }));
   assert.deepEqual([r.imported, r.revision, r.locked], [6, env.revision + 1, false]);
   const after = await list(env);
   assert.deepEqual(after.slice(0, 1), before, "existing accounts unchanged and first");
@@ -49,7 +49,7 @@ test("legacy totp.json: appends new, name-conflict and named needs-name rows; sk
 test("preview and apply responses carry no secrets", async () => {
   const env = await ready();
   const p = ok(await env.call("importPreview", { text: LEGACY }));
-  const r = ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash, names: { 10: "x" } }));
+  const r = ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash, names: { 10: "x" } }));
   const json = JSON.stringify([p, r]);
   for (const e of JSON.parse(LEGACY).otp_list) {
     if (typeof e?.key === "string" && e.key.length >= 10) assert.ok(!json.includes(e.key.replace(/[\s=]/g, "").toUpperCase()));
@@ -64,10 +64,10 @@ test("empty name: never dropped silently; apply without a valid replacement name
   assert.deepEqual(p.rows.map((r) => r.status), ["needs-name", "needs-name", "needs-name"]);
   const before = snap(env.local);
   for (const names of [{}, { 0: "a", 1: "b" }, { 0: "a", 1: "b", 2: " " }, { 0: "a", 1: "b", 2: "x".repeat(101) }]) {
-    assert.match(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash, names })), /^invalid:(import-name|name)$/);
+    assert.match(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash, names })), /^invalid:(import-name|name)$/);
     assert.equal(snap(env.local), before, "nothing written");
   }
-  ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash, names: { 0: "a", 1: "b", 2: "c" } }));
+  ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash, names: { 0: "a", 1: "b", 2: "c" } }));
   assert.deepEqual((await list(env)).map((a) => a.name), ["a", "b", "c"]);
 });
 
@@ -76,7 +76,7 @@ test("same-name entries are kept; duplicates of existing secrets are skipped, ne
   const text = legacy([{ name: "Mail", key: S(1), url: "new.example" }, { name: "Mail", key: S(2) }, { name: "Mail", key: S(3) }]);
   const p = ok(await env.call("importPreview", { text }));
   assert.deepEqual(p.rows.map((r) => r.status), ["duplicate", "name-conflict", "name-conflict"]);
-  ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash }));
+  ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash }));
   const after = await list(env);
   assert.deepEqual(after.map((a) => [a.name, a.url]), [["Mail", "old.example"], ["Mail", ""], ["Mail", ""]]);
 });
@@ -88,22 +88,22 @@ test("apply exactly what the preview showed: changed vault, other file, no previ
   let p = ok(await env.call("importPreview", { text }));
   ok(await env.call("addAccount", { revision: p.revision, account: { name: "B", secret: S(2) } }));
   let before = snap(env.local);
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "conflict");
   assert.equal(snap(env.local), before);
   // the current revision sent with a preview made before the change: still a conflict
   const now = ok(await env.call("listAccounts")).revision;
-  assert.equal(err(await env.call("importApply", { revision: now, fileHash: p.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: now, fileHash: p.fileHash })), "conflict");
   assert.equal(snap(env.local), before);
   // a different file hash, a stale revision, a replaced preview
   p = ok(await env.call("importPreview", { text }));
   before = snap(env.local);
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: "0".repeat(64) })), "conflict");
-  assert.equal(err(await env.call("importApply", { revision: p.revision - 1, fileHash: p.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: "0".repeat(64) })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision - 1, fileHash: p.fileHash })), "conflict");
   const other = ok(await env.call("importPreview", { text: legacy([{ name: "C", key: S(3) }]) }));
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "conflict");
   // cancel drops the pending import
   ok(await env.call("importCancel"));
-  assert.equal(err(await env.call("importApply", { revision: other.revision, fileHash: other.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: other.revision, fileHash: other.fileHash })), "conflict");
   assert.equal(snap(env.local), before, "nothing written");
 });
 
@@ -111,9 +111,9 @@ test("lock between preview and apply: apply refused; after unlock the old previe
   const env = await ready();
   const p = ok(await env.call("importPreview", { text: legacy([{ name: "A", key: S(1) }]) }));
   ok(await env.call("lock"));
-  assert.match(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), /^locked/);
+  assert.match(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), /^locked/);
   ok(await env.call("unlock", { password: PW }));
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "conflict");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "conflict");
   assert.equal((await list(env)).length, 0);
 });
 
@@ -124,7 +124,7 @@ test("one commit: a failing write leaves the vault unchanged; a lock during the 
     const set = env.local.set.bind(env.local);
     let writes = 0;
     env.local.set = async (o) => { if ("vault" in o) { writes++; throw new Error("quota"); } return set(o); };
-    assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "internal");
+    assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "internal");
     env.local.set = set;
     assert.equal(writes, 2, "one write and the store's rollback attempt");
     assert.deepEqual((await list(env)).map((a) => a.name), ["Kept"]);
@@ -135,7 +135,7 @@ test("one commit: a failing write leaves the vault unchanged; a lock during the 
     const set = env.local.set.bind(env.local);
     let locked = null;
     env.local.set = async (o) => { if ("vault" in o && !locked) locked = env.call("lock"); return set(o); };
-    const r = ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash }));
+    const r = ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash }));
     env.local.set = set;
     await locked;
     assert.deepEqual([r.imported, r.locked], [1, true]);
@@ -148,13 +148,13 @@ test("upper bound: the resulting vault may hold at most 1,000 accounts", async (
   const env = await ready();
   const first = legacy(Array.from({ length: 999 }, (_, i) => ({ name: `N${i}`, key: S(i + 1) })));
   let p = ok(await env.call("importPreview", { text: first }));
-  ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash }));
+  ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash }));
   const before = snap(env.local);
   p = ok(await env.call("importPreview", { text: legacy([{ name: "X", key: S(5000) }, { name: "Y", key: S(5001) }]) }));
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "invalid:import-too-many");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "invalid:import-too-many");
   assert.equal(snap(env.local), before);
   p = ok(await env.call("importPreview", { text: legacy([{ name: "X", key: S(5000) }]) }));
-  ok(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash }));
+  ok(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash }));
   assert.equal((await list(env)).length, 1000);
 });
 
@@ -162,7 +162,7 @@ test("nothing importable (only duplicates or invalid rows): refused, nothing wri
   const env = await ready([{ name: "A", secret: S(1) }]);
   const p = ok(await env.call("importPreview", { text: legacy([{ name: "A", key: S(1) }, { name: "B", key: "!!" }]) }));
   const before = snap(env.local);
-  assert.equal(err(await env.call("importApply", { revision: p.revision, fileHash: p.fileHash })), "invalid:import-nothing");
+  assert.equal(err(await env.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash })), "invalid:import-nothing");
   assert.equal(snap(env.local), before);
 });
 
@@ -176,7 +176,7 @@ test("cta-plain v1 (C4 export) imports through the same preview with every param
   const p = ok(await dst.call("importPreview", { text }));
   assert.equal(p.format, PLAIN_FORMAT);
   assert.deepEqual(p.rows.map((r) => [r.status, r.warnings]), [["new", []], ["new", ["short-secret"]]]);
-  ok(await dst.call("importApply", { revision: p.revision, fileHash: p.fileHash }));
+  ok(await dst.call("importApply", { masterPassword: PW, revision: p.revision, fileHash: p.fileHash }));
   const want = (await list(src)).map(({ id, ...a }) => a);
   assert.deepEqual((await list(dst)).slice(1).map(({ id, ...a }) => a), want);
 });

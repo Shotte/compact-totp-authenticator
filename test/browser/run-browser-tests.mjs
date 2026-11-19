@@ -1454,7 +1454,10 @@ try {
       const before1 = await pagePlain(PW);
       await choose(LEGACY_TEXT);
       await previewShown();
+      const generatedShown = await evalJson(opt, `async () => { const f = document.querySelector("#preview input[type=text]");
+        return { value: f.value, hint: f.parentElement.querySelector(".generated")?.textContent ?? "" }; }`);
       await evalJson(opt, `async () => { const f = document.querySelector("#preview input[type=text]"); f.value = "Benannt ✓";
+        document.getElementById("importMasterPassword").value = ${JSON.stringify(PW)};
         document.getElementById("importApply").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#importApply");
       const m1 = await settle();
@@ -1464,8 +1467,9 @@ try {
       const previewGone = await evalJson(opt, `async () => document.getElementById("preview").hidden && document.getElementById("importApply").disabled`);
       record("C5-1", "import via the options UI: preview, replacement name for the unnamed entry, apply appends exactly the importable rows once; existing account unchanged; reminder to delete the file; no secrets in the page",
         m1.kind === "ok" && /totp|unverschlüsselt|unencrypted/i.test(m1.text) && same(after1.slice(0, 1), before1) &&
-        same(names1, ["Vorhanden", "Example Mail", "Demo Cloud", "Padded Key", "example mail", "Short Secret", "Benannt ✓"]) && leak1 === 0 && previewGone,
-        { message: m1, names: names1, domLeaks: leak1, previewClearedAfterApply: previewGone });
+        same(names1, ["Vorhanden", "Example Mail", "Demo Cloud", "Padded Key", "example mail", "Short Secret", "Benannt ✓"]) && leak1 === 0 && previewGone &&
+        /1/.test(generatedShown.value) && generatedShown.hint.length > 0,
+        { message: m1, names: names1, domLeaks: leak1, previewClearedAfterApply: previewGone, generatedName: generatedShown });
       // C5-2: cancel after the preview writes nothing and the old preview cannot be applied
       await vaultWith(kept);
       await open(opt, "options/options.html");
@@ -1477,7 +1481,7 @@ try {
       await evalJson(opt, `async () => document.getElementById("importCancel").scrollIntoView({ block: "center" })`);
       await clickAt(opt, "#importCancel");
       await settle();
-      const after2 = await msg(opt, "importApply", { revision: hash2.revision, fileHash: hash2.fileHash, names: { 10: "x" } });
+      const after2 = await msg(opt, "importApply", { revision: hash2.revision, fileHash: hash2.fileHash, names: { 10: "x" }, masterPassword: PW });
       record("C5-2", "cancel after the preview: nothing written; the cancelled preview can no longer be applied",
         (await vaultJson()) === before2 && after2.error === "conflict", { applyAfterCancel: after2 });
       // C5-3: vault changed between preview and apply: conflict, nothing imported, preview cleared
@@ -1486,12 +1490,36 @@ try {
       const rev3 = (await msg(opt, "listAccounts")).result.revision;
       await msg(opt, "addAccount", { revision: rev3, account: { name: "Zwischendurch", secret: syntheticSecret(701) } });
       const before3 = await vaultJson();
-      await evalJson(opt, `async () => document.getElementById("importApply").scrollIntoView({ block: "center" })`);
+      await evalJson(opt, `async () => { document.getElementById("importMasterPassword").value = ${JSON.stringify(PW)};
+        document.getElementById("importApply").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#importApply");
       const m3 = await settle();
       const cleared3 = await evalJson(opt, `async () => document.getElementById("preview").hidden`);
       record("C5-3", "vault changed between preview and apply: conflict shown, nothing imported, a new preview is required",
         m3.kind === "error" && (await vaultJson()) === before3 && cleared3, { message: m3, previewCleared: cleared3 });
+      // C5-4: fresh master password required (C5 review); a lock clears the preview in the
+      // page and the cached text in the background, so the old preview cannot be reused
+      await vaultWith(kept);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await choose(LEGACY_TEXT);
+      await previewShown();
+      const before4 = await vaultJson();
+      const fillApply = (pw) => evalJson(opt, `async () => { document.getElementById("importMasterPassword").value = ${JSON.stringify(pw)};
+        document.getElementById("importApply").scrollIntoView({ block: "center" }); }`);
+      await fillApply(WRONG_PW);
+      await clickAt(opt, "#importApply");
+      const wrong4 = await settle();
+      const kept4 = await evalJson(opt, `async () => !document.getElementById("preview").hidden && !document.getElementById("importApply").disabled && !document.getElementById("importMasterPassword").value`);
+      const unchanged4 = (await vaultJson()) === before4;
+      const direct = (await msg(opt, "importPreview", { text: LEGACY_TEXT })).result;
+      const noPw = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, names: { 10: "x" } });
+      await msg(opt, "lock");
+      await msg(opt, "unlock", { password: PW });
+      const stale4 = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, names: { 10: "x" }, masterPassword: PW });
+      record("C5-4", "import needs the fresh master password (wrong or missing password: error, nothing written, preview kept); after a lock the cached preview is gone and cannot be applied",
+        wrong4.kind === "error" && kept4 && unchanged4 && noPw.reason === "current-password" && stale4.error === "conflict" && (await vaultJson()) === before4,
+        { wrongPassword: wrong4, previewKeptPasswordCleared: kept4, vaultUnchanged: unchanged4, missingPassword: noPw.reason, staleAfterLock: stale4.error });
     }
   }
 

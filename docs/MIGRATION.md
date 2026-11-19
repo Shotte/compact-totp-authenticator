@@ -42,7 +42,8 @@ Pre-1.0.4 format: flat object `{ "<name>": "<key>", ... }`, supported. CTA's own
    - same name, different secret → **name conflict** (imported, marked).
 5. Preview table: name, site, status (new / duplicate / name conflict / needs name /
    invalid with reason, short-key warning). Secrets are not shown in the preview.
-6. Nothing is written until the user confirms; cancel writes nothing. Existing accounts are
+6. Nothing is written until the user confirms with the master password (verified fresh);
+   cancel writes nothing. Existing accounts are
    never changed; imports are only appended, in one write. The apply must match the
    previewed vault revision and file, otherwise the user previews again. At most 1,000
    accounts in total.
