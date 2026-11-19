@@ -78,15 +78,25 @@ const NEW = SIGNED ? resolve(SIGNED_NEW) : build("0.1.1");
 const newBytes = readFileSync(NEW);
 let OLD_VERSION = SIGNED ? null : "0.1.0", NEW_VERSION = SIGNED ? null : "0.1.1"; // signed: read from the XPIs below
 
-// 2. HTTPS update server with a certificate for 127.0.0.1 made for this run.
+// 2. HTTPS update server: a test CA made for this run signs a server certificate for
+//    127.0.0.1 (Firefox refuses a CA certificate used directly as the server certificate).
+//    Only the CA is trusted, and only in the throwaway profile.
 const certDir = join(work, "tls");
 mkdirSync(certDir);
-const ssl = spawnSync("openssl", ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=127.0.0.1",
-  "-addext", "subjectAltName=IP:127.0.0.1", "-addext", "basicConstraints=critical,CA:TRUE",
-  "-keyout", join(certDir, "key.pem"), "-out", join(certDir, "cert.pem")], { encoding: "utf8", env: { ...process.env, MSYS_NO_PATHCONV: "1" } });
-if (ssl.status !== 0) throw new Error(`openssl: ${ssl.stderr}`);
-const certPem = readFileSync(join(certDir, "cert.pem"), "utf8");
-const certB64 = certPem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+const tls = (name) => join(certDir, name);
+const openssl = (...args) => {
+  const r = spawnSync("openssl", args, { encoding: "utf8", env: { ...process.env, MSYS_NO_PATHCONV: "1" } });
+  if (r.status !== 0) throw new Error(`openssl ${args[0]}: ${r.stderr}`);
+};
+writeFileSync(tls("leaf.ext"), "subjectAltName=IP:127.0.0.1\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n");
+openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=CTA update test CA",
+  "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+  "-keyout", tls("ca.key"), "-out", tls("ca.pem"));
+openssl("req", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=127.0.0.1", "-keyout", tls("key.pem"), "-out", tls("leaf.csr"));
+openssl("x509", "-req", "-in", tls("leaf.csr"), "-CA", tls("ca.pem"), "-CAkey", tls("ca.key"), "-CAcreateserial",
+  "-days", "2", "-sha256", "-extfile", tls("leaf.ext"), "-out", tls("cert.pem"));
+const certPem = readFileSync(tls("cert.pem"), "utf8");
+const certB64 = readFileSync(tls("ca.pem"), "utf8").replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""); // the CA is what gets trusted
 let updateRequests = 0, xpiRequests = 0;
 const server = createServer({ key: readFileSync(join(certDir, "key.pem")), cert: certPem }, (req, res) => {
   if (req.url.startsWith("/updates.json")) {
@@ -171,6 +181,11 @@ try {
   // Trust the run's certificate in this throwaway profile only (update server on 127.0.0.1).
   await evalIn(top, `async () => { const db = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB);
     db.addCertFromBase64(${JSON.stringify(certB64)}, "C,,"); return true; }`);
+  // TLS preflight from the privileged scope: the update check can only work if this does.
+  evidence.tlsPreflight = await evalIn(top, `async () => { try { const r = await fetch(${JSON.stringify(UPDATE_URL)}, { cache: "no-store" });
+    return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false, error: String(e?.message ?? e) }; } }`);
+  updateRequests = 0; // the preflight is not part of the update
+  if (!evidence.tlsPreflight.ok) throw new Error(`HTTPS update server not reachable from Firefox: ${JSON.stringify(evidence.tlsPreflight)}`);
   if (SIGNED) { // versions come from the signed packages themselves
     const v = await evalIn(top, `async () => { const out = [];
       for (const p of ${JSON.stringify([OLD, NEW])}) { const f = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile); f.initWithPath(p);
