@@ -303,6 +303,9 @@
   "setupWarning": {
     "message": "Deine Konten werden mit diesem Passwort verschlüsselt. Es gibt keine Möglichkeit, es wiederherzustellen: Wenn du es vergisst, sind deine Konten verloren. Bewahre es sicher auf, z. B. in einem Passwort-Manager."
   },
+  "devNotice": {
+    "message": "Entwicklungsversion (0.x), nicht für den produktiven Einsatz. Es gibt noch keinen Export und keine Sicherung: Wenn du das Master-Passwort vergisst, sind deine Konten verloren."
+  },
   "newPassword": {
     "message": "Neues Master-Passwort"
   },
