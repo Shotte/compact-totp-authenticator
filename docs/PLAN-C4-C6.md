@@ -29,6 +29,17 @@ Approved decisions, as implemented:
 Acceptance criteria E1–E12 from the preparation draft map to SECURITY.md §13 and the C4
 evidence; the matrix is in the pull request.
 
+Final C4 review decisions (CTA-001, 2026-11-19), as implemented:
+
+1. Finding A fixed before the merge: account changes and restore share one write path with
+   three reported outcomes (rejected, committed with `locked`, unknown); SECURITY.md §7.6.
+2. No `downloads` permission; the "handed to Firefox" message stays. Native dialogs and
+   download failures on Linux and macOS stay manual release checks (RELEASE.md §5).
+3. Finding B: read-only commands are repeated (bounded) after an undelivered message;
+   mutations are never repeated, an undelivered one is reported as `unknown` and the page
+   reloads the real state (SECURITY.md §7.7). Automatic mutation retries with operation
+   identifiers are not needed for that and are not planned.
+
 Carried over from the draft, not part of C4 (open proposals):
 
 - A "verify export file" action that decrypts a chosen file without importing it, so a

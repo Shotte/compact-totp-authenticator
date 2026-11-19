@@ -360,7 +360,7 @@ test("restore auth: lock during the final reads aborts without writing; lock dur
     const r = await dst.restore();
     dst.local.set = set;
     await locked;
-    assert.equal(ok(r).imported, 3);
+    assert.deepEqual([ok(r).imported, ok(r).locked], [3, true]);
     assert.match(err(await dst.call("getCodes")), /^locked/);
     ok(await dst.call("unlock", { password: OTHER }));
     assert.equal(ok(await dst.call("listAccounts")).accounts.length, 3);

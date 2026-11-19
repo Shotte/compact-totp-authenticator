@@ -37,6 +37,8 @@ async function unlock(ev) {
     else await showUnlocked();
   } catch (e) {
     input.value = "";
+    // Delivery failed (event page restarting): ask the background instead of guessing.
+    if (e.code === "unknown" && (await call("status").catch(() => ({}))).unlocked) { await showUnlocked(); return; }
     showLocked("unlock", e.reason === "unlock" ? t("unlockFailed") : errorText(e));
   } finally {
     $("unlockBtn").disabled = input.disabled = false;

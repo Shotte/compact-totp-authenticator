@@ -24,8 +24,9 @@ format string removed from the AAD; payload accounts not validated.
 ## Firefox integration (C4-1 … C4-8)
 
 [`browser-results-local.json`](browser-results-local.json): Firefox 160.0.1, Windows 11,
-headless (final run after the review follow-up). Result 78/85 PASS, 0 failed, 1 MANUAL (C4-8), 6 NOT_TESTED (5 × real toolbar popup
-headless; C3-4 because the workstation was in use, so the system never reported idle).
+visible window (final run after the final review corrections, write outcomes and message
+retries). Result 82/85 PASS, 0 failed, 2 MANUAL (C4-8; B3-real-4 needs `--os-input`),
+1 NOT_TESTED (C3-4: the workstation was in use, so the system never reported idle).
 
 | Check | Result | Details |
 |---|---|---|

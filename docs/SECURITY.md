@@ -145,6 +145,7 @@ Session record in `storage.session`:
   write that happened in between is never overwritten silently.
 - The revision is part of the AES-GCM AAD; a manipulated revision fails decryption.
 - Phase C applies the same rules to the persistent vault in `storage.local`.
+- Write outcomes (C4 review, decision 1): see §7.6.
 
 ## 6. Vault format (version 1)
 
@@ -666,6 +667,39 @@ option "use my master password" is explicit and not recommended in the UI.
 - Both need the fresh master password, a separate warning and the explicit confirmation
   checkbox. The text exists only in the message response and the Blob; no copy is kept.
 
+### 7.6 Write outcomes (C4 review, decision 1)
+
+Adding, editing, deleting and moving accounts and the restore (§13.4) share one write path
+(`commitAccounts` in [`service.js`](../src/lib/service.js)). Every answer matches the
+stored state:
+
+| Outcome | When | Answer |
+|---|---|---|
+| Rejected, nothing written | gate, revision, `recheck()` or the epoch check right before the write fails; the store refuses before writing (`conflict`, wrong key); a write fails and storage still shows the old revision | `locked`, `conflict`, `invalid` or `internal` |
+| Committed | the commit returned, or a failed write whose new revision with exactly the intended accounts is in storage | `{ revision, locked }`; `locked: true` when the session was locked or expired during or right after the write. The session then stays locked |
+| Unknown | a write failed and storage cannot show either state (for example, storage became unreadable) | `unknown`; never a success |
+
+The epoch check sits immediately before the commit with no `await` in between, so no write
+starts after a lock or re-unlock. A lock that arrives while the write is already running
+cannot stop it; it is reported as `locked: true` next to the result. Committed changes are
+never rolled back or repeated by this path, and the revision compare-and-set stays the
+store's own second line (§5.2). Tests: `test/write-outcome.test.mjs` (each mutation with a
+lock before, during and right after the write; failed writes in all three outcomes) and
+`test/export.test.mjs` (restore).
+
+### 7.7 Undelivered messages (C4 review, decision 3)
+
+A message sent while the event page restarts can fail with "Receiving end does not exist".
+`call()` in [`ui.js`](../src/lib/ui.js) sends it again only for commands that change
+nothing (`status`, `getCodes`, `listAccounts`, `importPreview`, `lock`), at most twice,
+with a short delay. Every other command (account changes, restore, export, unlock, setup,
+recovery, password change, activity) is sent exactly once. If it fails to arrive, the page
+reports `unknown` ("unknown whether the change was saved") and reloads the account list
+from the background, which shows the real state and current revision; the user decides
+whether to try again. A second attempt carries the reloaded revision, so it can never apply
+a change twice. Automatic retries of mutations with operation identifiers are not
+implemented; the reload makes them unnecessary for C4.
+
 ### 13.4 Restore (C4.4, revised after the C4 review)
 
 `importExport({ text, password, masterPassword })` restores a `cta-export` into an **empty**
@@ -685,8 +719,9 @@ vault. Restoring is a persistent, security-sensitive write, so the order is:
 7. Immediately before the commit, with no `await` in between, the session epoch is
    checked: a lock or re-unlock that arrived during the reads of step 6 aborts without
    writing. A lock that arrives while the commit is already writing cannot stop it; the
-   restore is then reported as completed and the session stays locked (the answer always
-   matches the stored state; found by CI on macOS, fixed and tested).
+   restore is then reported as completed with `locked: true` and the session stays locked
+   (found by CI on macOS, fixed and tested). Restore uses the shared write path and
+   outcome rules of §7.6.
 
 The two passwords stay separate: the master password never opens an export, and the
 export password is never accepted as the master password (tested both ways). Nothing is
@@ -705,7 +740,9 @@ The extension page cannot observe any of this without the `downloads` permission
 never claims that a file was saved. After an export it says that the file was created and
 handed to Firefox for saving, and asks the user to check Firefox's downloads; a cancelled
 dialog means no file. Adding the optional `downloads` permission would allow a real
-status; this is a separate decision and is not part of C4.
+status; the C4 review decided against it (decision 2): the permission model stays
+minimal. Native dialogs and download failures on Linux and macOS remain manual release
+checks (RELEASE.md).
 
 ### 13.6 Shared secret policy (prepared for C5)
 

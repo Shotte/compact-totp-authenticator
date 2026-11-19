@@ -20,6 +20,10 @@ export class LockedError extends Error {
 export class ConflictError extends Error {
   constructor() { super("conflict"); this.code = "conflict"; }
 }
+// A write failed and storage cannot show whether it took effect (C4 review, decision 1).
+export class OutcomeUnknownError extends Error {
+  constructor() { super("unknown"); this.code = "unknown"; }
+}
 
 export function createService({ session, local, alarms, now = Date.now,
   randomId = () => crypto.randomUUID() }) {
@@ -85,6 +89,40 @@ export function createService({ session, local, alarms, now = Date.now,
     await alarms.create("autolock", { when: next.deadline });
   }
 
+  // The one write path for account changes and restore (C4 review, decision 1). Three
+  // outcomes: rejected before the write (throws; nothing written), committed
+  // ({ revision, locked }), or unknown (OutcomeUnknownError). A lock that arrives during or
+  // after a committed write is reported as locked: true next to the result; the session stays
+  // locked and the write is never rolled back or repeated.
+  async function commitAccounts(ctx, key, accounts, expectedRevision) {
+    if (ctx.e !== epoch) throw new LockedError("changed"); // no await between this and the write
+    let revision;
+    try { revision = await store.commit(key, { accounts }, { expectedRevision }); }
+    catch (e) {
+      if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError();
+      if (e instanceof VaultError && e.reason === "auth") throw e; // refused before any write
+      revision = await reconcile(key, accounts, expectedRevision, e);
+    }
+    let locked = false;
+    try { await activity(ctx); } catch {
+      locked = true;
+      try { await wipe(); } catch { /* storage gone; the gate still fails closed */ }
+    }
+    return { revision, locked };
+  }
+
+  // After a failed commit the store has rolled back, but the rollback can fail as well, so
+  // storage decides: old revision = not written, new revision with exactly these accounts =
+  // written, anything else = unknown.
+  async function reconcile(key, accounts, expectedRevision, error) {
+    let r;
+    try { r = await store.load(key); } catch { r = null; }
+    if (r?.status === "ok" && r.revision === expectedRevision) throw error;
+    if (r?.status === "ok" && r.revision === expectedRevision + 1
+      && JSON.stringify(r.payload.accounts) === JSON.stringify(accounts)) return r.revision;
+    throw new OutcomeUnknownError();
+  }
+
   function mutate(expectedRevision, change) {
     return exclusive(async () => {
       const ctx = await requireSession();
@@ -92,12 +130,7 @@ export function createService({ session, local, alarms, now = Date.now,
       if (revision !== expectedRevision) throw new ConflictError();
       const next = change(accounts);
       await recheck(ctx);
-      if (ctx.e !== epoch) throw new LockedError("changed");
-      let newRevision;
-      try { newRevision = await store.commit(ctx.s.key, { accounts: next }, { expectedRevision: revision }); }
-      catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
-      await activity(ctx);
-      return { revision: newRevision };
+      return commitAccounts(ctx, ctx.s.key, next, revision);
     });
   }
 
@@ -330,16 +363,10 @@ export function createService({ session, local, alarms, now = Date.now,
         await recheck(auth.ctx); // lock, expiry or re-unlock during PBKDF2 aborts
         const current = await readVault(auth.ctx); // another writer may have changed the vault
         if (current.revision !== auth.revision || current.accounts.length) throw new ConflictError();
-        // Last check with no await before the write starts: a lock or re-unlock that arrived
-        // during the reads above aborts without writing.
-        if (auth.ctx.e !== epoch) throw new LockedError("changed");
-        let newRevision;
-        try { newRevision = await store.commit(auth.key, { accounts: next }, { expectedRevision: auth.revision }); }
-        catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
-        // The restore is complete. A lock that arrived during the commit must not turn it
-        // into an error report; the session simply stays locked.
-        try { await activity(auth.ctx); } catch { /* locked after the write */ }
-        return { revision: newRevision, imported: next.length };
+        // Same write path and outcome reporting as account changes: a lock during the reads
+        // above aborts without writing; a lock during the commit reports locked: true.
+        const r = await commitAccounts(auth.ctx, auth.key, next, auth.revision);
+        return { ...r, imported: next.length };
       });
     },
 
@@ -393,7 +420,7 @@ export function createService({ session, local, alarms, now = Date.now,
         const args = ARGS[msg.cmd] ? ARGS[msg.cmd](msg) : undefined;
         return { ok: true, result: await api[msg.cmd](args) };
       } catch (e) {
-        const known = ["locked", "conflict", "invalid", "malformed"].includes(e?.code);
+        const known = ["locked", "conflict", "invalid", "malformed", "unknown"].includes(e?.code);
         return { ok: false, error: known ? e.code : "internal", reason: known ? e.reason : undefined };
       }
     },

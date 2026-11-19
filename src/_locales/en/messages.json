@@ -214,6 +214,12 @@
   "errMalformed": {
     "message": "The file is not valid or not supported."
   },
+  "errUnknown": {
+    "message": "It is unknown whether the change was saved. The current list was reloaded; please check it before trying again."
+  },
+  "savedLocked": {
+    "message": "The change was saved. The session was locked meanwhile; please unlock again."
+  },
   "errInternal": {
     "message": "Unexpected error."
   },

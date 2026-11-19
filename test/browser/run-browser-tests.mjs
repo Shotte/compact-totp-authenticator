@@ -1412,9 +1412,9 @@ try {
         const sent = await evalJson(opt, `async () => { const at = performance.now() - window.__race.t0;
           return { at, ok: (await browser.runtime.sendMessage({ cmd: "lock" })).ok }; }`);
         const r = await evalJson(opt, `async () => { const race = window.__race; await race.p;
-          return { ok: race.r.ok, error: race.r.error, at: race.at }; }`);
+          return { ok: race.r.ok, error: race.r.error, locked: race.r.result?.locked, at: race.at }; }`);
         const changed = (await vaultJson()) !== beforeAttempt;
-        races.push({ delay, lockSentMs: Math.round(sent.at), restoreAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error, changed });
+        races.push({ delay, lockSentMs: Math.round(sent.at), restoreAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error, lockedAfterWrite: r.locked, changed });
       }
       // Inside PBKDF2: must abort without writing. Every attempt: the answer is truthful
       // (success exactly when the vault was written), also when the lock came late.

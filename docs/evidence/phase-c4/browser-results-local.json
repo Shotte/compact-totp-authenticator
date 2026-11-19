@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-19T17:13:52.203Z",
+  "startedAt": "2026-11-19T19:31:56.613Z",
   "browser": {
     "version": "160.0.1",
     "platform": "windows"
@@ -9,25 +9,25 @@
   },
   "chromeScopePrivileged": true,
   "wrongPasswordMs": [
-    115,
-    117,
-    1,
-    1
+    118,
+    118,
+    2,
+    2
   ],
   "unlockLatency": {
     "iterations600kMs": [
-      3,
-      3,
       4,
-      3,
+      4,
+      4,
+      4,
       4
     ],
-    "medianMs": 3,
-    "forged10MMs": 1862,
+    "medianMs": 4,
+    "forged10MMs": 2107,
     "oversizedRejectMs": 2,
     "uiPingMaxMs": 2
   },
-  "coldUnlockMsAfterRestart": 166,
+  "coldUnlockMsAfterRestart": 129,
   "finalPasswordIsPW": false,
   "layouts": {
     "1": {
@@ -43,10 +43,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "6",
+      "ticker": "1",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 180,
+      "renderMs": 155,
       "expectedBodyHeight": 56
     },
     "25": {
@@ -62,10 +62,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "6",
+      "ticker": "30",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 87,
+      "renderMs": 152,
       "expectedBodyHeight": 591
     },
     "50": {
@@ -81,7 +81,7 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "5",
+      "ticker": "29",
       "lastRowReachable": true,
       "footerVisible": true,
       "renderMs": 80,
@@ -100,14 +100,14 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "4",
+      "ticker": "28",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 92,
+      "renderMs": 83,
       "expectedBodyHeight": 591
     }
   },
-  "finishedAt": "2026-11-19T17:20:50.017Z",
+  "finishedAt": "2026-11-19T19:39:26.725Z",
   "results": [
     {
       "id": "B6-1",
@@ -119,7 +119,7 @@
           "result": {
             "initialized": false,
             "unlocked": false,
-            "startedAt": 1795108433539
+            "startedAt": 1795116719000
           }
         },
         "responses": [
@@ -158,10 +158,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "6",
+        "ticker": "1",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 180,
+        "renderMs": 155,
         "expectedBodyHeight": 56
       }
     },
@@ -182,10 +182,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "6",
+        "ticker": "30",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 87,
+        "renderMs": 152,
         "expectedBodyHeight": 591
       }
     },
@@ -206,7 +206,7 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "5",
+        "ticker": "29",
         "lastRowReachable": true,
         "footerVisible": true,
         "renderMs": 80,
@@ -230,10 +230,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "4",
+        "ticker": "28",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 92,
+        "renderMs": 83,
         "expectedBodyHeight": 591
       }
     },
@@ -1670,42 +1670,69 @@
     },
     {
       "id": "B3-real-1",
-      "name": "real toolbar popup size and rows",
-      "verdict": "NOT_TESTED",
+      "name": "real toolbar popup: 25 accounts, 25 px rows, within Firefox max 800×600",
+      "verdict": "PASS",
       "details": {
-        "reason": "headless run: no toolbar popup panel"
+        "geo": {
+          "inner": [
+            270,
+            591
+          ],
+          "rows": 25,
+          "rowHeights": [
+            25
+          ],
+          "current": [
+            "Local Test Site"
+          ],
+          "scrollable": true
+        },
+        "panel": {
+          "x": 966,
+          "y": 82,
+          "w": 270,
+          "h": 591,
+          "panelState": "open"
+        },
+        "toolbarInput": "bidi"
       }
     },
     {
       "id": "B3-real-2",
-      "name": "active-site highlight via toolbar click",
-      "verdict": "NOT_TESTED",
+      "name": "active-site highlight after a real toolbar click (activeTab)",
+      "verdict": "PASS",
       "details": {
-        "reason": "headless run: no toolbar popup panel"
+        "highlighted": [
+          "Local Test Site"
+        ]
       }
     },
     {
       "id": "B3-real-3",
-      "name": "real popup scrolling",
-      "verdict": "NOT_TESTED",
+      "name": "real popup: list scrolls to the last account; footer stays visible",
+      "verdict": "PASS",
       "details": {
-        "reason": "headless run: no toolbar popup panel"
+        "scrollTop": 65,
+        "maxScroll": 65,
+        "lastRowVisible": true,
+        "footerVisible": true,
+        "lastName": "Local Test Site"
+      }
+    },
+    {
+      "id": "B3-real-4a",
+      "name": "real popup: script click without user activation is refused (error indicator)",
+      "verdict": "PASS",
+      "details": {
+        "indicator": "error"
       }
     },
     {
       "id": "B3-real-4",
-      "name": "real popup click-to-copy",
-      "verdict": "NOT_TESTED",
+      "name": "real popup click-to-copy with a real mouse click",
+      "verdict": "MANUAL",
       "details": {
-        "reason": "headless run: no toolbar popup panel"
-      }
-    },
-    {
-      "id": "B8-real",
-      "name": "real popup hover",
-      "verdict": "NOT_TESTED",
-      "details": {
-        "reason": "headless run: no toolbar popup panel"
+        "note": "run with --os-input on Windows to automate with real mouse input"
       }
     },
     {
@@ -1727,8 +1754,8 @@
       "name": "works after event page suspension and restart",
       "verdict": "PASS",
       "details": {
-        "startedAtBefore": 1795108433539,
-        "startedAtAfter": 1795108459234,
+        "startedAtBefore": 1795116719000,
+        "startedAtAfter": 1795116747547,
         "restarted": true,
         "revision": 26
       }
@@ -1741,12 +1768,12 @@
         "before": {
           "initialized": true,
           "unlocked": true,
-          "startedAt": 1795108459234
+          "startedAt": 1795116747547
         },
         "atDeadline": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795108519409
+          "startedAt": 1795116807724
         },
         "alarmWipedAfterSeconds": 61
       }
@@ -1782,14 +1809,14 @@
       "verdict": "PASS",
       "details": {
         "iterations600kMs": [
-          3,
-          3,
           4,
-          3,
+          4,
+          4,
+          4,
           4
         ],
-        "medianMs": 3,
-        "forged10MMs": 1862,
+        "medianMs": 4,
+        "forged10MMs": 2107,
         "oversizedRejectMs": 2,
         "uiPingMaxMs": 2,
         "forgedResult": "unlock",
@@ -1838,7 +1865,7 @@
         "status": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795108525832
+          "startedAt": 1795116815192
         },
         "sessionKeys": [],
         "unlockMode": true,
@@ -1846,7 +1873,7 @@
           5,
           5
         ],
-        "coldUnlockMs": 166
+        "coldUnlockMs": 129
       }
     },
     {
@@ -1856,7 +1883,7 @@
       "details": {
         "delayMs": 400,
         "accountsBefore": 5,
-        "accountsAfter": 76,
+        "accountsAfter": 63,
         "restoredFromBackup": false
       }
     },
@@ -1866,8 +1893,8 @@
       "verdict": "PASS",
       "details": {
         "delayMs": 1200,
-        "accountsBefore": 76,
-        "accountsAfter": 194,
+        "accountsBefore": 63,
+        "accountsAfter": 179,
         "restoredFromBackup": false
       }
     },
@@ -1880,8 +1907,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          194,
-          194
+          179,
+          179
         ]
       }
     },
@@ -1894,8 +1921,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          194,
-          194
+          179,
+          179
         ]
       }
     },
@@ -1908,8 +1935,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          194,
-          194
+          179,
+          179
         ]
       }
     },
@@ -1924,12 +1951,12 @@
             "ok": true,
             "right": {
               "unlocked": true,
-              "ms": 11,
+              "ms": 13,
               "unchanged": true
             },
             "wrong": {
               "unlocked": false,
-              "ms": 134,
+              "ms": 140,
               "unchanged": true
             }
           },
@@ -1938,12 +1965,12 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 117,
+              "ms": 123,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 7,
+              "ms": 6,
               "unchanged": true
             }
           },
@@ -1953,12 +1980,12 @@
             "expired": true,
             "wrong": {
               "unlocked": false,
-              "ms": 125,
+              "ms": 166,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 9,
+              "ms": 8,
               "unchanged": true
             }
           },
@@ -1973,7 +2000,7 @@
             },
             "right": {
               "unlocked": true,
-              "ms": 7,
+              "ms": 6,
               "unchanged": true
             }
           },
@@ -1982,12 +2009,12 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 167,
+              "ms": 129,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 164,
+              "ms": 154,
               "unchanged": true
             }
           },
@@ -1996,7 +2023,7 @@
             "ok": true,
             "old": {
               "unlocked": false,
-              "ms": 169,
+              "ms": 119,
               "unchanged": true
             },
             "new": {
@@ -2011,17 +2038,17 @@
             "attempts": [
               {
                 "unlocked": true,
-                "ms": 7,
-                "unchanged": true
-              },
-              {
-                "unlocked": true,
-                "ms": 10,
+                "ms": 6,
                 "unchanged": true
               },
               {
                 "unlocked": true,
                 "ms": 6,
+                "unchanged": true
+              },
+              {
+                "unlocked": true,
+                "ms": 5,
                 "unchanged": true
               }
             ]
@@ -2033,19 +2060,19 @@
               {
                 "form": "NFD",
                 "unlocked": true,
-                "ms": 5,
+                "ms": 6,
                 "unchanged": true
               },
               {
                 "form": "NFC",
                 "unlocked": true,
-                "ms": 6,
+                "ms": 5,
                 "unchanged": true
               },
               {
                 "form": "NFD",
                 "unlocked": true,
-                "ms": 6,
+                "ms": 5,
                 "unchanged": true
               }
             ]
@@ -2056,7 +2083,7 @@
             "attempts": [
               {
                 "unlocked": false,
-                "ms": 161,
+                "ms": 118,
                 "unchanged": true
               },
               {
@@ -2082,7 +2109,7 @@
         "measurements": [
           {
             "label": "first derivation",
-            "ms": 157,
+            "ms": 115,
             "pbkdf2Calls": 1
           },
           {
@@ -2102,22 +2129,22 @@
           },
           {
             "label": "different password",
-            "ms": 148,
+            "ms": 115,
             "pbkdf2Calls": 1
           },
           {
             "label": "different salt",
-            "ms": 114,
+            "ms": 124,
             "pbkdf2Calls": 1
           },
           {
             "label": "iterations + 1",
-            "ms": 112,
+            "ms": 136,
             "pbkdf2Calls": 1
           },
           {
             "label": "raw Web Crypto deriveBits (no app code), first",
-            "ms": 112,
+            "ms": 157,
             "pbkdf2Calls": 0
           },
           {
@@ -2152,22 +2179,22 @@
       "verdict": "PASS",
       "details": {
         "before": {
-          "id": "f1eb9cb3-1a0f-4823-baff-ad9b4bc003f3",
+          "id": "9194cf66-f580-4640-a5b3-59b4c50b78a0",
           "timeoutMs": 900000,
-          "lastActivity": 1795108623808,
-          "deadline": 1795109523808
+          "lastActivity": 1795116927530,
+          "deadline": 1795117827530
         },
         "shorter": {
-          "id": "f1eb9cb3-1a0f-4823-baff-ad9b4bc003f3",
+          "id": "9194cf66-f580-4640-a5b3-59b4c50b78a0",
           "timeoutMs": 60000,
-          "lastActivity": 1795108623808,
-          "deadline": 1795108683808
+          "lastActivity": 1795116927530,
+          "deadline": 1795116987530
         },
         "longerWithoutActivity": {
-          "id": "f1eb9cb3-1a0f-4823-baff-ad9b4bc003f3",
+          "id": "9194cf66-f580-4640-a5b3-59b4c50b78a0",
           "timeoutMs": 60000,
-          "lastActivity": 1795108623808,
-          "deadline": 1795108683808
+          "lastActivity": 1795116927530,
+          "deadline": 1795116987530
         }
       }
     },
@@ -2177,8 +2204,8 @@
       "verdict": "PASS",
       "details": {
         "codesChanged": 3,
-        "deadlineBefore": 1795109525756,
-        "deadlineAfter": 1795109525756
+        "deadlineBefore": 1795117829485,
+        "deadlineAfter": 1795117829485
       }
     },
     {
@@ -2186,7 +2213,7 @@
       "name": "optional idle lock",
       "verdict": "NOT_TESTED",
       "details": {
-        "reason": "system idle never reported within 150 s ({\"hadPermission\":false,\"granted\":true,\"saved\":true,\"wipedAfterSeconds\":null,\"idleReportedAfterSeconds\":null,\"permissionRemovedOnUncheck\":true})"
+        "reason": "system idle never reported within 150 s ({\"hadPermission\":false,\"granted\":true,\"saved\":true,\"wipedAfterSeconds\":null,\"idleReportedAfterSeconds\":null,\"permissionRemovedOnUncheck\":false})"
       }
     },
     {
@@ -2234,27 +2261,27 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 27,
+            "lockSentMs": 23,
             "lockOk": true,
-            "exportAnsweredMs": 118,
+            "exportAnsweredMs": 159,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 40,
-            "lockSentMs": 48,
+            "lockSentMs": 44,
             "lockOk": true,
-            "exportAnsweredMs": 116,
+            "exportAnsweredMs": 160,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 80,
-            "lockSentMs": 83,
+            "lockSentMs": 81,
             "lockOk": true,
-            "exportAnsweredMs": 117,
+            "exportAnsweredMs": 161,
             "ok": false,
             "error": "locked",
             "hasResult": false
@@ -2313,7 +2340,7 @@
       "verdict": "PASS",
       "details": {
         "emptyExport": 0,
-        "bigExportMs": 149,
+        "bigExportMs": 150,
         "bigImportMs": 45,
         "bigFileBytes": 186391
       }
@@ -2341,15 +2368,15 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 23,
-            "restoreAnsweredMs": 160,
+            "lockSentMs": 24,
+            "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
             "changed": false
           },
           {
             "delay": 50,
-            "lockSentMs": 59,
+            "lockSentMs": 53,
             "restoreAnsweredMs": 160,
             "ok": false,
             "error": "locked",
@@ -2357,7 +2384,7 @@
           },
           {
             "delay": 80,
-            "lockSentMs": 86,
+            "lockSentMs": 84,
             "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
@@ -2366,7 +2393,7 @@
           {
             "delay": 120,
             "lockSentMs": 131,
-            "restoreAnsweredMs": 159,
+            "restoreAnsweredMs": 158,
             "ok": false,
             "error": "locked",
             "changed": false
@@ -2393,6 +2420,6 @@
     "platform": "win32",
     "arch": "x64",
     "node": "v24.20.0",
-    "headless": true
+    "headless": false
   }
 }

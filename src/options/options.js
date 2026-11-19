@@ -17,7 +17,7 @@ async function run(fn) {
   try { return await fn(); } catch (e) {
     say(errorText(e), "error");
     if (e.code === "locked") showLocked();
-    if (e.code === "conflict") await refresh(false);
+    if (e.code === "conflict" || e.code === "unknown") await refresh(false); // show what storage holds
     return undefined;
   }
 }
@@ -49,7 +49,10 @@ function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
     fields.forEach((f) => { f.disabled = true; });
     say(t(progress), "progress");
     try { await handler(values); }
-    catch (e) { say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : errorText(e), "error"); }
+    catch (e) {
+      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : errorText(e), "error");
+      if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
+    }
     finally {
       fields.forEach((f) => { f.disabled = false; if (f.type === "password") f.value = ""; });
       after?.();
@@ -114,6 +117,7 @@ function renderAccounts() {
 const mutate = (cmd, args, done) => run(async () => {
   const r = await call(cmd, { ...args, revision: state.revision });
   state.revision = r.revision;
+  if (r.locked) { await showLocked(); say(t("savedLocked")); return true; }
   await refresh(false);
   say(t(r.warnings?.includes("short-secret") ? "savedWeak" : done ?? "saved"));
   return true;
@@ -319,6 +323,7 @@ async function submitRestoreExport({ file, password, masterPassword }) {
   $("restoreExportForm").elements.file.value = "";
   if (!file) return;
   const r = await call("importExport", { text: await file.text(), password, masterPassword });
+  if (r.locked) { await showLocked(); say(`${t("restoreExportDone", [String(r.imported)])} ${t("errLocked")}`); return; }
   await refresh(false);
   say(t("restoreExportDone", [String(r.imported)]));
 }
