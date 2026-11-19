@@ -69,10 +69,16 @@ It never runs `web-ext sign`. The signing command it prints relies on
 | signed (`--old`/`--new` signed XPIs) | release | on; both builds must report a signed state | PASS only if U-1…U-7 all pass |
 
 The update server is HTTPS on 127.0.0.1:47811. Its certificate is made per run with
-openssl and trusted only in the throwaway profile. Verified locally on release Firefox up
-to the install step: certificate creation, HTTPS server and trust in the profile work, and
-the unsigned install is refused (−5) and reported NOT_TESTED. The full HTTPS update path
-runs in CI on ESR.
+openssl and trusted only in the throwaway profile. A test CA made per run signs a
+server certificate for 127.0.0.1; only the CA is trusted. Firefox refuses a CA certificate
+used directly as the server certificate; that was the first CI attempt, with 0 update
+requests. A privileged TLS preflight fails the run early.
+
+- **Local, release Firefox 160:** TLS preflight 200; the unsigned install is refused (−5)
+  and reported NOT_TESTED, as designed.
+- **CI run 44633892548, Firefox ESR 153.7:** TLS preflight 200, U-1…U-7 PASS over HTTPS,
+  U-signed NOT_TESTED. Evidence:
+  [`update-results-ci-esr153-https.json`](update-results-ci-esr153-https.json).
 
 **Signed update test: NOT_TESTED.** It runs only after the operator has signed 0.9.0 and
 0.9.1 (issue #19).
