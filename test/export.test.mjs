@@ -102,7 +102,7 @@ test("round trip: export → import into a clean vault (other profile, other mas
   assert.equal(count, 18);
   assert.match(fileName, /^cta-export-\d{4}-\d{2}-\d{2}\.json$/);
   const dst = await vault([], { password: OTHER });
-  assert.deepEqual(ok(await dst.call("importExport", { text, password: EXP })).imported, 18);
+  assert.deepEqual(ok(await dst.call("importExport", { text, password: EXP, masterPassword: OTHER })).imported, 18);
   dst.full = async () => portable((await dst.svc.authorizeSensitive(OTHER)).payload.accounts);
   assert.deepEqual(await dst.full(), await src.full());
   assert.deepEqual(await dst.full(), exportRoundTripAccounts());
@@ -116,7 +116,7 @@ test("round trip: empty vault and a large vault (1,000 accounts)", async () => {
   const e = ok(await encrypted(empty));
   assert.equal(e.count, 0);
   const dst = await vault();
-  assert.equal(ok(await dst.call("importExport", { text: e.text, password: EXP })).imported, 0);
+  assert.equal(ok(await dst.call("importExport", { text: e.text, password: EXP, masterPassword: PW })).imported, 0);
   const big = syntheticAccounts(1000).map(({ id, ...a }) => a);
   const src = await vault([]);
   const { revision } = ok(await src.call("listAccounts"));
@@ -129,7 +129,7 @@ test("round trip: empty vault and a large vault (1,000 accounts)", async () => {
   const x = ok(await encrypted(src));
   assert.equal(x.count, 1000);
   const d2 = await vault();
-  assert.equal(ok(await d2.call("importExport", { text: x.text, password: EXP })).imported, 1000);
+  assert.equal(ok(await d2.call("importExport", { text: x.text, password: EXP, masterPassword: PW })).imported, 1000);
   assert.deepEqual(portable((await d2.svc.authorizeSensitive(PW)).payload.accounts), big);
 });
 
@@ -221,18 +221,18 @@ test("import: only into an empty vault; wrong password or tampering never writes
   const { text } = ok(await encrypted(src));
   const full = await vault(exportRoundTripAccounts().slice(3, 4));
   let before = snap(full.local);
-  assert.equal(err(await full.call("importExport", { text, password: EXP })), "invalid:vault-not-empty");
+  assert.equal(err(await full.call("importExport", { text, password: EXP, masterPassword: PW })), "invalid:vault-not-empty");
   assert.equal(snap(full.local), before);
   const dst = await vault();
   before = snap(dst.local);
-  assert.equal(err(await dst.call("importExport", { text, password: WRONG })), "invalid:import-decrypt");
+  assert.equal(err(await dst.call("importExport", { text, password: WRONG, masterPassword: PW })), "invalid:import-decrypt");
   const t = JSON.parse(text); t.ciphertext = t.ciphertext.slice(0, -4) + (t.ciphertext.endsWith("AAAA") ? "BBBB" : "AAAA");
-  assert.equal(err(await dst.call("importExport", { text: JSON.stringify(t), password: EXP })), "invalid:import-decrypt");
-  assert.equal(err(await dst.call("importExport", { text: "{", password: EXP })), "malformed:json");
-  assert.equal(err(await dst.call("importExport", { text: "x".repeat(MAX_EXPORT_BYTES + 1), password: EXP })), "invalid:text");
+  assert.equal(err(await dst.call("importExport", { text: JSON.stringify(t), password: EXP, masterPassword: PW })), "invalid:import-decrypt");
+  assert.equal(err(await dst.call("importExport", { text: "{", password: EXP, masterPassword: PW })), "malformed:json");
+  assert.equal(err(await dst.call("importExport", { text: "x".repeat(MAX_EXPORT_BYTES + 1), password: EXP, masterPassword: PW })), "invalid:text");
   assert.equal(snap(dst.local), before);
   ok(await dst.call("lock"));
-  assert.match(err(await dst.call("importExport", { text, password: EXP })), /^locked/);
+  assert.match(err(await dst.call("importExport", { text, password: EXP, masterPassword: PW })), /^locked/);
   assert.equal(snap(dst.local), before);
 });
 
@@ -241,7 +241,7 @@ test("import: lock during decryption writes nothing", async () => {
   const { text } = ok(await encrypted(src));
   const dst = await vault();
   const before = snap(dst.local);
-  const pending = dst.call("importExport", { text, password: EXP });
+  const pending = dst.call("importExport", { text, password: EXP, masterPassword: PW });
   await dst.call("lock");
   assert.match(err(await pending), /^locked/);
   assert.equal(snap(dst.local), before);
@@ -261,4 +261,74 @@ test("self-check: an export that does not decrypt back is never handed out", asy
     assert.equal(err(r), "invalid:export-verify");
     assert.equal(r.result, undefined);
   } finally { subtle.encrypt = realEncrypt; }
+});
+
+// C4 review: restore is a persistent, security-sensitive write.
+async function restoreSetup() {
+  const src = await vault(exportRoundTripAccounts().slice(0, 3));
+  const { text } = ok(await encrypted(src));
+  const dst = await vault([], { password: OTHER, minutes: 5 });
+  dst.restore = (extra = {}) => dst.call("importExport", { text, password: EXP, masterPassword: OTHER, ...extra });
+  return { text, dst };
+}
+
+test("restore auth: fresh destination master password required; export password stays separate", async () => {
+  const { dst } = await restoreSetup();
+  const before = snap(dst.local);
+  let d0 = derivations;
+  assert.equal(err(await dst.restore({ masterPassword: undefined })), "invalid:current-password");
+  assert.equal(err(await dst.restore({ masterPassword: "" })), "invalid:current-password");
+  assert.equal(derivations - d0, 0, "no PBKDF2 without a master password");
+  assert.equal(err(await dst.restore({ masterPassword: "wrong destination password" })), "invalid:current-password");
+  assert.equal(err(await dst.restore({ masterPassword: EXP })), "invalid:current-password", "the export password is not the master password");
+  assert.equal(err(await dst.restore({ password: OTHER })), "invalid:import-decrypt", "the master password does not open the export");
+  const { session: s } = await dst.session.get("session");
+  assert.equal(err(await dst.restore({ masterPassword: s.key })), "invalid:current-password", "the session key is not enough");
+  assert.equal(snap(dst.local), before);
+  d0 = derivations;
+  assert.equal(ok(await dst.restore()).imported, 3);
+  assert.equal(derivations - d0, 2, "one fresh master derivation and one export derivation");
+});
+
+test("restore auth: expired, locked or stale session aborts without writing", async () => {
+  const { dst } = await restoreSetup();
+  const before = snap(dst.local);
+  dst.clk.advance(5 * MIN);
+  assert.match(err(await dst.restore()), /^locked/);
+  ok(await dst.call("unlock", { password: OTHER }));
+  const stale = (await dst.session.get("session")).session;
+  ok(await dst.call("changePassword", { current: OTHER, next: PW, confirm: PW }));
+  await dst.session.set({ session: stale }); // session of the old key generation
+  assert.equal(err(await dst.restore({ masterPassword: PW })), "locked:generation");
+  assert.equal(snap(dst.local).length > 0, true);
+  ok(await dst.call("unlock", { password: PW }));
+  const afterChange = snap(dst.local);
+  for (const nth of [1, 2]) { // lock during the master-password and the export-password derivation
+    const start = derivations;
+    let locked = null;
+    onDerive = (n) => { if (n === start + nth) locked = dst.call("lock"); };
+    const r = await dst.restore({ masterPassword: PW });
+    onDerive = null;
+    await locked;
+    assert.match(err(r), /^locked/, `lock at derivation ${nth}`);
+    assert.equal(snap(dst.local), afterChange);
+    ok(await dst.call("unlock", { password: PW }));
+  }
+  assert.notEqual(before, afterChange); // the password change itself wrote; restore never did
+});
+
+test("restore auth: a concurrent write by another instance between verification and commit aborts the restore", async () => {
+  const { dst } = await restoreSetup();
+  const other = createService({ session: dst.session, local: dst.local, alarms: dst.alarms, now: dst.clk.now });
+  const start = derivations;
+  let concurrent = null;
+  onDerive = (n) => { // while the export password is being derived, another event-page instance writes
+    if (n === start + 2) concurrent = other.handle({ cmd: "addAccount", revision: 1, account: { name: "Concurrent", secret: syntheticSecret(77) } });
+  };
+  const r = await dst.restore();
+  onDerive = null;
+  assert.equal((await concurrent).ok, true);
+  assert.equal(err(r), "conflict");
+  const names = portable((await dst.svc.authorizeSensitive(OTHER)).payload.accounts).map((a) => a.name);
+  assert.deepEqual(names, ["Concurrent"], "only the concurrent write is in the vault; the restore wrote nothing");
 });

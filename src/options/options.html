@@ -66,6 +66,7 @@
           <label><span data-i18n="fieldSecret"></span>
             <input name="secret" type="password" spellcheck="false" autocomplete="off">
             <small id="secretHint" class="note" data-i18n="fieldSecretKeep" hidden></small>
+            <small id="secretWeak" class="note" data-i18n="secretWeak" hidden></small>
           </label>
           <label><span data-i18n="fieldUrl"></span><input name="url" maxlength="200" placeholder="example.com"></label>
           <details>
@@ -134,6 +135,8 @@
             <input name="file" type="file" accept=".json,application/json" required></label>
           <label><span data-i18n="exportPassword"></span>
             <input name="password" type="password" required maxlength="1024" autocomplete="off"></label>
+          <label><span data-i18n="currentPassword"></span>
+            <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password"></label>
           <div class="actions"><button type="submit" data-i18n="restoreExportButton"></button></div>
         </form>
       </section>

@@ -57,14 +57,14 @@ Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
 | I5 | After success, remind the user to delete the plaintext `totp.json` |
 | I6 | The file text travels page → background once; it is never stored or echoed back |
 | I7 | Empty names: replacement names are entered in the preview and validated like manual entry before apply |
-| I8 | Short secrets: imported only after an explicit per-import confirmation; manual entry keeps its stricter rule unless changed separately |
+| I8 | Short secrets: imported with a visible warning per row (same policy as manual entry) |
 | I9 | `cta-plain` v1 files (C4) are importable through the same preview |
 
-### 3.3 Open question for the C5 review
+### 3.3 Shared secret validation (prepared in C4, review follow-up)
 
-- Manual entry currently rejects secrets shorter than 16 characters (`secret-short`),
-  while the approved import rule warns. Should manual entry adopt the warning too, or do
-  the two paths stay different?
+Decided: one policy for manual entry and import (SECURITY.md §13.6). Malformed Base32 is
+rejected; valid secrets shorter than 16 characters are accepted with a warning. The
+legacy preview already uses it; C5 applies it to the import write path.
 
 ### 3.4 Test plan
 

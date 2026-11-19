@@ -36,7 +36,7 @@ headless; C3-4 because the workstation was in use, so the system never reported 
 | C4-5 restore into a non-empty vault refused; one changed ciphertext character fails authentication; nothing written | PASS | |
 | C4-6 empty vault and 1,000 accounts: export and restore identical | PASS | 1,000 accounts: export 154 ms, restore 50 ms, file 186 KB |
 | C4-7 plaintext export only after warning and confirmation, complete and versioned; lossy `totp.json` refused with 17 affected accounts listed and the button disabled; lossless `totp.json` produced exactly | PASS | |
-| C4-8 native save dialog, cancelling it, download failures | MANUAL_REVIEW | OS dialog and Firefox download panel; not observable without the `downloads` permission |
+| C4-8 native save dialog, cancelling it, download failures | MANUAL_REVIEW in the headless suite | verified on Windows below (N1–N4) |
 
 Note on file selection: WebDriver BiDi `input.setFiles` is not supported for privileged
 (extension) pages, so C4-4 hands a `File` with a Unicode name to the real file input
@@ -56,10 +56,72 @@ MANUAL is C4-8. NOT_TESTED is the real toolbar popup (headless), plus three chec
 ESR 140 that need the privileged chrome scope. C3-4 (idle lock) passed on all five CI
 browsers.
 
+## Review follow-up (after head `25049f7`)
+
+### Restore authentication
+
+Unit tests (`test/export.test.mjs`, 17 tests in total):
+
+- Restore requires the destination's master password through `authorizeSensitive`.
+  Rejected: missing, empty or wrong master password, the export password given as the
+  master password, the session's `CryptoKey` instead of a password.
+- The master password never opens the export.
+- An expired session, a session of an old key generation, and a lock during the
+  master-password derivation or during the export-password derivation all abort the
+  restore.
+- A second service instance writes between verification and commit → `conflict`, and
+  only the concurrent write is in the vault.
+
+Mutation checks:
+
+- Restore without the fresh master password: 3 tests fail.
+- No `recheck`: 1 test fails.
+- No empty check: 1 test fails.
+- Removing the pre-write re-read alone is still caught by the store's compare-and-set,
+  which is the second layer. Removing both layers fails 1 test.
+
+Browser:
+
+- **C4-4** (UI): wrong export password, wrong master password, and the export password
+  used as the master password each give an error and leave the vault unchanged.
+- **C4-9:** missing master password → `current-password`. A lock while the restore runs
+  (sent 38/66/130 ms, restore answered after 158–160 ms) → `locked`, vault unchanged. A
+  file sealed in Node (outside Firefox, fresh salt) restores identically.
+
+### Native dialogs on Windows (manual review, automated)
+
+[`native-dialogs-windows.json`](native-dialogs-windows.json),
+`node test/browser/native-dialogs.mjs`. Firefox 160.0.1 with a window, "Always ask where to
+save files". The dialogs belong to this test's Firefox main process and are driven by
+Win32 messages to the dialog's own controls ([`uia-dialog.ps1`](../../../test/browser/uia-dialog.ps1)):
+no mouse, no keyboard, no clipboard. Synthetic data; temporary folder removed afterwards;
+the user's Downloads folder was checked to be unchanged.
+
+| Check | Result | Observed |
+|---|---|---|
+| N1 native Save dialog → Save | PASS | dialog "Bitte geben Sie den Dateinamen an …", buttons "Speichern"/"Abbrechen"; file "CTA Sicherung – Ünïcödé ✓.json" saved; Firefox download succeeded; the file decrypts to identical accounts |
+| N2 native Save dialog → Cancel | PASS | dialog closed, no file, no new download |
+| N3 download failure (target folder without write permission, direct mode) | PASS | Firefox download state failed ("target failed"); no file; nothing written to the user's Downloads folder |
+| N4 native Open dialog ("Datei hochladen") → saved file → restore | PASS | file input received the Unicode file name; restore with export + master password: 18 accounts identical |
+
+In all four cases the page shows the same, honest status. The file was created and handed
+to Firefox for saving; the user is asked to check Firefox's downloads; a cancelled dialog
+means no file. The page cannot know which case happened (SECURITY.md §13.5).
+
+### Shared secret policy
+
+`checkSecret` (accounts.js) is used by manual entry, the legacy preview and restore:
+
+- Malformed Base32 is rejected (`secret-format`).
+- Valid secrets shorter than 16 characters are accepted with `short-secret`.
+- The UI warns while typing and after saving.
+
+Tests: `accounts.test.mjs` (malformed vs short), `service.test.mjs` (warning at the
+message boundary, codes generated), legacy preview unchanged.
+
 ## Manual review
 
-- Native save dialog (Firefox setting "Always ask where to save files"), cancel, disk
-  full or permission errors (C4-8).
-- OS file chooser for restore.
+- Native dialogs on macOS and Linux (only Windows was exercised, N1–N4).
+- A full disk (not reproduced; the permission failure N3 covers Firefox's failure path).
 - Real toolbar popup run (`npm run test:browser:os`): not run for C4; C4 changes no popup
   code.

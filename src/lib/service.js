@@ -249,11 +249,14 @@ export function createService({ session, local, alarms, now = Date.now,
       return { revision, accounts: accounts.map(acc.publicView) };
     },
 
-    addAccount({ account, revision }) {
-      return mutate(revision, (list) => acc.addAccount(list, account, randomId()));
+    // warnings: ["short-secret"] for a weak but valid secret (shared policy, accounts.js).
+    async addAccount({ account, revision }) {
+      const r = await mutate(revision, (list) => acc.addAccount(list, account, randomId()));
+      return { ...r, warnings: acc.secretWarnings(account?.secret) };
     },
-    updateAccount({ id, patch, revision }) {
-      return mutate(revision, (list) => acc.updateAccount(list, id, patch));
+    async updateAccount({ id, patch, revision }) {
+      const r = await mutate(revision, (list) => acc.updateAccount(list, id, patch));
+      return { ...r, warnings: patch?.secret ? acc.secretWarnings(patch.secret) : [] };
     },
     deleteAccount({ id, revision }) {
       return mutate(revision, (list) => acc.deleteAccount(list, id));
@@ -305,27 +308,32 @@ export function createService({ session, local, alarms, now = Date.now,
       });
     },
 
-    // Minimal restore of a cta-export into an EMPTY vault (C4.4). Merging into a vault
-    // with accounts is C5. Wrong password and tampered file both report "import-decrypt";
-    // nothing is written unless the whole file decrypts and every account validates.
-    importExport({ text, password }) {
+    // Restore of a cta-export into an EMPTY vault (C4.4, C4 review). A persistent,
+    // security-sensitive write, so it needs: a valid session and the destination's master
+    // password, freshly verified (authorizeSensitive); the separate export password must
+    // decrypt and authenticate the file and every account must validate; the destination
+    // must still be empty and at the verified revision right before the single commit.
+    // Wrong export password and modified file both report "import-decrypt"; nothing is
+    // written on any failure.
+    importExport({ text, password, masterPassword }) {
       return exclusive(async () => {
-        const ctx = await requireSession();
         if (typeof password !== "string" || !password || [...password].length > MAX_PASSWORD_LENGTH) {
           throw new acc.InputError("password");
         }
-        const file = parseExport(text);
-        const { revision, accounts } = await readVault(ctx);
-        if (accounts.length) throw new acc.InputError("vault-not-empty");
+        const file = parseExport(text); // bounded, before any PBKDF2
+        const auth = await authorizeSensitive(masterPassword);
+        if (auth.payload.accounts.length) throw new acc.InputError("vault-not-empty");
         let payload;
         try { payload = await openExport(await deriveKey(password, file.kdf), file); }
         catch (e) { if (e.reason === "payload") throw e; throw new acc.InputError("import-decrypt"); }
         const next = accountsFromPortable(payload.accounts, randomId);
-        await recheck(ctx);
+        await recheck(auth.ctx); // lock, expiry or re-unlock during PBKDF2 aborts
+        const current = await readVault(auth.ctx); // another writer may have changed the vault
+        if (current.revision !== auth.revision || current.accounts.length) throw new ConflictError();
         let newRevision;
-        try { newRevision = await store.commit(ctx.s.key, { accounts: next }, { expectedRevision: revision }); }
+        try { newRevision = await store.commit(auth.key, { accounts: next }, { expectedRevision: auth.revision }); }
         catch (e) { if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError(); throw e; }
-        await activity(ctx);
+        await activity(auth.ctx);
         return { revision: newRevision, imported: next.length };
       });
     },
@@ -354,7 +362,7 @@ export function createService({ session, local, alarms, now = Date.now,
       confirm: str(m.confirm), useMasterPassword: m.useMasterPassword === true, confirmed: m.confirmed === true }),
     importExport: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
-      return { text: m.text, password: str(m.password) };
+      return { text: m.text, password: str(m.password), masterPassword: str(m.masterPassword) };
     },
     importPreview: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");

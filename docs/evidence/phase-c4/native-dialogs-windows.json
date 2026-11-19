@@ -1,0 +1,91 @@
+{
+  "at": "2026-11-19T17:01:19.180Z",
+  "firefox": "160.0.1",
+  "platform": "windows",
+  "note": "Paths reduced to file names; synthetic data only.",
+  "results": [
+    {
+      "id": "N1",
+      "name": "native Save dialog appears, saving completes, the saved file decrypts to identical accounts",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Bitte geben Sie den Dateinamen an, unter dem die Datei gespeichert werden soll…",
+          "ok": "&Speichern",
+          "cancel": "Abbrechen",
+          "closed": true
+        },
+        "savedFile": "CTA Sicherung – Ünïcödé ✓.json",
+        "firefoxDownload": {
+          "file": "CTA Sicherung – Ünïcödé ✓.json",
+          "succeeded": true,
+          "canceled": false,
+          "error": null
+        },
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok"
+        }
+      }
+    },
+    {
+      "id": "N2",
+      "name": "native Save dialog cancelled: no file written, no completed download",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Bitte geben Sie den Dateinamen an, unter dem die Datei gespeichert werden soll…",
+          "cancel": "Abbrechen",
+          "closed": true
+        },
+        "filesBefore": 1,
+        "filesAfter": 1,
+        "newFirefoxDownloads": [],
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok"
+        }
+      }
+    },
+    {
+      "id": "N3",
+      "name": "download failure (target folder not writable): Firefox reports the failure, no file, nothing written elsewhere",
+      "verdict": "PASS",
+      "details": {
+        "aclDenyApplied": true,
+        "firefoxDownloads": [
+          {
+            "file": "cta-export-2026-11-19.json",
+            "succeeded": false,
+            "canceled": false,
+            "error": "target failed"
+          }
+        ],
+        "filesInTarget": 0,
+        "strayFilesInUserDownloads": 0,
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok"
+        }
+      }
+    },
+    {
+      "id": "N4",
+      "name": "native Open dialog selects the saved file (Unicode name); restore with export + master password gives identical accounts",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Datei hochladen",
+          "ok": "Ö&ffnen",
+          "closed": true
+        },
+        "pickedFile": "CTA Sicherung – Ünïcödé ✓.json",
+        "pageMessage": {
+          "text": "18 Konten wiederhergestellt.",
+          "kind": "ok"
+        },
+        "restoredAccounts": 18
+      }
+    }
+  ]
+}

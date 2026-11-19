@@ -278,3 +278,16 @@ test("input validation at the message boundary", async () => {
   assert.equal(err(await env.call("importPreview", { text: 5 })), "invalid:text");
   assert.equal(err(await env.call("importPreview", { text: "not json" })), "malformed:json");
 });
+
+test("shared secret policy at the message boundary: short secrets stored with a warning, malformed rejected", async () => {
+  const env = await ready(1);
+  const r = ok(await env.call("addAccount", { revision: env.revision, account: { name: "Short", secret: "MZXW6YTBOI" } }));
+  assert.deepEqual(r.warnings, ["short-secret"]);
+  const codes = ok(await env.call("getCodes")).codes;
+  assert.match(codes.find((c) => c.name === "Short").code, /^[0-9]{6}$/, "a short secret still generates codes");
+  assert.equal(err(await env.call("addAccount", { revision: r.revision, account: { name: "Bad", secret: "M1!" } })), "invalid:secret-format");
+  const { accounts } = ok(await env.call("listAccounts"));
+  const u = ok(await env.call("updateAccount", { revision: r.revision, id: accounts[0].id, patch: { name: "Renamed" } }));
+  assert.deepEqual(u.warnings, []);
+  assert.deepEqual(ok(await env.call("addAccount", { revision: u.revision, account: { name: "Long", secret: SECRETS[4] } })).warnings, []);
+});

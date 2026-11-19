@@ -17,12 +17,30 @@ test("add normalizes and applies defaults", () => {
 test("validation errors", () => {
   const bad = [
     [{ name: "", secret: S1 }, "name"], [{ name: "x".repeat(101), secret: S1 }, "name"],
-    [{ name: "n", secret: "M1!" }, "secret-format"], [{ name: "n", secret: "MZXW6YTBOI" }, "secret-short"],
+    [{ name: "n", secret: "M1!" }, "secret-format"], [{ name: "n", secret: "" }, "secret-format"],
+    [{ name: "n", secret: "A" }, "secret-format"],
     [{ name: "n", secret: S1, digits: 5 }, "digits"], [{ name: "n", secret: S1, period: 5 }, "period"],
     [{ name: "n", secret: S1, algorithm: "MD5" }, "algorithm"], [{ name: "n", secret: S1, url: 7 }, "url"],
   ];
   for (const [input, reason] of bad) assert.throws(() => acc.addAccount([], input, "x"), { reason }, reason);
   assert.throws(() => acc.addAccount([], null, "x"), { code: "invalid" });
+});
+
+test("shared secret policy: malformed rejected, short but valid accepted with a warning", () => {
+  // Malformed: invalid characters, impossible Base32 lengths, no key bytes.
+  for (const bad of ["M1!", "A", "ABC", "ABCDEF", "", "   ", "====", "ÄÖÜ12345"]) {
+    assert.throws(() => acc.checkSecret(bad), { reason: "secret-format" }, JSON.stringify(bad));
+    assert.deepEqual(acc.secretWarnings(bad), []);
+  }
+  // Weak but usable: valid Base32, fewer than 16 characters.
+  for (const [short, len] of [["MZXW6YTBOI", 10], ["ME", 2], ["mzxw 6ytb", 8], ["MZXW6YTBOI======", 10]]) {
+    const r = acc.checkSecret(short);
+    assert.deepEqual([r.secret.length, r.warnings], [len, ["short-secret"]], short);
+  }
+  // 16+ characters: no warning; normalization as before.
+  assert.deepEqual(acc.checkSecret(S1.toLowerCase().replace(/(.{4})/g, "$1 ")), { secret: S1, warnings: [] });
+  // Manual entry uses the same policy: the short secret is stored.
+  assert.equal(acc.addAccount([], { name: "Short", secret: "MZXW6YTBOI" }, "s")[0].secret, "MZXW6YTBOI");
 });
 
 test("update keeps the secret unless a new one is given (write-only)", () => {

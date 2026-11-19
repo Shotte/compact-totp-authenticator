@@ -2,7 +2,7 @@ import { call, t, localize, applyAppearance, followSystemScheme, errorText } fro
 import { loadSettings, validateSettings, DEFAULT_SETTINGS, APPEARANCE_KEYS } from "../lib/settings.js";
 import { rowHeightPx } from "../lib/appearance.js";
 import { MAX_IMPORT_BYTES } from "../lib/legacy.js";
-import { legacyCompatibility } from "../lib/accounts.js";
+import { legacyCompatibility, secretWarnings } from "../lib/accounts.js";
 
 const $ = (id) => document.getElementById(id);
 let state = { revision: 0, accounts: [] };
@@ -112,9 +112,10 @@ function renderAccounts() {
 }
 
 const mutate = (cmd, args, done) => run(async () => {
-  ({ revision: state.revision } = await call(cmd, { ...args, revision: state.revision }));
+  const r = await call(cmd, { ...args, revision: state.revision });
+  state.revision = r.revision;
   await refresh(false);
-  say(t(done ?? "saved"));
+  say(t(r.warnings?.includes("short-secret") ? "savedWeak" : done ?? "saved"));
   return true;
 });
 
@@ -142,6 +143,7 @@ function resetForm() {
   editingId = null;
   $("accountForm").reset();
   $("secretHint").hidden = true;
+  $("secretWeak").hidden = true;
   $("cancelEdit").hidden = true;
   $("formTitle").textContent = t("addAccount");
 }
@@ -156,6 +158,7 @@ async function submitAccount(ev) {
     ? mutate("updateAccount", { id: editingId, patch: account })
     : mutate("addAccount", { account }));
   f.secret.value = ""; // never keep a secret in the page longer than needed
+  $("secretWeak").hidden = true;
   if (ok) resetForm();
 }
 
@@ -312,10 +315,10 @@ async function submitExport({ kind, password, exportPassword, confirm, useMaster
   say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]));
 }
 
-async function submitRestoreExport({ file, password }) {
+async function submitRestoreExport({ file, password, masterPassword }) {
   $("restoreExportForm").elements.file.value = "";
   if (!file) return;
-  const r = await call("importExport", { text: await file.text(), password });
+  const r = await call("importExport", { text: await file.text(), password, masterPassword });
   await refresh(false);
   say(t("restoreExportDone", [String(r.imported)]));
 }
@@ -324,6 +327,10 @@ async function init() {
   localize();
   await initSettings();
   $("accountForm").addEventListener("submit", submitAccount);
+  // Shared secret policy: a valid but short secret is accepted with a visible warning.
+  $("accountForm").elements.secret.addEventListener("input", (ev) => {
+    $("secretWeak").hidden = !secretWarnings(ev.target.value).includes("short-secret");
+  });
   $("cancelEdit").addEventListener("click", resetForm);
   $("importFile").addEventListener("change", previewFile);
   $("lockBtn").addEventListener("click", async () => { await call("lock"); await showLocked("unlock"); });

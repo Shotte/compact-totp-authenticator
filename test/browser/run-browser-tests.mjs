@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
 import { startOsInput } from "./os-input.mjs";
 import { syntheticAccounts, syntheticSecret, exportRoundTripAccounts } from "../helpers/fixtures.mjs";
-import { parseExport, openExport } from "../../src/lib/export.js";
-import { deriveKey } from "../../src/lib/kdf.js";
+import { parseExport, openExport, sealExport, accountsFromPortable } from "../../src/lib/export.js";
+import { deriveKey, newKdf } from "../../src/lib/kdf.js";
 import { contrast, rowHeightPx, themeTokens } from "../../src/lib/appearance.js";
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
@@ -1293,31 +1293,35 @@ try {
     // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
     // the file is handed to the real file input through DataTransfer, with a Unicode name.
     const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
-    const restoreVia = async (name, password) => {
+    const restoreVia = async (name, password, masterPassword = PW2) => {
       await evalJson(opt, `async () => { const dt = new DataTransfer();
         dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
         const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
-        document.querySelector("#restoreExportForm input[type=password]").value = ${JSON.stringify(password)};
+        const f = document.getElementById("restoreExportForm").elements;
+        f.password.value = ${JSON.stringify(password)}; f.masterPassword.value = ${JSON.stringify(masterPassword)};
         document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#restoreExportForm button");
       return settle();
     };
     const before4 = await vaultJson();
     const wrong4 = await restoreVia(uniName, WRONG_PW);
+    const wrongMaster4 = await restoreVia(uniName, EXP, WRONG_PW);
+    const exportAsMaster4 = await restoreVia(uniName, EXP, EXP);
     const unchanged4 = (await vaultJson()) === before4;
     const right4 = await restoreVia(uniName, EXP);
     const restored = await pagePlain(PW2);
     const rows4 = await evalJson(opt, `async () => document.querySelectorAll("#accounts tbody tr").length`);
-    record("C4-4", "after a browser restart, the file restores into a clean vault via the UI (Unicode file name); a wrong export password changes nothing",
-      wrong4.kind === "error" && unchanged4 && right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
-      { wrongPassword: wrong4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
+    record("C4-4", "after a browser restart, the file restores into a clean vault via the UI (Unicode file name) with export password + fresh destination master password; a wrong export or master password changes nothing",
+      wrong4.kind === "error" && wrongMaster4.kind === "error" && exportAsMaster4.kind === "error" && unchanged4 &&
+      right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
+      { wrongExportPassword: wrong4, wrongMasterPassword: wrongMaster4, exportPasswordAsMaster: exportAsMaster4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
 
     // C4-5: restoring into a vault with accounts is refused; a tampered file fails.
     const before5 = await vaultJson();
-    const intoFull = await msg(opt, "importExport", { text: exportText, password: EXP });
+    const intoFull = await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 });
     const t = JSON.parse(exportText); t.ciphertext = (t.ciphertext[0] === "A" ? "B" : "A") + t.ciphertext.slice(1);
     await vaultWith([], PW2);
-    const tampered = await msg(opt, "importExport", { text: JSON.stringify(t), password: EXP });
+    const tampered = await msg(opt, "importExport", { text: JSON.stringify(t), password: EXP, masterPassword: PW2 });
     record("C4-5", "restore refused into a non-empty vault; a modified encrypted export fails authentication; nothing written",
       intoFull.reason === "vault-not-empty" && tampered.reason === "import-decrypt" && (await pagePlain(PW2)).length === 0,
       { intoNonEmpty: intoFull, tampered, nonEmptyVaultUnchanged: before5 !== null });
@@ -1330,10 +1334,10 @@ try {
     const eBig = await msg(opt, "exportVault", { kind: "encrypted", password: PW2, exportPassword: EXP, confirm: EXP });
     const exportMs = Date.now() - t0;
     await vaultWith([], PW2);
-    const i0 = await msg(opt, "importExport", { text: e0.result.text, password: EXP });
+    const i0 = await msg(opt, "importExport", { text: e0.result.text, password: EXP, masterPassword: PW2 });
     await vaultWith([], PW2);
     const t1 = Date.now();
-    const iBig = await msg(opt, "importExport", { text: eBig.result.text, password: EXP });
+    const iBig = await msg(opt, "importExport", { text: eBig.result.text, password: EXP, masterPassword: PW2 });
     const importMs = Date.now() - t1;
     const bigBack = await pagePlain(PW2);
     record("C4-6", "empty vault and 1,000-account vault: export and restore round trip identical",
@@ -1379,10 +1383,49 @@ try {
         legacyListed: legacyList.length, legacyDirect: legacyDirect.reason, legacyFile });
     clearDownloads();
 
+    // C4-9: restore needs a valid session and the fresh destination master password; a lock
+    // while the restore runs (timed from Node, see C4-3) aborts it without writing.
+    {
+      await vaultWith([], PW2);
+      const before = await vaultJson();
+      const missing = await msg(opt, "importExport", { text: exportText, password: EXP });
+      const races = [];
+      // Each attempt uses a file sealed in Node with a fresh salt: Firefox's NSS caches
+      // PBKDF2 results for identical input (SECURITY.md §11.7), so a file Firefox exported
+      // itself would restore too fast for a lock to land inside the derivation.
+      const nodeFile = async () => { const kdf = newKdf();
+        return JSON.stringify(await sealExport(await deriveKey(EXP, kdf), kdf, accountsFromPortable(expected), "node")); };
+      for (const delay of [20, 60, 120]) {
+        const restoreMsg = JSON.stringify({ cmd: "importExport", text: await nodeFile(), password: EXP, masterPassword: PW2 });
+        await msg(opt, "unlock", { password: PW2 });
+        await evalJson(opt, `async () => { const race = window.__race = { t0: performance.now() };
+          race.p = browser.runtime.sendMessage(${restoreMsg}).then((r) => { race.r = r; race.at = performance.now() - race.t0; }); }`);
+        await sleep(delay);
+        const sent = await evalJson(opt, `async () => { const at = performance.now() - window.__race.t0;
+          return { at, ok: (await browser.runtime.sendMessage({ cmd: "lock" })).ok }; }`);
+        const r = await evalJson(opt, `async () => { const race = window.__race; await race.p;
+          return { ok: race.r.ok, error: race.r.error, at: race.at }; }`);
+        races.push({ delay, lockSentMs: Math.round(sent.at), restoreAnsweredMs: Math.round(r.at), ok: r.ok, error: r.error });
+      }
+      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs);
+      const unchanged = (await vaultJson()) === before;
+      await msg(opt, "unlock", { password: PW2 });
+      const lockedOut = await (async () => { await msg(opt, "lock"); return msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); })();
+      const unchangedLocked = (await vaultJson()) === before;
+      await msg(opt, "unlock", { password: PW2 });
+      const fromNode = await msg(opt, "importExport", { text: await nodeFile(), password: EXP, masterPassword: PW2 });
+      const nodeRestored = await pagePlain(PW2);
+      record("C4-9", "restore requires the fresh destination master password; lock during the restore or a locked session aborts it without writing; a file sealed outside Firefox (Node) restores identically",
+        missing.reason === "current-password" && inside.length > 0 && inside.every((r) => r.ok === false && r.error === "locked") &&
+        unchanged && lockedOut.error === "locked" && unchangedLocked && fromNode.result?.imported === expected.length && same(nodeRestored, expected),
+        { missingMasterPassword: missing.reason, races, attemptsInsidePbkdf2: inside.length, vaultUnchanged: unchanged && unchangedLocked,
+          whileLocked: lockedOut.error, nodeFileRestored: fromNode.result?.imported });
+    }
+
     // C4-8: native save dialog, user cancellation and download failures happen in Firefox's
     // download UI, which the extension cannot observe without the "downloads" permission.
     manualReview("C4-8", "native save dialog, cancelling it and download failures (OS dialog; Firefox download panel)",
-      "automated runs use Firefox's direct-download mode; the extension keeps no copy either way (C4-1: no blob link, no secrets left in the page, nothing in storage)");
+      "headless runs use Firefox's direct-download mode; the native dialogs are verified separately on Windows by test/browser/native-dialogs.mjs (docs/evidence/phase-c4, N1-N4)");
   }
 
   }

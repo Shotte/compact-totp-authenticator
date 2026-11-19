@@ -666,24 +666,64 @@ option "use my master password" is explicit and not recommended in the UI.
 - Both need the fresh master password, a separate warning and the explicit confirmation
   checkbox. The text exists only in the message response and the Blob; no copy is kept.
 
-### 13.4 Restore (minimal, C4.4)
+### 13.4 Restore (C4.4, revised after the C4 review)
 
-`importExport({ text, password })` restores a `cta-export` into an **empty** vault only
-(`vault-not-empty` otherwise). It needs a valid session; the master password is not asked
-again because nothing is disclosed and only an empty vault is filled. A wrong export
-password and a modified file both report `import-decrypt`. Nothing is written unless the
-whole file decrypts and every account validates; the write is one `commit` (§7). Merging
-into existing accounts, duplicates and the legacy import are C5.
+`importExport({ text, password, masterPassword })` restores a `cta-export` into an **empty**
+vault. Restoring is a persistent, security-sensitive write, so the order is:
 
-### 13.5 Limitations
+1. Export password shape and file header are checked (bounded, before any PBKDF2).
+2. `authorizeSensitive(masterPassword)` (§12.3): a valid session and a fresh derivation of
+   the **destination's** master password that must open the current vault.
+3. The destination must be empty (`vault-not-empty`).
+4. The **export password** derives the file key; the file must authenticate and every
+   account must pass the shared validation. Wrong export password and modified file both
+   report `import-decrypt`.
+5. `recheck()`: a lock, expiry or re-unlock during the PBKDF2 work aborts.
+6. The vault is read again right before writing: it must still be empty and at the
+   revision that was verified in step 2 (`conflict` otherwise), and the single `commit`
+   uses that revision for compare-and-set (§7).
 
-- Native save dialog, user cancellation and download failures are handled by Firefox's
-  download UI. Without the `downloads` permission the extension cannot observe them;
-  automated runs use Firefox's direct-download mode. MANUAL_REVIEW (C4-8).
+The two passwords stay separate: the master password never opens an export, and the
+export password is never accepted as the master password (tested both ways). Nothing is
+written on any failure. Merging into existing accounts and the legacy import are C5.
+
+### 13.5 Download status with the current permissions
+
+Measured on Windows with Firefox 160.0.1 (`test/browser/native-dialogs.mjs`, evidence
+N1–N4): with "Always ask where to save files", Firefox shows its native Save dialog for the
+extension's Blob download; saving completes; cancelling writes nothing; a target folder
+without write permission makes Firefox report the download as failed in its download
+panel; the native Open dialog selects the saved file for restore.
+
+The extension page cannot observe any of this without the `downloads` permission: an
+`<a download>` click gives no completion, cancellation or failure signal. The UI therefore
+never claims that a file was saved. After an export it says that the file was created and
+handed to Firefox for saving, and asks the user to check Firefox's downloads; a cancelled
+dialog means no file. Adding the optional `downloads` permission would allow a real
+status; this is a separate decision and is not part of C4.
+
+### 13.6 Shared secret policy (prepared for C5)
+
+`checkSecret` in [`accounts.js`](../src/lib/accounts.js) is used by manual entry, the legacy
+preview and restore:
+
+- **Malformed, rejected** (`secret-format`): not RFC 4648 Base32 (invalid characters or an
+  impossible length) or no key bytes.
+- **Weak but usable, accepted with a warning** (`short-secret`): valid Base32 with fewer
+  than 16 characters (80 bits). HMAC accepts any non-empty key, so codes are generated.
+- Manual entry shows the warning while typing and after saving; `addAccount` and
+  `updateAccount` return `warnings`; the legacy preview marks the row.
+
+Before C4 review, manual entry rejected short secrets; it now follows the same policy as
+the import (approved C5 rule). TOTP test vectors are unchanged.
+
+### 13.7 Limitations
+
+- Download completion, cancellation and failure are visible only in Firefox's download
+  UI (§13.5).
 - The plaintext of an unencrypted export exists in the extension page's memory until
   garbage collection. JavaScript cannot zero strings.
 - A downloaded file is outside CTA's control: an unencrypted file stays readable on disk
   until the user deletes it (the UI says so).
 - The export password has the same rules as the master password (12+ code points), no
   strength meter.
-

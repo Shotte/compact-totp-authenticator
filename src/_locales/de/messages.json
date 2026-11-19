@@ -226,9 +226,6 @@
   "reason_secret_format": {
     "message": "geheimer Schlüssel ist kein gültiges Base32"
   },
-  "reason_secret_short": {
-    "message": "geheimer Schlüssel ist zu kurz (mindestens 16 Zeichen)"
-  },
   "reason_algorithm": {
     "message": "nicht unterstützter Algorithmus"
   },
@@ -438,7 +435,7 @@
     "message": "Export wird erstellt…"
   },
   "exportDone": {
-    "message": "Verschlüsselter Export erstellt ($COUNT$ Konten). Bewahre Datei und Passwort sicher auf.",
+    "message": "Verschlüsselter Export erstellt ($COUNT$ Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -446,7 +443,7 @@
     }
   },
   "exportPlainDone": {
-    "message": "Unverschlüsselte Datei erstellt ($COUNT$ Konten). Lösche sie, sobald du sie nicht mehr brauchst.",
+    "message": "Unverschlüsselte Datei erstellt ($COUNT$ Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob sie gespeichert wurde, und lösche die Datei, sobald du sie nicht mehr brauchst.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -457,7 +454,7 @@
     "message": "Aus verschlüsselter Sicherung wiederherstellen"
   },
   "restoreExportNote": {
-    "message": "Nur in einen leeren Tresor. Das Zusammenführen mit vorhandenen Konten folgt in einer späteren Version."
+    "message": "Nur in einen leeren Tresor. Du brauchst das Export-Passwort der Datei und das Master-Passwort dieses Tresors. Das Zusammenführen mit vorhandenen Konten folgt in einer späteren Version."
   },
   "exportFile": {
     "message": "Sicherungsdatei"
@@ -493,5 +490,11 @@
   },
   "reason_text": {
     "message": "die Datei ist zu groß oder nicht lesbar"
+  },
+  "secretWeak": {
+    "message": "Kurzer Schlüssel (weniger als 16 Zeichen): funktioniert, ist aber schwächer als üblich. Prüfe, ob du den ganzen Schlüssel kopiert hast."
+  },
+  "savedWeak": {
+    "message": "Gespeichert. Hinweis: Der Schlüssel ist kürzer als 16 Zeichen (schwach, aber nutzbar)."
   }
 }

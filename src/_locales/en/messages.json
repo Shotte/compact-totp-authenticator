@@ -226,9 +226,6 @@
   "reason_secret_format": {
     "message": "secret key is not valid Base32"
   },
-  "reason_secret_short": {
-    "message": "secret key is too short (at least 16 characters)"
-  },
   "reason_algorithm": {
     "message": "unsupported algorithm"
   },
@@ -438,7 +435,7 @@
     "message": "Creating export…"
   },
   "exportDone": {
-    "message": "Encrypted export created ($COUNT$ accounts). Store the file and its password safely.",
+    "message": "Encrypted export created ($COUNT$ accounts) and handed to Firefox for saving. Check Firefox's downloads to confirm the file was saved; if you cancelled the save dialog, no file was saved.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -446,7 +443,7 @@
     }
   },
   "exportPlainDone": {
-    "message": "Unencrypted file created ($COUNT$ accounts). Delete it as soon as you no longer need it.",
+    "message": "Unencrypted file created ($COUNT$ accounts) and handed to Firefox for saving. Check Firefox's downloads to confirm it was saved, and delete the file as soon as you no longer need it.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -457,7 +454,7 @@
     "message": "Restore from an encrypted backup"
   },
   "restoreExportNote": {
-    "message": "Only into an empty vault. Merging into existing accounts follows in a later version."
+    "message": "Only into an empty vault. You need the export password of the file and the master password of this vault. Merging into existing accounts follows in a later version."
   },
   "exportFile": {
     "message": "Backup file"
@@ -493,5 +490,11 @@
   },
   "reason_text": {
     "message": "the file is too large or unreadable"
+  },
+  "secretWeak": {
+    "message": "Short key (fewer than 16 characters): it works, but it is weaker than usual. Check that you copied the whole key."
+  },
+  "savedWeak": {
+    "message": "Saved. Note: the key is shorter than 16 characters (weak but usable)."
   }
 }
