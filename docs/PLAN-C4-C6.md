@@ -29,6 +29,15 @@ Approved decisions, as implemented:
 Acceptance criteria E1–E12 from the preparation draft map to SECURITY.md §13 and the C4
 evidence; the matrix is in the pull request.
 
+Carried over from the draft, not part of C4 (open proposals):
+
+- A "verify export file" action that decrypts a chosen file without importing it, so a
+  broken backup is noticed early. The self-check already verifies every new file.
+- A destructive "reset vault" action for starting over after a forgotten master password
+  before restoring an export. It needs its own confirmation UX and an operator decision;
+  today the user removes the extension's data manually.
+- Settings are not exported: they contain no secrets and do not matter for recovery.
+
 ## 3. C5 – applying the legacy import (planned)
 
 Existing: parser and preview (`legacy.js`), rules in MIGRATION.md §2.
