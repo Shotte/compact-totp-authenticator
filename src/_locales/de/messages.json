@@ -262,9 +262,6 @@
   "customColors": {
     "message": "Eigene Farben verwenden"
   },
-  "contrastAdjusted": {
-    "message": "Die Textfarbe wurde angepasst, damit der Kontrast zum Hintergrund ausreicht."
-  },
   "fontSize": {
     "message": "Schriftgröße"
   },
@@ -598,5 +595,40 @@
   },
   "importGeneratedName": {
     "message": "erzeugter Name, änderbar"
+  },
+  "contrastAdjustedDetail": {
+    "message": "Die gewählte Textfarbe $CHOSEN$ hat zu wenig Kontrast zum Hintergrund ($RATIO$ : 1, nötig sind mindestens $MIN$ : 1). Damit der Text lesbar bleibt, verwendet das Popup $USED$. Deine Wahl bleibt gespeichert; wähle eine hellere oder dunklere Farbe oder einen anderen Hintergrund.",
+    "placeholders": {
+      "chosen": {
+        "content": "$1"
+      },
+      "used": {
+        "content": "$2"
+      },
+      "ratio": {
+        "content": "$3"
+      },
+      "min": {
+        "content": "$4"
+      }
+    }
+  },
+  "decimalSep": {
+    "message": ","
+  },
+  "lockedDuringAction": {
+    "message": "Die Sitzung ist abgelaufen oder wurde gesperrt (automatische Sperre). Der Vorgang wurde nicht ausgeführt und nichts wurde geändert. Entsperre CTA und versuche es erneut."
+  },
+  "restoreWrongMaster": {
+    "message": "Das Master-Passwort dieses Tresors ist falsch. Es wurde nichts wiederhergestellt."
+  },
+  "restoreDecryptFailed": {
+    "message": "Die Sicherung ließ sich nicht entschlüsseln: Das Export-Passwort ist falsch oder die Datei ist beschädigt. Es wurde nichts wiederhergestellt."
+  },
+  "restoreNotEmpty": {
+    "message": "Wiederherstellen geht nur in einen leeren Tresor. Deine vorhandenen 2FA-Einträge bleiben unverändert; es wurde nichts wiederhergestellt."
+  },
+  "sortNote": {
+    "message": "Die Sortierung gilt für die Anzeige im Popup. Die Tabelle der 2FA-Einträge hier behält deine manuelle Reihenfolge."
   }
 }
