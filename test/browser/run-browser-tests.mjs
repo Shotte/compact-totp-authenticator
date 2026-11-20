@@ -136,7 +136,7 @@ try {
   await open(opt, "options/options.html");
 
   // Harness helpers (C2): real master-password vaults instead of the removed demo unlock.
-  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next"]);
+  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next", "vault_previous"]);
     await browser.storage.session.clear(); }`);
   async function resetVault(n, password = PW) {
     await wipeVault();
@@ -1469,14 +1469,25 @@ try {
     // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
     // the file is handed to the real file input through DataTransfer, with a Unicode name.
     const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
-    const restoreVia = async (name, password, masterPassword = PW2) => {
+    // #25: two steps. 1: file + export password → check; 2: master password (+ confirmation
+    // for a populated vault) → restore or replace.
+    const checkBackup = async (name, password) => {
       await evalJson(opt, `async () => { const dt = new DataTransfer();
         dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
         const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
-        const f = document.getElementById("restoreExportForm").elements;
-        f.password.value = ${JSON.stringify(password)}; f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        document.getElementById("restoreExportForm").elements.password.value = ${JSON.stringify(password)};
         document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#restoreExportForm button");
+      return settle();
+    };
+    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true } = {}) => {
+      const step1 = await checkBackup(name, password);
+      if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
+      await evalJson(opt, `async () => { const f = document.getElementById("replaceForm").elements;
+        f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        if (!document.getElementById("replaceConfirmLabel").hidden) f.confirmed.checked = ${confirm};
+        document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#replaceButton");
       return settle();
     };
     const before4 = await vaultJson();
@@ -1496,7 +1507,6 @@ try {
     // section; a session that ended meanwhile switches to the locked view and says so.
     {
       const text = (k) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)})`);
-      const notEmpty = await restoreVia(uniName, EXP); // the vault holds the restored entries
       await vaultWith([], PW2);
       await open(opt, "options/options.html");
       await waitFor(opt, "document.body.dataset.state === 'unlocked'");
@@ -1508,12 +1518,55 @@ try {
       const sortNote = await evalJson(opt, `async () => !!document.querySelector("[data-i18n=sortNote]")?.textContent`);
       await msg(opt, "unlock", { password: PW2 });
       await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // back to the state C4-5 expects
-      const want = { notEmpty: await text("restoreNotEmpty"), wrongMaster: await text("restoreWrongMaster"),
+      const want = { wrongMaster: await text("restoreWrongMaster"),
         wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
-      record("F2-2", "restore errors: not-empty vault, wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
-        notEmpty.area === "restoreStatus" && notEmpty.text === want.notEmpty && wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+      record("F2-2", "restore errors: wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
+        wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
         wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
-        lockedView === "locked" && sortNote, { notEmpty, wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+        lockedView === "locked" && sortNote, { wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+    }
+
+    // R-1 (#25): replacing a populated vault through the UI: preview with counts and the
+    // entries that exist only locally, destructive warning, required confirmation, fresh
+    // master password; the previous vault is kept and can be brought back; the destination
+    // master password stays.
+    {
+      const local = [{ name: "Lokal Alpha", secret: syntheticSecret(910) }, { name: "Lokal Beta", secret: syntheticSecret(911) }];
+      await vaultWith(local, PW2);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const check = await checkBackup(uniName, EXP);
+      const preview = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
+        warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
+        lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
+        confirmShown: !document.getElementById("replaceConfirmLabel").hidden,
+        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = ""; return !v; })() })`);
+      { // evidence screenshot: the destructive warning (synthetic names only)
+        const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
+          const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+        const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+        writeFileSync(join(OUT, "replace-warning-de.png"), Buffer.from(shot.data, "base64"));
+      }
+      const noConfirm = await msg(opt, "replaceApply", { revision: (await msg(opt, "listAccounts")).result.revision, fileHash: "0".repeat(64), text: exportText, password: EXP, masterPassword: PW2 });
+      const replaced = await restoreVia(uniName, EXP);
+      const afterNames = (await pagePlain(PW2)).map((a) => a.name);
+      const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
+      await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
+        f.masterPassword.value = ${JSON.stringify(PW2)}; document.querySelector("#previousForm button[value=restore]").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#previousForm button[value=restore]");
+      const back = await settle();
+      const backNames = (await pagePlain(PW2)).map((a) => a.name);
+      await msg(opt, "lock");
+      const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
+      record("R-1", "replace a populated vault via the UI: preview with counts and local-only entries, destructive warning, confirmation required, fresh master password; previous vault kept and brought back; destination master password unchanged",
+        check.kind === "ok" && preview.shown && preview.warning && /2/.test(preview.text) && same(preview.lose, ["Lokal Alpha", "Lokal Beta"]) &&
+        preview.confirmShown && preview.blockedWithoutConfirm && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
+        same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
+        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, back, backNames, destinationPasswordUnchanged: samePw });
+      await vaultWith([], PW2);
+      await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // the state C4-5 expects
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
     }
 
     // C4-5: restoring into a vault with accounts is refused; a tampered file fails.

@@ -737,27 +737,99 @@ export password is never accepted as the master password (tested both ways). Not
 written on any failure. The import into existing accounts (legacy `totp.json`, `cta-plain`)
 is C5 (§14); merging an encrypted export stays out of scope.
 
-### 13.4a Restore into a non-empty vault: future explicit choice (not implemented)
+### 13.4a Restore or replace from an encrypted backup (#25, in the 1.0 scope)
 
-Today a restore of an encrypted export works only into an empty vault (`vault-not-empty`).
-Existing entries are never overwritten, replaced or deleted, and nothing is cleared
-automatically. The options page explains this next to the restore form (operator feedback
-01, finding 7).
+Operator decision (CTA-RECOVERY-REPLACE): restoring an encrypted backup also works when the
+vault already holds entries. The user never has to empty the vault by hand. Merging stays a
+separate, post-1.0 feature (issue #17). Nothing is replaced automatically or as a side
+effect of a failed unlock or restore.
 
-A later version may offer the user an explicit choice. Neither option exists in 1.0:
+**Flow** (service `replacePreview` → `replaceApply`; options page "Restore from an
+encrypted backup"):
 
-1. **Merge into the existing vault** (issue #17): preview, selective, append only, duplicates
-   skipped, one commit with truthful outcomes. Same rules as the C5 import.
-2. **Replace the vault** (issue #25). Only if all of these hold:
-   - a valid session and the fresh master password (`authorizeSensitive`);
-   - a verified, current encrypted backup of the existing vault, decrypted and compared
-     before anything is changed;
-   - an informed confirmation that names what will be lost;
-   - one commit that never leaves an empty or half-written vault.
+1. **Check.**
+   - The user chooses the file and enters its export password.
+   - The backup is parsed (bounded, before any PBKDF2) and opened with that password.
+   - A wrong password and a damaged file give the same answer, `import-decrypt`, because
+     AES-GCM cannot tell them apart.
+   - The preview returns counts and names only, never secrets: entries in the backup, in
+     the current vault, in both (identity = normalized secret and parameters), only in the
+     current vault, only in the backup.
+   - `storage.session` keeps only the binding `pendingReplace` (session id, revision,
+     SHA-256 of the file text).
+   - The preview is not an activity and never extends the session.
+2. **Confirm.**
+   - The current vault's master password is verified fresh (`authorizeSensitive`).
+   - The binding must match: same session, same revision, same file hash. The page re-reads
+     the file and sends the export password again; the background re-checks the hash.
+   - A populated vault needs `confirmed: true`. The page shows a destructive warning with
+     the counts and the local-only names, and a required checkbox; otherwise
+     `replace-confirmation`, nothing written.
+   - The backup is opened again and the vault is re-read right before the write; another
+     revision is a `conflict`.
+3. **Keep the previous vault, then write.**
+   - For a populated vault, the store first writes the current vault, exactly as stored, as
+     `vault_previous` (`keepPrevious`) and reads it back. The copy must equal what was
+     written and must open with the key.
+   - Only then does `commitAccounts` run, the one write path: `vault_backup` = current,
+     `vault` = new, read-back verify, rollback on failure, `reconcile` decides the outcome
+     (§7.6).
+   - The new contents are sealed with the destination vault's own key and KDF header, so
+     the master password and the key generation stay the same. The backup's export password
+     never opens the vault.
 
-   Never automatic, never a side effect of a failed unlock or restore.
+**Outcomes.**
 
-Both need their own specification and architecture review.
+| Situation | Answer | Vault |
+|---|---|---|
+| success | `{ replaced, previous, keptPrevious, locked }` | new contents; previous kept |
+| wrong master password | `current-password` | unchanged; preview kept |
+| missing confirmation | `replace-confirmation` | unchanged; preview kept |
+| writing the copy failed, or the commit was rolled back | `replace-failed` | unchanged ("failed without data loss"); preview kept for a retry |
+| vault changed, another file, cancelled or reused preview | `conflict` | unchanged |
+| session expired or locked | `locked` | unchanged; preview binding wiped |
+| store cannot tell whether the commit happened | `unknown` | the page reloads what storage holds |
+| locked during or after a committed write | `locked: true` next to the result | new contents |
+
+A success is reported only for a commit the store verified or reconciled. A failure is
+reported only when storage still holds the old revision.
+
+**Kept copy.**
+- `vault_previous` stays until the user brings it back (`restorePrevious`) or discards it
+  (`discardPrevious`). Both need the fresh master password and an explicit confirmation.
+- Bringing it back is itself a replacement: the replaced contents become the kept copy, so
+  nothing is lost.
+- The next replacement overwrites the copy.
+- A password change drops it after the switch (`rotate`), because the new password could
+  not open it. The UI says so.
+- The copy is never used by the damage recovery (`load`/`restoreBackup`), which only
+  considers `vault_backup` and `vault_next`.
+
+**Termination at every write boundary.** The writes, in order, are:
+1. `vault_previous`;
+2. `vault_backup`;
+3. `vault`;
+4. the read-back.
+
+A termination at any point leaves either the old vault (directly or via the confirmed
+same-generation restore) or the new vault together with the kept copy. Both open with the
+destination master password. Unit test `replace.test.mjs` checks every boundary.
+
+**Session expiry.** With a short automatic lock, the session can expire while the user reads
+the preview and types. The apply then answers `locked`, nothing is written, the binding is
+wiped, and nothing extends or revives the session. The page switches to the locked view:
+"the session expired or was locked; the action was not carried out" (feedback 02).
+
+The old command `importExport` (restore into an empty vault only, C4) stays unchanged for
+compatibility; the options page uses the new flow for both cases.
+
+Tests:
+- `test/replace.test.mjs` (12 tests): empty vault, populated vault, wrong master or export
+  password, damaged or malformed backup, cancel, another file, changed vault, reused
+  preview, session expiry after an event-page restart, preview not an activity, storage
+  failures, termination at every write boundary, bring back, discard, password change,
+  no secrets;
+- browser checks R-1, C4-4, F2-2.
 
 ### 13.5 Download status with the current permissions
 

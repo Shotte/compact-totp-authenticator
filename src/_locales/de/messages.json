@@ -482,7 +482,7 @@
     "message": "Aus verschlüsselter Sicherung wiederherstellen"
   },
   "restoreExportNote": {
-    "message": "Die Wiederherstellung funktioniert nur in einen leeren Tresor, also direkt nach dem Festlegen eines neuen Master-Passworts. Vorhandene 2FA-Einträge werden nie überschrieben oder gelöscht. Du brauchst das Export-Passwort der Datei und das Master-Passwort dieses Tresors. Hast du schon Einträge, nutze stattdessen den Import einer unverschlüsselten CTA-Datei; das Zusammenführen verschlüsselter Exporte folgt in einer späteren Version."
+    "message": "Wähle eine verschlüsselte CTA-Sicherung und gib ihr Export-Passwort ein. CTA prüft die Sicherung und zeigt dir vorher, was sich ändert. Ist dein Tresor leer, werden die Einträge wiederhergestellt. Enthält er schon Einträge, ersetzt die Sicherung sie erst nach deiner ausdrücklichen Bestätigung; der bisherige Tresor bleibt als verschlüsselte Kopie erhalten. Dein Master-Passwort bleibt in jedem Fall dasselbe."
   },
   "exportFile": {
     "message": "Sicherungsdatei"
@@ -625,10 +625,137 @@
   "restoreDecryptFailed": {
     "message": "Die Sicherung ließ sich nicht entschlüsseln: Das Export-Passwort ist falsch oder die Datei ist beschädigt. Es wurde nichts wiederhergestellt."
   },
-  "restoreNotEmpty": {
-    "message": "Wiederherstellen geht nur in einen leeren Tresor. Deine vorhandenen 2FA-Einträge bleiben unverändert; es wurde nichts wiederhergestellt."
-  },
   "sortNote": {
     "message": "Die Sortierung gilt für die Anzeige im Popup. Die Tabelle der 2FA-Einträge hier behält deine manuelle Reihenfolge."
+  },
+  "replaceCheck": {
+    "message": "Sicherung prüfen"
+  },
+  "replaceChecking": {
+    "message": "Sicherung wird geprüft …"
+  },
+  "replaceChecked": {
+    "message": "Sicherung geprüft. Bitte lies die Vorschau und bestätige mit deinem Master-Passwort."
+  },
+  "replaceSummary": {
+    "message": "Die Sicherung ist gültig und enthält $COUNT$ 2FA-Einträge.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceWarning": {
+    "message": "Achtung: Dein Tresor enthält $CURRENT$ 2FA-Einträge. Sie werden vollständig durch die $BACKUP$ Einträge der Sicherung ersetzt ($BOTH$ davon sind in beiden enthalten).",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "backup": {
+        "content": "$2"
+      },
+      "both": {
+        "content": "$3"
+      }
+    }
+  },
+  "replaceLoseIntro": {
+    "message": "Diese $COUNT$ Einträge gibt es nur in deinem aktuellen Tresor; nach dem Ersetzen stehen sie nur noch in der aufbewahrten Kopie:",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceLoseNone": {
+    "message": "Jeder Eintrag deines aktuellen Tresors ist auch in der Sicherung enthalten."
+  },
+  "replaceMore": {
+    "message": "… und $COUNT$ weitere",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceKeepsCopy": {
+    "message": "Vor dem Ersetzen wird dein bisheriger Tresor als verschlüsselte Kopie gespeichert und geprüft. Du kannst ihn danach hier zurückholen, bis du die Kopie verwirfst, erneut ersetzt oder dein Master-Passwort änderst."
+  },
+  "replaceConfirm": {
+    "message": "Ich will meine $COUNT$ aktuellen 2FA-Einträge durch die Sicherung ersetzen.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceButton": {
+    "message": "Tresor ersetzen"
+  },
+  "replacing": {
+    "message": "Wird ausgeführt …"
+  },
+  "replaceDone": {
+    "message": "Tresor ersetzt: $NEW$ 2FA-Einträge aus der Sicherung. Deine bisherigen $OLD$ Einträge sind als verschlüsselte Kopie aufbewahrt.",
+    "placeholders": {
+      "new": {
+        "content": "$1"
+      },
+      "old": {
+        "content": "$2"
+      }
+    }
+  },
+  "replaceCancelled": {
+    "message": "Abgebrochen. Es wurde nichts geändert."
+  },
+  "replaceNeedConfirm": {
+    "message": "Bitte bestätige ausdrücklich, dass deine aktuellen 2FA-Einträge ersetzt werden sollen. Es wurde nichts geändert."
+  },
+  "replaceFailed": {
+    "message": "Das Ersetzen ist fehlgeschlagen. Dein Tresor ist unverändert; du kannst es erneut versuchen."
+  },
+  "replaceConflict": {
+    "message": "Dein Tresor wurde nach der Prüfung geändert. Es wurde nichts ersetzt. Prüfe die Sicherung bitte erneut."
+  },
+  "replaceTooMany": {
+    "message": "Die Sicherung enthält mehr als 1.000 2FA-Einträge. Es wurde nichts geändert."
+  },
+  "replaceInvalidFile": {
+    "message": "Die Datei ist keine gültige verschlüsselte CTA-Sicherung. Es wurde nichts geändert."
+  },
+  "previousText": {
+    "message": "Vorheriger Tresor vom $WHEN$ mit $COUNT$ 2FA-Einträgen ist als verschlüsselte Kopie aufbewahrt.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "previousConfirm": {
+    "message": "Ich verstehe: Zurückholen ersetzt meine aktuellen Einträge (sie werden dann zur Kopie); Verwerfen löscht die Kopie endgültig."
+  },
+  "previousRestore": {
+    "message": "Vorherigen Tresor zurückholen"
+  },
+  "previousDiscard": {
+    "message": "Kopie verwerfen"
+  },
+  "previousRestored": {
+    "message": "Vorheriger Tresor zurückgeholt: $COUNT$ 2FA-Einträge. Der ersetzte Stand ist jetzt die aufbewahrte Kopie.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "previousDiscarded": {
+    "message": "Die aufbewahrte Kopie wurde gelöscht."
+  },
+  "previousGone": {
+    "message": "Es gibt keine aufbewahrte Kopie mehr. Es wurde nichts geändert."
   }
 }

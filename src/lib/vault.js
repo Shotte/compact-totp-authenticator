@@ -178,6 +178,40 @@ export function createVaultStore(area) {
       });
     },
 
+    // Replacement safety copy (#25). The current vault, exactly as stored (same key
+    // generation, so the same master password opens it), is kept as "vault_previous" with the
+    // time of the replacement. It is written and read back before the replacement commit, so
+    // a replacement never starts without a verified copy. It stays until the user restores or
+    // discards it, the next replacement overwrites it, or a password change drops it (rotate).
+    keepPrevious(key, expectedRevision, at) {
+      return exclusive(async () => {
+        const { vault: current } = await authenticated(key, expectedRevision);
+        const copy = { replacedAt: at, vault: current };
+        try {
+          await area.set({ vault_previous: copy });
+          const back = (await area.get("vault_previous")).vault_previous;
+          if (JSON.stringify(back) !== JSON.stringify(copy)) throw new VaultError("write", "verify");
+          await openVault(key, back.vault);
+        } catch (e) { throw writeError(e); }
+        return current.revision;
+      });
+    },
+
+    // Read-only: the kept copy, opened with this key (payload null if it no longer opens).
+    previous(key) {
+      return exclusive(async () => {
+        const { vault_previous: p } = await area.get("vault_previous");
+        if (!p) return null;
+        let payload = null;
+        try { payload = await openVault(key, p.vault); } catch { /* other generation or damaged */ }
+        return { replacedAt: p.replacedAt, payload };
+      });
+    },
+
+    discardPrevious() {
+      return exclusive(() => area.remove("vault_previous"));
+    },
+
     // Password rotation. Old key must open the current vault; the new generation needs a
     // new salt. Sequence (each step is one single-key write):
     //   1 vault_next   = new vault (new key), verified       – stage
@@ -208,6 +242,9 @@ export function createVaultStore(area) {
           try { await area.set({ vault: current }); } catch { /* staged copy still recovers with newKey */ }
           throw writeError(e);
         }
+        // The replacement safety copy belongs to the old generation; the new password could not
+        // open it, so it is dropped once the switch is complete (#25, documented).
+        try { await area.remove("vault_previous"); } catch { /* unreadable leftover is ignored */ }
         let backupRefreshed = true;
         try { await area.set({ vault_backup: next }); } catch { backupRefreshed = false; }
         try { await area.remove("vault_next"); } catch { /* leftover is harmless */ }

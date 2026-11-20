@@ -155,7 +155,7 @@ try {
     { aclDenyApplied: denied === 0, firefoxDownloads: dl3, filesInTarget: files(RO).length, strayFilesInUserDownloads: strayInUserDownloads.length, pageMessage: m3 });
 
   // N4: native Open dialog: pick the saved file, restore into a fresh vault.
-  await evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next"]); await browser.storage.session.clear(); }`);
+  await evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next", "vault_previous"]); await browser.storage.session.clear(); }`);
   await msg(opt, "setup", { password: PW2, confirm: PW2 });
   await open();
   await evalJson(opt, `async () => document.querySelector("#restoreExportForm input[type=file]").scrollIntoView({ block: "center" })`);
@@ -164,9 +164,13 @@ try {
   await sleep(800);
   const picked = await evalJson(opt, `async () => document.querySelector("#restoreExportForm input[type=file]").files[0]?.name ?? null`);
   await evalJson(opt, `async () => { const f = document.getElementById("restoreExportForm").elements;
-    f.password.value = ${JSON.stringify(EXP)}; f.masterPassword.value = ${JSON.stringify(PW2)};
+    f.password.value = ${JSON.stringify(EXP)};
     document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
-  await clickAt(opt, "#restoreExportForm button");
+  await clickAt(opt, "#restoreExportForm button"); // step 1: check the backup (#25)
+  await sleep(2500);
+  await evalJson(opt, `async () => { document.getElementById("replaceForm").elements.masterPassword.value = ${JSON.stringify(PW2)};
+    document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
+  await clickAt(opt, "#replaceButton"); // step 2: restore into the empty vault
   await sleep(2500);
   const m4 = await pageMessage();
   const back = await msg(opt, "exportVault", { kind: "plain", password: PW2, confirmed: true });

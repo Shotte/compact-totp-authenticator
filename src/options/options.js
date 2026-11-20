@@ -38,6 +38,8 @@ async function showLocked(mode) {
   state = { revision: 0, accounts: [] };
   $("accounts").tBodies[0].replaceChildren();
   clearImport();
+  clearReplace();
+  $("previousBox").hidden = true;
   $("lockedView").hidden = false;
   $("unlockedView").hidden = true;
   $("lockBtn").hidden = true;
@@ -59,7 +61,8 @@ function passwordForm(id, handler, { progress = "unlocking", after, errors = {} 
     ev.preventDefault();
     const form = $(id), fields = [...form.elements], where = areaOf(form);
     const value = (f) => (f.type === "checkbox" ? f.checked : f.type === "file" ? f.files[0] : f.value);
-    const values = Object.fromEntries(fields.filter((f) => f.name && (f.type !== "radio" || f.checked)).map((f) => [f.name, value(f)]));
+    const values = Object.fromEntries(fields.filter((f) => f.name && f.type !== "submit" && (f.type !== "radio" || f.checked)).map((f) => [f.name, value(f)]));
+    values.action = ev.submitter?.value; // forms with more than one action (#25)
     fields.forEach((f) => { f.disabled = true; });
     say(t(progress), "progress", where);
     try { await handler(values, where); }
@@ -69,7 +72,9 @@ function passwordForm(id, handler, { progress = "unlocking", after, errors = {} 
         say(t("lockedDuringAction"), "error");
         return;
       }
-      say(errors[e.reason] ? t(errors[e.reason])
+      const key = (e.reason && errors[e.reason]) || errors[e.code];
+      if (key && errors.onError) errors.onError(e);
+      say(key ? t(key)
         : e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error", where);
       if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
     }
@@ -94,6 +99,7 @@ async function refresh(clearMessage = true) {
   renderAccounts();
   updateExportForm();
   document.body.dataset.state = "unlocked";
+  await showPrevious();
 }
 
 function cell(cls, text) {
@@ -440,13 +446,79 @@ async function submitExport({ kind, password, exportPassword, confirm, useMaster
   say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]), "ok", where);
 }
 
-async function submitRestoreExport({ file, password, masterPassword }, where) {
+// Restore or replace from an encrypted backup (#25). Step 1 opens the backup and shows what
+// would change; the page keeps the File reference and the export password only until the
+// apply, a cancel or a lock, and never any backup contents.
+let replacePlan = null;
+
+function clearReplace() {
+  replacePlan = null;
+  $("replacePreview").hidden = true;
+  $("replaceForm").reset();
+  $("replaceLoseList").replaceChildren();
+}
+
+async function previewReplace({ file, password }, where) {
+  clearReplace();
   $("restoreExportForm").elements.file.value = "";
   if (!file) return;
-  const r = await call("importExport", { text: await file.text(), password, masterPassword });
-  if (r.locked) { await showLocked(); say(`${t("restoreExportDone", [String(r.imported)])} ${t("errLocked")}`); return; }
+  const p = await call("replacePreview", { text: await file.text(), password });
+  const populated = p.currentCount > 0;
+  replacePlan = { file, password, revision: p.revision, fileHash: p.fileHash, populated };
+  $("replaceSummary").textContent = t("replaceSummary", [String(p.backupCount)]);
+  $("replaceWarning").hidden = !populated;
+  $("replaceConfirmLabel").hidden = !populated;
+  $("replaceForm").elements.confirmed.required = populated;
+  $("replaceButton").textContent = t(populated ? "replaceButton" : "restoreExportButton");
+  if (populated) {
+    $("replaceWarningText").textContent = t("replaceWarning", [String(p.currentCount), String(p.backupCount), String(p.inBoth)]);
+    $("replaceLoseIntro").textContent = p.onlyCurrent.count ? t("replaceLoseIntro", [String(p.onlyCurrent.count)]) : t("replaceLoseNone");
+    $("replaceLoseList").replaceChildren(...p.onlyCurrent.names.map((n) => { const li = document.createElement("li"); li.textContent = n; return li; }));
+    if (p.onlyCurrent.count > p.onlyCurrent.names.length) {
+      const li = document.createElement("li");
+      li.textContent = t("replaceMore", [String(p.onlyCurrent.count - p.onlyCurrent.names.length)]);
+      $("replaceLoseList").append(li);
+    }
+    $("replaceConfirmText").textContent = t("replaceConfirm", [String(p.currentCount)]);
+  }
+  $("replacePreview").hidden = false;
+  say(t("replaceChecked"), "ok", where);
+}
+
+async function applyReplace({ confirmed, masterPassword }, where) {
+  if (!replacePlan) return;
+  const { file, password, revision, fileHash, populated } = replacePlan;
+  let text;
+  try { text = await file.text(); } catch { clearReplace(); say(t("importReread"), "error", where); return; }
+  const r = await call("replaceApply", { revision, fileHash, text, password, masterPassword, confirmed });
+  clearReplace();
+  const done = populated ? t("replaceDone", [String(r.replaced), String(r.previous)]) : t("restoreExportDone", [String(r.replaced)]);
+  if (r.locked) { await showLocked(); say(`${done} ${t("errLocked")}`); return; }
   await refresh(false);
-  say(t("restoreExportDone", [String(r.imported)]), "ok", where);
+  say(done, "ok", where);
+}
+
+async function showPrevious() {
+  let p = { exists: false };
+  try { p = await call("previousStatus"); } catch { /* locked: the box stays hidden */ }
+  $("previousBox").hidden = !p.exists;
+  if (p.exists) {
+    const when = new Date(p.replacedAt).toLocaleString(browser.i18n.getUILanguage());
+    $("previousText").textContent = t("previousText", [when, p.count === null ? "?" : String(p.count)]);
+  }
+}
+
+async function submitPrevious({ action, confirmed, masterPassword }, where) {
+  if (action === "discard") {
+    await call("discardPrevious", { masterPassword, confirmed });
+    await showPrevious();
+    say(t("previousDiscarded"), "ok", where);
+    return;
+  }
+  const r = await call("restorePrevious", { masterPassword, confirmed });
+  if (r.locked) { await showLocked(); say(`${t("previousRestored", [String(r.replaced)])} ${t("errLocked")}`); return; }
+  await refresh(false);
+  say(t("previousRestored", [String(r.replaced)]), "ok", where);
 }
 
 async function init() {
@@ -488,8 +560,20 @@ async function init() {
     say(t("passwordChanged"));
   });
   passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
-  passwordForm("restoreExportForm", submitRestoreExport, { errors: {
-    "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed", "vault-not-empty": "restoreNotEmpty" } });
+  const replaceErrors = { "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed",
+    "replace-confirmation": "replaceNeedConfirm", "replace-failed": "replaceFailed", "import-too-many": "replaceTooMany",
+    conflict: "replaceConflict", malformed: "replaceInvalidFile", "no-previous": "previousGone" };
+  passwordForm("restoreExportForm", previewReplace, { progress: "replaceChecking", errors: replaceErrors });
+  passwordForm("replaceForm", applyReplace, { progress: "replacing", errors: { ...replaceErrors, onError: (e) => {
+    if (e.code !== "invalid") clearReplace(); // conflict or unknown: a new check is needed
+    if (e.code === "unknown") refresh(false).catch(() => {});
+  } } });
+  passwordForm("previousForm", submitPrevious, { progress: "replacing", errors: replaceErrors });
+  $("replaceCancel").addEventListener("click", async () => {
+    clearReplace();
+    await call("replaceCancel").catch(() => {});
+    say(t("replaceCancelled"), "ok", "restoreStatus");
+  });
   $("exportForm").addEventListener("change", updateExportForm);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
   await refresh();
