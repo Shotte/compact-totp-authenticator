@@ -737,6 +737,28 @@ export password is never accepted as the master password (tested both ways). Not
 written on any failure. The import into existing accounts (legacy `totp.json`, `cta-plain`)
 is C5 (§14); merging an encrypted export stays out of scope.
 
+### 13.4a Restore into a non-empty vault: future explicit choice (not implemented)
+
+Today a restore of an encrypted export works only into an empty vault (`vault-not-empty`).
+Existing entries are never overwritten, replaced or deleted, and nothing is cleared
+automatically. The options page explains this next to the restore form (operator feedback
+01, finding 7).
+
+A later version may offer the user an explicit choice. Neither option exists in 1.0:
+
+1. **Merge into the existing vault** (issue #17): preview, selective, append only, duplicates
+   skipped, one commit with truthful outcomes. Same rules as the C5 import.
+2. **Replace the vault** (issue #25). Only if all of these hold:
+   - a valid session and the fresh master password (`authorizeSensitive`);
+   - a verified, current encrypted backup of the existing vault, decrypted and compared
+     before anything is changed;
+   - an informed confirmation that names what will be lost;
+   - one commit that never leaves an empty or half-written vault.
+
+   Never automatic, never a side effect of a failed unlock or restore.
+
+Both need their own specification and architecture review.
+
 ### 13.5 Download status with the current permissions
 
 Measured on Windows with Firefox 160.0.1 (`test/browser/native-dialogs.mjs`, evidence
@@ -797,25 +819,44 @@ Implementation: `planImport` in [`legacy.js`](../src/lib/legacy.js) and `importP
 
   A wrong or missing password (`current-password`), an expired or locked session, another
   file or a changed vault aborts without writing.
-- **File text and its lifetime.** It goes from the page to the background once, with
-  `importPreview`, and is never echoed back or written to storage. The background keeps it
-  in event-page memory only, bound to the session id, the preview's vault revision and a
-  SHA-256 of the text. The reference is dropped:
+- **File text and its lifetime (revised after operator feedback 01, proposed for review).**
+  - **Old design.** The background kept the file text in event-page memory between preview
+    and apply. Firefox suspends an idle event page after about 30 s, and an open options page
+    does not prevent that (B6-4). A user who read the preview and typed the master password
+    for longer then got a false `conflict`, and a repeated import worked.
+  - **Binding in storage.session.** The binding of the preview is now stored in
+    `storage.session` as `pendingImport`: session id, vault revision and SHA-256 of the
+    file text. It holds **no file text and no secret**, and survives an event-page restart
+    like the session itself.
+  - **The page keeps a File reference.** The page keeps the chosen `File`, not its text,
+    and reads it again for `importApply`. The background checks the SHA-256 of that text
+    against the binding; another text is a `conflict` and writes nothing.
+  - **Where the text exists.** The file text travels page → background twice, with
+    `importPreview` and with `importApply`, and is never echoed back or written to
+    storage. The background holds it only during these two calls; it is no longer cached
+    between them.
+
+  The binding is dropped:
   - on apply, cancel and the next preview;
-  - on every failed apply except a fixable input error (wrong password, missing name);
+  - on every failed apply except a fixable input error (wrong password, missing name, missing
+    text);
   - on every session end through `wipe()`: explicit lock, expiry (gate or auto-lock alarm),
     system idle lock, password change, changed key generation, unreadable vault;
   - on a new session (`startSession`).
 
-  A preview that ends after a lock caches nothing (epoch check before caching). An
-  event-page restart loses the text with the page. Dropping the reference does not zeroize
-  memory: JavaScript cannot overwrite strings, so the text stays in the heap until garbage
-  collection. Tests: `test/import-auth.test.mjs` checks every session end through a hook
-  that messages cannot reach (`hasPendingImport`).
+  A preview that ends after a lock stores nothing (epoch check before storing).
+
+  Tests:
+  - `test/import-auth.test.mjs`: every session end, through a hook that messages cannot
+    reach (`hasPendingImport`); an event-page restart between preview and apply; a real
+    change after a restart is still a `conflict`; a changed file is a `conflict`; the
+    binding holds no text.
+  - Browser check C5-5: the event page is really suspended between preview and apply.
 - **Apply exactly what was shown (I1).** `importApply` carries the preview's revision and
-  file hash. A different revision, hash, session or a missing preview answers `conflict`
-  and writes nothing. The plan is recomputed from the kept text against the current vault,
-  which is identical to the preview because the revision is unchanged.
+  file hash, and the file text again. A different revision, hash, text, session or a missing
+  preview answers `conflict` and writes nothing. The plan is recomputed from that text, which
+  must hash to the preview's value, against the current vault. The vault is identical to the
+  preview's because the revision is unchanged.
 - **Validation.** Every row goes through `addAccount`, the same validation as manual entry,
   including the shared secret policy (§13.6). Empty names are `needs-name` rows that need a
   replacement name (validated like a typed name) before apply. Legacy rows use the legacy

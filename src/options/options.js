@@ -1,4 +1,4 @@
-import { call, t, localize, applyAppearance, followSystemScheme, errorText } from "../lib/ui.js";
+import { call, t, localize, applyAppearance, errorText } from "../lib/ui.js";
 import { loadSettings, validateSettings, DEFAULT_SETTINGS, APPEARANCE_KEYS } from "../lib/settings.js";
 import { rowHeightPx } from "../lib/appearance.js";
 import { MAX_IMPORT_BYTES } from "../lib/legacy.js";
@@ -8,15 +8,25 @@ const $ = (id) => document.getElementById(id);
 let state = { revision: 0, accounts: [] };
 let editingId = null;
 
-function say(text, kind = "ok") {
-  $("message").textContent = text;
-  $("message").dataset.kind = kind;
+// Contextual status (operator feedback 01): every section has its own live region and the
+// message appears where the user acts. Only one region holds text at a time, so a message is
+// announced once. A region inside a hidden view (e.g. after a lock) falls back to the
+// general vault status at the top.
+function say(text, kind = "ok", where = "message") {
+  let target = $(where);
+  if (!target || target.closest("[hidden]")) target = $("message");
+  for (const el of document.querySelectorAll(".status")) {
+    if (el !== target) { el.textContent = ""; delete el.dataset.kind; }
+  }
+  target.textContent = text;
+  target.dataset.kind = kind;
 }
+const areaOf = (el) => el.closest("section")?.querySelector(".status")?.id ?? "message";
 
-async function run(fn) {
+async function run(fn, where = "message") {
   try { return await fn(); } catch (e) {
-    say(errorText(e), "error");
-    if (e.code === "locked") showLocked();
+    if (e.code === "locked") await showLocked();
+    say(errorText(e), "error", where);
     if (e.code === "conflict" || e.code === "unknown") await refresh(false); // show what storage holds
     return undefined;
   }
@@ -44,14 +54,14 @@ async function showLocked(mode) {
 function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
   $(id).addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const form = $(id), fields = [...form.elements];
+    const form = $(id), fields = [...form.elements], where = areaOf(form);
     const value = (f) => (f.type === "checkbox" ? f.checked : f.type === "file" ? f.files[0] : f.value);
     const values = Object.fromEntries(fields.filter((f) => f.name && (f.type !== "radio" || f.checked)).map((f) => [f.name, value(f)]));
     fields.forEach((f) => { f.disabled = true; });
-    say(t(progress), "progress");
-    try { await handler(values); }
+    say(t(progress), "progress", where);
+    try { await handler(values, where); }
     catch (e) {
-      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error");
+      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error", where);
       if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
     }
     finally {
@@ -115,18 +125,18 @@ function renderAccounts() {
   $("accounts").tBodies[0].replaceChildren(...rows);
 }
 
-const mutate = (cmd, args, done) => run(async () => {
+const mutate = (cmd, args, done, where) => run(async () => {
   const r = await call(cmd, { ...args, revision: state.revision });
   state.revision = r.revision;
   if (r.locked) { await showLocked(); say(t("savedLocked")); return true; }
   await refresh(false);
-  say(t(r.warnings?.includes("short-secret") ? "savedWeak" : done ?? "saved"));
+  say(t(r.warnings?.includes("short-secret") ? "savedWeak" : done ?? "saved"), "ok", where);
   return true;
-});
+}, where);
 
-const move = (a, toIndex) => mutate("moveAccount", { id: a.id, toIndex });
+const move = (a, toIndex) => mutate("moveAccount", { id: a.id, toIndex }, undefined, "listStatus");
 function remove(a) {
-  if (confirm(t("confirmDelete", [a.name]))) mutate("deleteAccount", { id: a.id }, "deleted");
+  if (confirm(t("confirmDelete", [a.name]))) mutate("deleteAccount", { id: a.id }, "deleted", "listStatus");
 }
 
 function edit(a) {
@@ -160,15 +170,16 @@ async function submitAccount(ev) {
     digits: Number(f.digits.value), period: Number(f.period.value) };
   if (f.secret.value) account.secret = f.secret.value;
   const ok = await (editingId
-    ? mutate("updateAccount", { id: editingId, patch: account })
-    : mutate("addAccount", { account }));
+    ? mutate("updateAccount", { id: editingId, patch: account }, undefined, "accountStatus")
+    : mutate("addAccount", { account }, undefined, "accountStatus"));
   f.secret.value = ""; // never keep a secret in the page longer than needed
   $("secretWeak").hidden = true;
   if (ok) resetForm();
 }
 
-// Import (C5): the file text goes to the background once, for the preview; the page keeps
-// only the preview's revision and file hash, and the replacement names the user types.
+// Import (C5): the page keeps the preview's revision and file hash, the replacement names the
+// user types, and a reference to the chosen File (not its text). The file is read again for
+// the apply; the background checks that its hash matches the preview (operator feedback 01).
 let importPlan = null;
 
 function clearImport() {
@@ -176,6 +187,8 @@ function clearImport() {
   $("preview").hidden = true;
   $("preview").tBodies[0].replaceChildren();
   $("importSummary").textContent = "";
+  $("importSkipped").hidden = true;
+  $("importSkippedList").replaceChildren();
   $("importApply").disabled = true;
   $("importCancel").hidden = true;
   $("importMasterLabel").hidden = true;
@@ -188,11 +201,11 @@ async function previewFile() {
   input.value = "";
   clearImport();
   if (!file) return;
-  if (file.size > MAX_IMPORT_BYTES) { say(t("errMalformed"), "error"); return; }
+  if (file.size > MAX_IMPORT_BYTES) { say(t("errMalformed"), "error", "importStatus"); return; }
   const text = await file.text();
-  const p = await run(() => call("importPreview", { text }));
+  const p = await run(() => call("importPreview", { text }), "importStatus");
   if (!p) return;
-  say("");
+  say("", "ok", "importStatus");
   const label = { new: "statusNew", duplicate: "statusDuplicate", "name-conflict": "statusNameConflict",
     "needs-name": "statusNeedsName", invalid: "statusInvalid" };
   let unnamed = 0;
@@ -225,7 +238,13 @@ async function previewFile() {
   const c = p.counts;
   $("importSummary").textContent = t("importCounts", [String(c.new ?? 0), String(c.duplicate ?? 0),
     String(c["name-conflict"] ?? 0), String(c["needs-name"] ?? 0), String(c.invalid ?? 0)]);
-  importPlan = { revision: p.revision, fileHash: p.fileHash, nameInputs };
+  // Skipped rows with their reasons (names and reasons only), reported again after the apply.
+  const skipped = p.rows.filter((r) => r.status === "duplicate" || r.status === "invalid").map((r) => ({
+    name: r.name || "—",
+    why: r.status === "duplicate" ? t("statusDuplicate")
+      : `${t("statusInvalid")}${r.reason ? `: ${browser.i18n.getMessage(`reason_${r.reason.replace(/-/g, "_")}`) || r.reason}` : ""}`,
+  }));
+  importPlan = { revision: p.revision, fileHash: p.fileHash, nameInputs, file, skipped };
   $("preview").hidden = false;
   $("importCancel").hidden = false;
   $("importMasterLabel").hidden = false;
@@ -234,28 +253,41 @@ async function previewFile() {
 
 async function applyImport() {
   if (!importPlan) return;
-  const { revision, fileHash, nameInputs } = importPlan;
+  const { revision, fileHash, nameInputs, file, skipped } = importPlan;
   const names = Object.fromEntries(nameInputs.map((f) => [f.dataset.index, f.value]));
   const masterPassword = $("importMasterPassword").value;
   $("importMasterPassword").value = ""; // never kept in the page longer than needed
   $("importApply").disabled = true;
-  say(t("importing"), "progress");
+  say(t("importing"), "progress", "importStatus");
+  let text;
+  try { text = await file.text(); } catch { clearImport(); say(t("importReread"), "error", "importStatus"); return; }
   let r;
-  try { r = await call("importApply", { revision, fileHash, names, masterPassword }); } catch (e) {
+  try { r = await call("importApply", { revision, fileHash, text, names, masterPassword }); } catch (e) {
     // Only a fixable input error (e.g. a missing name) keeps this preview; anything else
     // (conflict, lock, unknown outcome) needs a new preview of the current vault.
     if (e.code === "invalid") $("importApply").disabled = false; else clearImport();
-    say(errorText(e), "error");
     if (e.code === "locked") await showLocked();
     else if (e.code !== "invalid") await refresh(false);
+    say(errorText(e), "error", "importStatus");
     return;
   }
   clearImport();
-  const done = t("importDone", [String(r.imported)]);
+  const done = skipped.length
+    ? t("importDoneSkipped", [String(r.imported), String(skipped.length)])
+    : t("importDone", [String(r.imported)]);
   if (r.locked) { await showLocked(); say(`${done} ${t("errLocked")}`); return; }
   state.revision = r.revision;
   await refresh(false);
-  say(done);
+  if (skipped.length) { // never silent: each skipped entry with its reason
+    $("importSkippedSummary").textContent = t("importSkippedSummary", [String(skipped.length)]);
+    $("importSkippedList").replaceChildren(...skipped.map((x) => {
+      const li = document.createElement("li");
+      li.textContent = `${x.name}: ${x.why}`;
+      return li;
+    }));
+    $("importSkipped").hidden = false;
+  }
+  say(done, "ok", "importStatus");
 }
 
 // Appearance and behaviour settings (storage.local "settings", never vault data).
@@ -284,23 +316,32 @@ function readSettingsForm() {
     idleLockMinutes: Number(f.idleLockMinutes.value) });
 }
 
-// Applies to this page (the preview uses the same rows.css as the popup) and shows hints.
+// The options page follows only the theme (auto, light, dark). Custom colors, font size and
+// row height belong to the popup list and are applied only to the preview box, which uses
+// the same rows.css as the popup (operator feedback 01).
 function showAppearance(s) {
-  const tokens = applyAppearance(s);
+  applyAppearance({ ...s, customColors: false });
+  const tokens = applyAppearance(s, document.querySelector("#appearance .preview"));
   const f = $("settingsForm").elements;
   f.fg.disabled = f.bg.disabled = !s.customColors;
   $("fontSizeOut").textContent = `${s.fontSize} px`;
   $("contrastNote").hidden = !tokens.fgAdjusted;
+  // Effective height of every choice, so that equal results at large font sizes are visible.
+  for (const input of f.rowHeight) {
+    const choice = input.value === "auto" ? "auto" : Number(input.value);
+    input.parentElement.querySelector(".eff").textContent = ` (${t("rowEffective", [String(rowHeightPx(s.fontSize, choice))])})`;
+  }
   const px = rowHeightPx(s.fontSize, s.rowHeight);
-  $("rowNote").hidden = s.rowHeight === "auto" || px === s.rowHeight;
-  $("rowNote").textContent = t("rowRaised", [String(px)]);
+  $("rowNote").hidden = false;
+  $("rowNote").textContent = s.rowHeight !== "auto" && px !== s.rowHeight
+    ? t("rowRaised", [String(px)]) : t("rowEffectiveNote", [String(px)]);
 }
 
-async function saveSettings(next) {
+async function saveSettings(next, where = "appearanceStatus") {
   settings = next;
   showAppearance(settings);
   await browser.storage.local.set({ settings });
-  say(t("saved"));
+  say(t("saved"), "ok", where);
 }
 
 // C3.4: the idle lock needs the optional "idle" permission. permissions.request() must run
@@ -319,7 +360,7 @@ async function initSettings() {
   }
   fillSettingsForm(settings);
   showAppearance(settings);
-  followSystemScheme(() => settings);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => showAppearance(settings));
   const form = $("settingsForm");
   form.addEventListener("input", () => showAppearance(readSettingsForm())); // live preview while dragging
   form.addEventListener("change", async (ev) => {
@@ -327,8 +368,9 @@ async function initSettings() {
     if (denied) ev.target.checked = false;
     const next = readSettingsForm();
     fillSettingsForm(next); // normalizes rejected values
-    await saveSettings(next);
-    if (denied) say(t("idlePermissionDenied"), "error");
+    const where = areaOf(ev.target);
+    await saveSettings(next, where);
+    if (denied) say(t("idlePermissionDenied"), "error", where);
   });
   $("resetAppearance").addEventListener("click", async () => {
     const next = { ...settings };
@@ -376,20 +418,20 @@ function updateExportForm() {
   $("exportButton").disabled = blocked;
 }
 
-async function submitExport({ kind, password, exportPassword, confirm, useMasterPassword, confirmed }) {
+async function submitExport({ kind, password, exportPassword, confirm, useMasterPassword, confirmed }, where) {
   const r = await call("exportVault", { kind, password, exportPassword, confirm, useMasterPassword, confirmed });
   download(r.fileName, r.text);
   $("exportForm").elements.confirmed.checked = false;
-  say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]));
+  say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]), "ok", where);
 }
 
-async function submitRestoreExport({ file, password, masterPassword }) {
+async function submitRestoreExport({ file, password, masterPassword }, where) {
   $("restoreExportForm").elements.file.value = "";
   if (!file) return;
   const r = await call("importExport", { text: await file.text(), password, masterPassword });
   if (r.locked) { await showLocked(); say(`${t("restoreExportDone", [String(r.imported)])} ${t("errLocked")}`); return; }
   await refresh(false);
-  say(t("restoreExportDone", [String(r.imported)]));
+  say(t("restoreExportDone", [String(r.imported)]), "ok", where);
 }
 
 async function init() {
@@ -406,7 +448,7 @@ async function init() {
   $("importCancel").addEventListener("click", async () => {
     clearImport();
     await call("importCancel").catch(() => {});
-    say(t("importCancelled"));
+    say(t("importCancelled"), "ok", "importStatus");
   });
   $("lockBtn").addEventListener("click", async () => { await call("lock"); await showLocked("unlock"); });
   passwordForm("setupForm", async ({ password, confirm }) => {

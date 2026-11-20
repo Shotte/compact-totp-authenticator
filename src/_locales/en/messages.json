@@ -18,7 +18,7 @@
     "message": "Settings"
   },
   "noAccounts": {
-    "message": "No accounts"
+    "message": "No 2FA entries"
   },
   "copyCode": {
     "message": "Copy code for $NAME$",
@@ -38,7 +38,7 @@
     "message": "Compact TOTP Authenticator – Settings"
   },
   "accounts": {
-    "message": "Accounts"
+    "message": "2FA entries"
   },
   "colName": {
     "message": "Name"
@@ -82,10 +82,10 @@
     "message": "Saved"
   },
   "addAccount": {
-    "message": "Add account"
+    "message": "Add 2FA entry"
   },
   "editAccount": {
-    "message": "Edit account"
+    "message": "Edit 2FA entry"
   },
   "fieldName": {
     "message": "Name"
@@ -160,7 +160,7 @@
     "message": "Import (original extension totp.json or CTA unencrypted export)"
   },
   "importPreviewNote": {
-    "message": "Choose a file to see a preview. Nothing is saved until you confirm with your master password. Existing accounts are never changed; duplicates are skipped; accounts with the same name are kept."
+    "message": "Choose a file to see a preview. Nothing is saved until you confirm with your master password. Existing 2FA entries are never changed; duplicates are skipped; entries with the same name are kept."
   },
   "importApply": {
     "message": "Import"
@@ -245,7 +245,7 @@
     "message": "period must be 10–300 seconds"
   },
   "reason_unknown_account": {
-    "message": "account no longer exists"
+    "message": "2FA entry no longer exists"
   },
   "appearance": {
     "message": "Appearance"
@@ -291,6 +291,22 @@
       }
     }
   },
+  "rowEffective": {
+    "message": "$PX$ px",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
+  "rowEffectiveNote": {
+    "message": "Effective row height in the popup: $PX$ px.",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
   "resetAppearance": {
     "message": "Reset appearance to defaults"
   },
@@ -319,10 +335,10 @@
     "message": "Create master password"
   },
   "setupWarning": {
-    "message": "Your accounts are encrypted with this password. There is no way to recover it: if you forget it, your accounts are lost. Store it safely, e.g. in a password manager."
+    "message": "Your 2FA entries are encrypted with this password. There is no way to recover it: if you forget it, your 2FA entries are lost. Store it safely, e.g. in a password manager."
   },
   "devNotice": {
-    "message": "Development build (0.x), not for production use. If you forget the master password, your accounts can only be restored from an export you made before."
+    "message": "Development build (0.x), not for production use. If you forget the master password, your 2FA entries can only be restored from an export you made before."
   },
   "newPassword": {
     "message": "New master password"
@@ -346,10 +362,10 @@
     "message": "The current vault is damaged, but a verified backup of the same password generation is available. Restoring it may lose the most recent change."
   },
   "vaultDamaged": {
-    "message": "The stored data is damaged and cannot be restored safely. Trying the password again does not help. Restore your accounts from an encrypted export: remove CTA, install it again, set a master password and choose “Restore from an encrypted backup”."
+    "message": "The stored data is damaged and cannot be restored safely. Trying the password again does not help. Restore your 2FA entries from an encrypted export: remove CTA, install it again, set a master password and choose “Restore from an encrypted backup”."
   },
   "vaultDamagedShort": {
-    "message": "The stored data is damaged. Open the settings to see how to restore your accounts from an encrypted export."
+    "message": "The stored data is damaged. Open the settings to see how to restore your 2FA entries from an encrypted export."
   },
   "restoreConfirm": {
     "message": "I understand that the most recent change may be lost."
@@ -433,7 +449,7 @@
     "message": "I understand that this file is not encrypted"
   },
   "legacyCompatible": {
-    "message": "All $COUNT$ accounts can be written to totp.json without losing information.",
+    "message": "All $COUNT$ 2FA entries can be written to totp.json without losing information.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -441,7 +457,7 @@
     }
   },
   "legacyIncompatible": {
-    "message": "Not possible without losing information: the original extension supports only SHA-1, 6 digits and 30 seconds. Use the unencrypted CTA file instead. Affected accounts:"
+    "message": "Not possible without losing information: the original extension supports only SHA-1, 6 digits and 30 seconds. Use the unencrypted CTA file instead. Affected 2FA entries:"
   },
   "exportButton": {
     "message": "Export"
@@ -450,7 +466,7 @@
     "message": "Creating export…"
   },
   "exportDone": {
-    "message": "Encrypted export created ($COUNT$ accounts) and handed to Firefox for saving. Check Firefox's downloads to confirm the file was saved; if you cancelled the save dialog, no file was saved.",
+    "message": "Encrypted export created ($COUNT$ 2FA entries) and handed to Firefox for saving. Check Firefox's downloads to confirm the file was saved; if you cancelled the save dialog, no file was saved.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -458,7 +474,7 @@
     }
   },
   "exportPlainDone": {
-    "message": "Unencrypted file created ($COUNT$ accounts) and handed to Firefox for saving. Check Firefox's downloads to confirm it was saved, and delete the file as soon as you no longer need it.",
+    "message": "Unencrypted file created ($COUNT$ 2FA entries) and handed to Firefox for saving. Check Firefox's downloads to confirm it was saved, and delete the file as soon as you no longer need it.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -469,7 +485,7 @@
     "message": "Restore from an encrypted backup"
   },
   "restoreExportNote": {
-    "message": "Only into an empty vault. You need the export password of the file and the master password of this vault. Merging into existing accounts follows in a later version."
+    "message": "Restoring works only into an empty vault, that is right after setting a new master password. Existing 2FA entries are never overwritten or deleted. You need the export password of the file and the master password of this vault. If you already have entries, import an unencrypted CTA file instead; merging encrypted exports follows in a later version."
   },
   "exportFile": {
     "message": "Backup file"
@@ -478,7 +494,7 @@
     "message": "Restore"
   },
   "restoreExportDone": {
-    "message": "$COUNT$ accounts restored.",
+    "message": "$COUNT$ 2FA entries restored.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -492,13 +508,13 @@
     "message": "unknown export format"
   },
   "reason_legacy_incompatible": {
-    "message": "some accounts cannot be represented in totp.json"
+    "message": "some 2FA entries cannot be represented in totp.json"
   },
   "reason_export_verify": {
     "message": "the export could not be verified; no file was created"
   },
   "reason_vault_not_empty": {
-    "message": "restoring is only possible into an empty vault"
+    "message": "restoring works only into an empty vault; your existing 2FA entries stay unchanged"
   },
   "reason_import_decrypt": {
     "message": "wrong export password or damaged file"
@@ -516,7 +532,7 @@
     "message": "No name: enter one"
   },
   "importNameLabel": {
-    "message": "Name for the account without a name"
+    "message": "Name for the entry without a name"
   },
   "importUnnamed": {
     "message": "Unnamed $N$",
@@ -530,7 +546,26 @@
     "message": "Cancel"
   },
   "importDone": {
-    "message": "$COUNT$ accounts imported. Delete the unencrypted file now: it contains your secret keys in plain text.",
+    "message": "$COUNT$ 2FA entries imported. Delete the unencrypted file now: it contains your secret keys in plain text.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "importDoneSkipped": {
+    "message": "$IMPORTED$ 2FA entries imported, $SKIPPED$ skipped (reasons in the list below). Delete the unencrypted file now: it contains your secret keys in plain text.",
+    "placeholders": {
+      "imported": {
+        "content": "$1"
+      },
+      "skipped": {
+        "content": "$2"
+      }
+    }
+  },
+  "importSkippedSummary": {
+    "message": "Show $COUNT$ skipped entries and reasons",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -541,13 +576,13 @@
     "message": "Import cancelled. Nothing was saved."
   },
   "reason_import_name": {
-    "message": "every account without a name needs a name"
+    "message": "every entry without a name needs a name"
   },
   "reason_import_nothing": {
     "message": "nothing to import (only duplicates or invalid entries)"
   },
   "reason_import_too_many": {
-    "message": "more than 1,000 accounts in total"
+    "message": "more than 1,000 2FA entries in total"
   },
   "reason_parameters": {
     "message": "algorithm, digits or period missing"
@@ -557,6 +592,9 @@
   },
   "importing": {
     "message": "Importing…"
+  },
+  "importReread": {
+    "message": "The file could not be read again. Choose it again for a new preview."
   },
   "importGeneratedName": {
     "message": "generated name, editable"
