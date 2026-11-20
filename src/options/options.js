@@ -51,7 +51,7 @@ function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
     say(t(progress), "progress");
     try { await handler(values); }
     catch (e) {
-      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : errorText(e), "error");
+      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error");
       if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
     }
     finally {

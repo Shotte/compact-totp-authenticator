@@ -935,6 +935,39 @@ try {
       { recoverShown, withoutConfirmation: noConfirm.reason, wrongPassword: wrongPw.reason, storageUnchangedBeforeConfirm: untouched, accounts: [n, nAfter] });
   }
 
+  // C2-5b (issue #8): structurally destroyed vault header. Options page and popup show the
+  // honest "damaged" message for the right and a wrong password, offer no restore, and
+  // write nothing. The intact storage is put back afterwards.
+  {
+    await msg(opt, "lock");
+    const saved = await localSnap();
+    await evalJson(opt, `async () => { await browser.storage.local.set({ vault: { garbage: true } }); return true; }`);
+    const snap = await localSnap();
+    const damagedText = await evalJson(opt, `async () => browser.i18n.getMessage("vaultDamaged")`);
+    const shortText = await evalJson(opt, `async () => browser.i18n.getMessage("vaultDamagedShort")`);
+    await open(opt, "options/options.html");
+    await waitFor(opt, "document.body.dataset.locked === 'unlock'");
+    await fill(opt, "unlockForm", { password: PW2 });
+    const optRight = await waitFor(opt, `document.getElementById("message").textContent === ${JSON.stringify(damagedText)}`, 15000);
+    await evalJson(opt, `async () => { document.getElementById("message").textContent = ""; return true; }`);
+    await fill(opt, "unlockForm", { password: PW });
+    const optWrong = await waitFor(opt, `document.getElementById("message").textContent === ${JSON.stringify(damagedText)}`, 15000);
+    const noRecoverForm = await evalJson(opt, `async () => document.body.dataset.locked === "unlock"`);
+    await open(pop, "popup/popup.html");
+    await waitFor(pop, "document.body.dataset.locked === 'unlock'");
+    await evalJson(pop, `async () => { document.getElementById("password").value = ${JSON.stringify(PW2)};
+      document.getElementById("unlockForm").requestSubmit(); return true; }`);
+    const popShown = await waitFor(pop, `document.getElementById("lockedMsg").textContent === ${JSON.stringify(shortText)}`, 15000);
+    const restoreRefused = (await msg(opt, "restore", { password: PW2, confirmed: true })).reason;
+    const untouched = (await localSnap()) === snap;
+    const sess = await sessionKeys();
+    await evalJson(opt, `async () => { await browser.storage.local.clear(); await browser.storage.local.set(${saved}); return true; }`);
+    const back = (await msg(opt, "unlock", { password: PW2 })).ok;
+    record("C2-5b", "destroyed vault header (issue #8): options page and popup show the damaged message for the right and a wrong password; no restore offered or possible; nothing written",
+      optRight && optWrong && noRecoverForm && popShown && restoreRefused === "restore" && untouched && !sess.includes("session") && back,
+      { optionsRightPassword: optRight, optionsWrongPassword: optWrong, noRecoverForm, popup: popShown, restoreRefused, storageUnchanged: untouched, restoredAndUnlocked: back });
+  }
+
   // C2-6: browser restart (hard kill): session gone, encrypted vault persists
   {
     const n = await accountCount();

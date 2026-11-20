@@ -163,7 +163,8 @@ export function createService({ session, local, alarms, now = Date.now,
     }
     const state = await store.read();
     const kdf = unlockKdf(state);
-    if (!kdf || !isValidKdf(kdf)) throw new acc.InputError("no-vault");
+    // Stored copies without one readable header are damaged, not missing (issue #8).
+    if (!kdf || !isValidKdf(kdf)) throw new acc.InputError(state.vault || state.backup || state.staged ? "damaged" : "no-vault");
     try { return await deriveKey(password, kdf); } // bounded parameters validated before PBKDF2 (C2-A1)
     catch { throw new acc.InputError("unlock"); }
   }
@@ -219,8 +220,18 @@ export function createService({ session, local, alarms, now = Date.now,
       return exclusive(async () => {
         const key = await passwordToKey(password);
         let r;
-        try { r = await store.load(key); } catch { throw new acc.InputError("unlock"); }
+        // A structurally unreadable vault ("corrupt") is a fact about storage that does not
+        // depend on the password, so it is reported as "damaged" for any password. A vault
+        // whose ciphertext fails with an intact header stays "unlock": wrong password and
+        // damage cannot be told apart there.
+        try { r = await store.load(key); } catch (e) {
+          throw new acc.InputError(e instanceof VaultError && e.reason === "corrupt" ? "damaged" : "unlock");
+        }
         if (!r) throw new acc.InputError("no-vault");
+        // Unreadable header plus an openable copy: restoring an unverified generation stays
+        // disabled (issue #8), so the only safe way is an encrypted export. Same answer as
+        // "corrupt", so the response does not reveal whether the password was right.
+        if (r.status === "recoverable" && !r.generationVerified) throw new acc.InputError("damaged");
         if (r.status === "recoverable") {
           return { unlocked: false, recoverable: true, damage: r.damage, generationVerified: r.generationVerified };
         }
@@ -231,7 +242,7 @@ export function createService({ session, local, alarms, now = Date.now,
     },
 
     // Explicit, confirmed recovery (same key generation only). The unverified-generation
-    // path stays disabled until its dedicated warning UX exists (issue #8).
+    // path stays disabled (issue #8); unlock reports such a vault as "damaged" instead.
     restore({ password, confirmed }) {
       return exclusive(async () => {
         if (confirmed !== true) throw new acc.InputError("confirmation");

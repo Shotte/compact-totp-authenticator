@@ -345,6 +345,12 @@
   "recoverableText": {
     "message": "The current vault is damaged, but a verified backup of the same password generation is available. Restoring it may lose the most recent change."
   },
+  "vaultDamaged": {
+    "message": "The stored data is damaged and cannot be restored safely. Trying the password again does not help. Restore your accounts from an encrypted export: remove CTA, install it again, set a master password and choose “Restore from an encrypted backup”."
+  },
+  "vaultDamagedShort": {
+    "message": "The stored data is damaged. Open the settings to see how to restore your accounts from an encrypted export."
+  },
   "restoreConfirm": {
     "message": "I understand that the most recent change may be lost."
   },

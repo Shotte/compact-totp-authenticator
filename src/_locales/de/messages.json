@@ -345,6 +345,12 @@
   "recoverableText": {
     "message": "Der aktuelle Tresor ist beschädigt, aber eine geprüfte Sicherung derselben Passwort-Generation ist vorhanden. Beim Wiederherstellen kann die letzte Änderung verloren gehen."
   },
+  "vaultDamaged": {
+    "message": "Die gespeicherten Daten sind beschädigt und lassen sich nicht sicher wiederherstellen. Ein weiterer Passwortversuch hilft nicht. Stelle deine Konten aus einem verschlüsselten Export wieder her: CTA entfernen, neu installieren, ein Master-Passwort festlegen und „Aus verschlüsselter Sicherung wiederherstellen“ wählen."
+  },
+  "vaultDamagedShort": {
+    "message": "Die gespeicherten Daten sind beschädigt. Öffne die Einstellungen, um zu sehen, wie du deine Konten aus einem verschlüsselten Export wiederherstellst."
+  },
   "restoreConfirm": {
     "message": "Mir ist bewusst, dass die letzte Änderung verloren gehen kann."
   },
