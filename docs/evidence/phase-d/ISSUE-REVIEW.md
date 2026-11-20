@@ -67,3 +67,22 @@ Blocked. It opens only when:
 - every release blocker is resolved and verified;
 - the deferral of #17 is approved explicitly;
 - the architecture review accepts this status.
+
+## Closeout decisions (CTA-D-REVIEW-CLOSEOUT, 2026-11-20)
+
+- **PR #20** merged after the final review as `6e0dbb5`; reviewed head `1ae92dd`.
+- **#8** fixed in the follow-up PR (`feature/d-closeout`):
+  - honest, localized "damaged" message for a structurally unreadable vault, the same for
+    every password;
+  - pointer to the encrypted export;
+  - the unverified-generation restore stays disabled, and no destructive action was added;
+  - tests: two service tests and browser check C2-5b.
+
+  The issue closes when that PR is merged.
+- **#9** closed: every acceptance criterion is demonstrated by the browser checks mapped
+  above, on real `storage.local` and the CI matrix.
+- **#5** closed on the architecture's acceptance of the Windows evidence (N1–N5) for
+  Firefox 1.0. macOS and Linux are documented as a portability limitation in RELEASE.md §5.
+- **#17** deferred to the milestone "post-1.0".
+- **Still blocking:** #19 (signed update test), and the operator acceptance issues #2, #3,
+  #4, #6. They stay open until the operator has tested them.

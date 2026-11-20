@@ -35,6 +35,8 @@ if (Number(version.split(".")[0]) >= 1 && updateUrl === TEST_UPDATE_URL) fail("t
 
 const base = join(root, "dist/signing", version);
 const out = join(base, "source");
+// AMO signs a version only once: never delete signed XPIs by re-preparing that version.
+if (existsSync(join(base, "signed"))) fail(`${relative(root, join(base, "signed"))} exists: signed artifacts are kept; move them away first`);
 if (existsSync(base)) rmSync(base, { recursive: true, force: true });
 mkdirSync(base, { recursive: true });
 cpSync(join(root, "src"), out, { recursive: true });
