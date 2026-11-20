@@ -30,10 +30,11 @@ Known limitations:
   yet (issue #17).
 
 Before 1.0.0 (release blockers):
-- the signed update test (docs/SIGNING.md §5);
-- the manual acceptance (docs/evidence/phase-d/ABNAHME.md);
-- the release decision on `update_url`;
-- removing the development notice.
+- the signed update test with the unlisted test builds 0.9.0/0.9.1 (docs/SIGNING.md §7);
+- the manual acceptance (docs/evidence/phase-d/ABNAHME.md) and the accepted issue review;
+- removing the development notice;
+- the operator's explicit release approval. 1.0.0 is distributed through AMO listed, with
+  Mozilla-managed updates and no `update_url`.
 
 ## 0.1.0 – development builds (not released)
 

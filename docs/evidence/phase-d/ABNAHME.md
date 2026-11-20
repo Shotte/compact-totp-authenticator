@@ -1,77 +1,98 @@
-# Abnahme-Checkliste für Ralf (Phase D)
+# Abnahme-Checkliste für Ralf
 
-Arbeite **nur mit Testdaten**:
-- ein frisches Firefox-Profil;
-- die Datei `test/fixtures/legacy-synthetic.json` für den Import;
-- ein ausgedachtes Master-Passwort.
+Nur die Prüfungen, die keine Automatisierung ersetzen kann. Was CI und lokale Browsertests
+schon belegen, steht unten unter „Bereits automatisch belegt“ und muss nicht wiederholt
+werden.
 
-Keine echten TOTP-Konten.
+**Testdaten und echte Daten trennen:**
+- Arbeite nur in einem Wegwerf-Firefox-Profil, mit den Testdateien aus `test/fixtures/`
+  und einem ausgedachten Master-Passwort.
+- Trage nie echte TOTP-Konten ein.
+- Dein normales Firefox-Profil bleibt unberührt.
 
-Trage pro Punkt ein: **OK**, **Fehler** (mit kurzer Beschreibung) oder **nicht möglich**.
-Punkte, die einen Linux- oder macOS-Desktop brauchen, bleiben MANUAL_REVIEW, solange
-keiner verfügbar ist.
+Trage pro Punkt **OK**, **Fehler: …** oder **nicht möglich** ein.
 
-## Vorbereitung (5 Min.)
+| Gruppe | Firefox | Signierter Build nötig | Dauer |
+|---|---|---|---|
+| 1 Popup-Darstellung und Scrollen (#2) | aktuelles Release (160), Windows | nein | 8 Min. |
+| 2 Maus, Tastatur, Zwischenablage, Kürzel (#3, #6) | aktuelles Release (160), Windows | nein | 5 Min. |
+| 3 Datei-Dialoge Import/Export (#5) | – | – | 0 Min. unter Windows |
+| 4 Neustart und Sperre (#4) | aktuelles Release (160), Windows | **ja** (0.9.0) | 3 Min. |
+| 5 Signierte Installation und Update (#19) | aktuelles Release (160), Windows | **ja** (0.9.0 und 0.9.1) | 10 Min. |
 
-1. Im Repository: `npm start` öffnet Firefox mit CTA als temporärem Add-on.
-   - Alternativ: about:debugging → „Temporäres Add-on laden“ → `src/manifest.json`.
-2. Im Popup auf Einstellungen und ein Master-Passwort anlegen.
-3. Einstellungen → Import → `legacy-synthetic.json` wählen. Das Konto ohne Namen behält
-   „Ohne Namen 1“. Master-Passwort eingeben → „Importieren“. Es entstehen 6 Konten.
+Gruppen 1–2 gehen sofort. Gruppen 4–5 gehen erst nach der freigegebenen Signierung
+(docs/SIGNING.md §3–6).
 
-## A. Popup und Bedienung (#2, #3) – ca. 10 Min.
+## Vorbereitung für Gruppe 1–2 (3 Min.)
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| A1 | Klick auf das CTA-Symbol: Das Popup öffnet sich, ist schmal (270 px), Zeilen kompakt, Fußleiste unten fest | |
-| A2 | Mehr als 20 Konten anlegen (oder die Import-Datei zweimal mit anderen Namen): Die Liste scrollt bis zum letzten Konto, die Fußleiste bleibt sichtbar | |
-| A3 | Maus: Überfahren hebt die Zeile dezent hervor; Klick auf Name, Code oder Symbol kopiert den Code (grüner Haken) | |
-| A4 | Einfügen in ein Textfeld: Der kopierte Code ist korrekt (Vergleich mit einer anderen TOTP-App, in die du den Schlüssel von „Example Mail“ aus der Testdatei einträgst) | |
-| A5 | Nur Tastatur: Alt+Shift+A öffnet das Popup; Tab wandert durch die Zeilen mit sichtbarem Rahmen; Enter oder Leertaste kopiert; Sperren und Einstellungen sind per Tab erreichbar | |
-| A6 | Auf einer Website, deren Adresse bei einem Konto eingetragen ist: Dieses Konto ist im Popup hervorgehoben | |
+1. Im Repository `npm start` ausführen. Firefox startet mit einem **frischen
+   Wegwerf-Profil** und CTA als temporärem Add-on. Beim Schließen wird das Profil
+   verworfen.
+2. CTA-Symbol → Einstellungen → Master-Passwort anlegen, z. B. `Testpasswort-2026`.
+3. Einstellungen → Import → `test/fixtures/acceptance-30-synthetic.json` wählen →
+   Master-Passwort eingeben → „Importieren“. Es entstehen 30 Konten „Test Alpha“ bis
+   „Test West“.
 
-## B. Darstellung (#2) – ca. 5 Min.
+## 1. Popup-Darstellung und Scrollen (#2)
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| B1 | Einstellungen → Design hell, dunkel, automatisch (Windows-Farbmodus umschalten, während das Popup offen ist): Alles bleibt lesbar | |
-| B2 | Eigene Farben und Schriftgröße 12 und 20 px: Nichts ist abgeschnitten. Bei zu geringem Kontrast passt CTA die Textfarbe an und zeigt einen Hinweis | |
+| Nr. | Schritte | Erwartet | Ergebnis |
+|---|---|---|---|
+| 1.1 | Auf das CTA-Symbol klicken | Schmales Popup (270 px), eine kompakte Zeile pro Konto, Name links, Code rechts, Fußleiste unten | |
+| 1.2 | Mit Mausrad oder Bildlaufleiste ganz nach unten scrollen | „Test West“ ist vollständig sichtbar; die Fußleiste bleibt stehen | |
+| 1.3 | Einstellungen → Design hell, dann dunkel, dann automatisch; bei automatisch den Windows-Farbmodus umschalten und das Popup neu öffnen | Jedes Design ist gut lesbar; automatisch folgt Windows | |
+| 1.4 | Eigene Farben mit wenig Kontrast wählen, dann Schriftgröße 12 und 20 px | Nichts ist abgeschnitten; bei zu wenig Kontrast passt CTA die Textfarbe an und zeigt einen Hinweis | |
+| 1.5 | Maus über Zeilen bewegen; eine Website öffnen, deren Adresse bei einem Konto steht (Konto bearbeiten → Website `example.com`, dann example.com öffnen) | Die Hervorhebung ist dezent, aber erkennbar; das passende Konto ist markiert | |
 
-## C. Symbolleiste und Kürzel (#6) – ca. 2 Min.
+## 2. Maus, Tastatur, Zwischenablage, Kürzel (#3, #6)
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| C1 | Nach der Installation ist das Symbol direkt in der Symbolleiste, nicht im Überlaufmenü | |
-| C2 | Alt+Shift+A öffnet das Popup. about:addons → Zahnrad → „Tastenkombinationen verwalten“: Kein anderes Add-on nutzt sie | |
+| Nr. | Schritte | Erwartet | Ergebnis |
+|---|---|---|---|
+| 2.1 | Nach dem Start ohne eigenes Zutun auf die Symbolleiste schauen | Das CTA-Symbol sitzt direkt in der Symbolleiste, nicht im Überlaufmenü | |
+| 2.2 | Eine Zeile anklicken, dann in ein Textfeld (z. B. die Adressleiste) mit Strg+V einfügen | Grüner Haken in der Zeile; eingefügt wird genau der angezeigte Code | |
+| 2.3 | Popup schließen, **nur Tastatur**: Alt+Shift+A → Tab → Tab → Enter → Strg+V in ein Textfeld | Alt+Shift+A öffnet das Popup; Tab zeigt einen sichtbaren Rahmen; Enter kopiert den Code der gerahmten Zeile | |
+| 2.4 | In deinem **normalen** Firefox nur nachsehen, ohne etwas zu installieren: about:addons → Zahnrad → „Erweiterungs-Tastenkombinationen verwalten“ | Keine deiner Erweiterungen nutzt Alt+Shift+A. Sonst bitte den Namen notieren | |
 
-## D. Native Datei-Dialoge (#5) – ca. 5 Min. unter Windows
+## 3. Datei-Dialoge Import/Export (#5)
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| D1 | Einstellungen → Import → „Durchsuchen…“ öffnet den Windows-Dialog; die Datei lässt sich wählen; die Vorschau erscheint | |
-| D2 | Export (verschlüsselt) mit „Jedes Mal nachfragen, wo gespeichert werden soll“ (Firefox-Einstellung): Der Speichern-Dialog erscheint und das Speichern klappt; Abbrechen speichert nichts | |
-| D3 | Wiederherstellen: In einem neuen Profil mit neuem Master-Passwort die gespeicherte Datei über den Öffnen-Dialog wählen. Export-Passwort und Master-Passwort eingeben: Alle Konten sind wieder da | |
-| D4 | macOS: D1–D3 wiederholen | MANUAL_REVIEW (kein Mac verfügbar) |
-| D5 | Linux-Desktop: D1–D3 wiederholen | MANUAL_REVIEW (kein Linux-Desktop verfügbar) |
+Unter Windows ist **nichts** zu tun. Die echten Windows-Dialoge sind automatisch geprüft:
+- Speichern, Abbrechen und ein Schreibfehler beim Export (N1–N3);
+- Öffnen und Wiederherstellen (N4);
+- Öffnen beim Altdaten-Import (N5).
 
-## E. Signierte Installation, Update und Neustart (#4, signierter Update-Test)
+Der Beleg ist `docs/evidence/phase-c6/native-dialogs-windows.json`.
 
-Erst nach der Signierung von 0.9.0 und 0.9.1 (docs/SIGNING.md).
+macOS und Linux: nur falls du ein solches Gerät hast. Dann Export speichern, Abbrechen,
+Wiederherstellen und Import wählen wie oben. Sonst bleibt der Punkt MANUAL_REVIEW, und die
+Architektur entscheidet, ob Windows für 1.0 reicht.
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| E1 | `node test/browser/update-test.mjs --old <0.9.0.xpi> --new <0.9.1.xpi>` läuft durch. Alle Punkte U-1 bis U-7 und U-signed stehen auf PASS | |
-| E2 | Das signierte 0.9.0 im normalen Firefox über about:addons → „Add-on aus Datei installieren“ installieren: Es bleibt nach einem Firefox-Neustart installiert | |
-| E3 | Mit Testkonten entsperren, Firefox komplett beenden und neu starten: Das Popup fragt nach dem Master-Passwort und zeigt keine Codes | |
-| E4 | Danach CTA wieder entfernen (Testprofil oder about:addons → Entfernen) | |
+## 4. Neustart und Sperre (#4) – nach der Signierung
 
-## F. Optional
+Die automatische Prüfung U-7 im signierten Update-Test (Gruppe 5.1) deckt das bereits ab.
+Hier einmal der echte Weg, den ein Nutzer geht.
 
-| # | Prüfung | Ergebnis |
-|---|---|---|
-| F1 | Sprachausgabe (Windows-Sprachausgabe oder NVDA): Die Zeilen nennen Name und Code | |
-| F2 | Windows-Skalierung 150 % oder 200 %: Das Popup ist scharf und vollständig | |
-| F3 | Mausklick-Test auf das echte Popup zu einem vereinbarten Zeitpunkt (`npm run test:browser:os`, bewegt kurz die Maus) | |
+| Nr. | Schritte | Erwartet | Ergebnis |
+|---|---|---|---|
+| 4.1 | Testprofil anlegen: `"C:\Program Files\Mozilla Firefox\firefox.exe" -CreateProfile CTA-Test`, dann `"C:\Program Files\Mozilla Firefox\firefox.exe" -P CTA-Test -no-remote` | Firefox startet leer, getrennt von deinem normalen Profil | |
+| 4.2 | Im Testprofil: about:addons → Zahnrad → „Add-on aus Datei installieren“ → signierte 0.9.0-XPI aus `dist/signing/0.9.0/signed/` | Installation ohne Warnung zu fehlender Signatur; CTA ist dauerhaft installiert | |
+| 4.3 | Master-Passwort anlegen, `acceptance-30-synthetic.json` importieren, Popup öffnen (Codes sichtbar). Firefox komplett beenden und mit `-P CTA-Test -no-remote` neu starten | CTA ist noch installiert; das Popup fragt nach dem Master-Passwort und zeigt keine Codes; nach Eingabe sind alle 30 Konten da | |
 
-Rückmeldung bitte als Liste „A1 OK, A2 Fehler: …“. Die Issues #2–#6 bleiben offen, bis du
-die zugehörigen Punkte bestätigt hast.
+## 5. Signierte Installation und Update (#19) – nach der Signierung
+
+| Nr. | Schritte | Erwartet | Ergebnis |
+|---|---|---|---|
+| 5.1 | `npm run verify:signed -- <0.9.0.xpi> dist/signing/0.9.0` und dasselbe für 0.9.1 (docs/SIGNING.md §6) | Jeweils `6/6 checks OK`; SHA-256 notieren | |
+| 5.2 | `node test/browser/update-test.mjs --old <0.9.0.xpi> --new <0.9.1.xpi>` (docs/SIGNING.md §7). Läuft allein in einem eigenen Wegwerf-Profil | U-1 bis U-7 und U-signed stehen auf PASS; die Ergebnisdatei bitte mitschicken | |
+| 5.3 | Aufräumen: Testprofil `CTA-Test` löschen (about:profiles im Testprofil oder `firefox -P` → Profil löschen → „Dateien löschen“) | Kein Testbuild bleibt auf dem Rechner installiert. Testbuilds nie an andere weitergeben | |
+
+## Bereits automatisch belegt (nicht wiederholen)
+
+| Thema | Beleg |
+|---|---|
+| Tab durch die Zeilen, Enter und Leertaste kopieren, Sperren und Einstellungen per Tab erreichbar | B8-4, B8-2 (alle CI-Plattformen) |
+| Symbol standardmäßig in der Symbolleiste; Alt+Shift+A registriert, kein Konflikt mit Firefox | C6-1, C6-2 |
+| Popup-Maße und Scrollen mit 1/25/50/100 Konten; echtes Popup-Fenster | B3-Layouts, B3-real-1…3 |
+| Kopieren schreibt den richtigen Code genau einmal (im Popup als Tab; im echten Popup-Fenster nur per `--os-input`, daher 2.2) | B3-copy, B8-4 |
+| Windows-Dialoge Speichern, Abbrechen, Fehler, Öffnen, Import | N1–N5 |
+| Neustart sperrt, Sitzungsspeicher leer (temporärer und dauerhaft installierter Build) | C2-6, C3-1, U-7 (unsigniert, ESR) |
+
+Rückmeldung bitte als Liste: „1.1 OK, 1.2 Fehler: …“.

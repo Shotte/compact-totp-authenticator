@@ -241,6 +241,6 @@ export and recovery come before production legacy import.
 2. Export: encrypted and plaintext; plaintext requires explicit warning and confirmation.
 3. Appearance: Light and Dark themes plus optional custom colors.
 4. Auto-lock: 15 minutes default; always lock on browser restart.
-5. Updates: manual installation during development; self-hosted `update_url` before stable
-   distribution.
+5. Updates: signed unlisted test builds 0.9.0/0.9.1 with a localhost `update_url` for the
+   acceptance only; the public 1.0.0 is AMO listed with Mozilla-managed updates (RELEASE.md §4).
 6. Repository: private Forgejo as authority; optional public GitHub mirror.

@@ -6,14 +6,37 @@ Synthetic data only.
 
 | File | Content |
 |---|---|
-| [`../../SIGNING.md`](../../SIGNING.md) | D2 signing procedure, D3 signed update test |
-| [`ABNAHME.md`](ABNAHME.md) | D4 German acceptance checklist for the operator |
+| [`../../SIGNING.md`](../../SIGNING.md) | distribution strategy, account and credentials, build, signing, verification, signed update test, AMO listed 1.0.0 |
+| [`ABNAHME.md`](ABNAHME.md) | German acceptance checklist for the operator (5 groups, only checks automation cannot replace) |
+| [`ISSUE-REVIEW.md`](ISSUE-REVIEW.md) | classification of every open issue before signing |
+| [`../../AMO-LISTING.md`](../../AMO-LISTING.md) | draft AMO listing for 1.0.0, German and English |
+| [`browser-results-local.json`](browser-results-local.json) | local browser run, Windows, Firefox 160.0.1: 90/93 PASS, 2 MANUAL, 1 NOT_TESTED, 0 FAIL |
 | [`../../USER-GUIDE.md`](../../USER-GUIDE.md), [`../../../CHANGELOG.md`](../../../CHANGELOG.md), [`../../MIGRATION.md`](../../MIGRATION.md) | D5 user documentation and draft release notes |
+
+## Review update (after the Phase D approval)
+
+- **Localhost update URL:** the pre-merge check found a gap. `release:source --version 1.0.0
+  --update-url https://127.0.0.1:…` passed both scripts. Fixed together with the
+  distribution decision (1.0.0 AMO listed, Mozilla-managed updates):
+  - `check:release` fails every 1.x package that has an `update_url`, and every package
+    with an embedded certificate;
+  - `release:source` only knows `--test-update` (below 1.0.0) and `--no-update-url`.
+  - Tests: `release-scripts.test.mjs`, 19 tests.
+- **Signed XPI verification:** `npm run verify:signed -- <xpi> dist/signing/<v>` checks the
+  returned XPI against `SHA256SUMS`: no extra files, signature files present, ID, version
+  and `update_url`. Proven by unit tests (changed, missing and extra file, unsigned) and on
+  a real unsigned 0.9.0 build: 5/6, only the signature missing, as expected.
+- **B8-4 (issue #3):** keyboard-only operation with trusted key input. Local PASS.
+- **Issue #8:** characterization test in `service.test.mjs`; SECURITY.md §7.5 and
+  USER-GUIDE §5 corrected (see ISSUE-REVIEW.md).
+- **Acceptance fixture:** `test/fixtures/acceptance-30-synthetic.json`, 30 synthetic
+  accounts (`CTA-SYNTHETIC-000301…330`) for the scrolling check.
 
 ## D1 – Release package audit
 
 `npm run check:release` (`scripts/check-release.mjs`) runs locally and in the CI `test`
-job. Result on `src/` at the Phase D head: **26/26 OK**.
+job. Result on `src/` at the Phase D head: **26/26 OK** (a 1.x package gets 27 checks: also
+"no update_url").
 
 | Area | Checks |
 |---|---|
@@ -85,27 +108,30 @@ requests. A privileged TLS preflight fails the run early.
 
 ## D4 – Open release blockers
 
+See [ISSUE-REVIEW.md](ISSUE-REVIEW.md) for every open issue. Release blockers:
+
 | Issue | What is missing | Who |
 |---|---|---|
-| #19 signed update test | sign 0.9.0/0.9.1, run `update-test.mjs --old/--new` on release Firefox | Ralf (authorization, AMO account, signing); script automated |
-| #2 popup appearance | ABNAHME A1–A2, B1–B2 | Ralf |
-| #3 keyboard-only popup | ABNAHME A5 | Ralf |
-| #4 restart clears the session (signed build) | ABNAHME E2–E3 | Ralf, after signing |
-| #5 native file dialog (import) | ABNAHME D1 (Windows automated: N5); D4–D5 macOS/Linux | Ralf; macOS/Linux MANUAL_REVIEW |
-| #6 toolbar and shortcut | ABNAHME C1–C2 | Ralf |
-| #9 real storage, interrupted sessions | review decision on the existing C2/C4/C5 browser checks | architecture review |
+| #19 signed update test | sign 0.9.0/0.9.1, verify, run `update-test.mjs --old/--new` on release Firefox | Ralf (authorization, AMO account, signing); script automated |
+| #2 popup appearance | ABNAHME 1.1–1.5 | Ralf |
+| #3 keyboard-only popup | ABNAHME 2.3 (rest automated: B8-4) | Ralf |
+| #4 restart clears the session (signed build) | U-7 in the signed run; ABNAHME 4 | Ralf, after signing |
+| #5 native file dialog (import) | Windows automated (N1–N5); macOS/Linux decision | architecture review |
+| #6 toolbar and shortcut | ABNAHME 2.1, 2.4 | Ralf |
+| #9 real storage, interrupted sessions | evidence complete, proposed for closing | architecture review |
 
-Not release-blocking and open: #8 (recovery UX), #17 (encrypted merge).
+Not release-blocking and open: #8 (defect, low; decision pending), #17, #21, #22
+(enhancements).
 
 ## Recommendation for the first signed test build
 
 Sign **0.9.0 and 0.9.1** as unlisted test builds, prepared with
 `npm run release:source -- --version 0.9.x --test-update` from merged `main`. Their
 update address is 127.0.0.1 only, so they cannot update from the internet. Then run the
-signed update test (SIGNING.md §5) and the acceptance checklist part E.
+signed update test (SIGNING.md §7) and the acceptance checklist groups 4–5.
 
 Keep **1.0.0** free for the first distribution build. It needs:
-- the production HTTPS `update_url` decision;
+- no `update_url` (AMO listed, decided);
 - the removal of the development notice;
 - all acceptance items OK;
 - issue #19 closed with the signed run's evidence.

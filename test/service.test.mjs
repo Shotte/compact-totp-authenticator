@@ -197,6 +197,21 @@ test("recovery: damaged vault -> recoverable without writing; confirmed restore 
   assert.equal(ok(await env.call("listAccounts")).accounts.length, 2, "previous revision restored");
 });
 
+// Issue #8, current behavior: the unverified-generation recovery is disabled in the service.
+// A structurally destroyed vault is reported recoverable, but the confirmed restore is
+// refused with the same reason as a wrong password, and nothing is written.
+test("issue #8: destroyed vault header -> restore refused (same reason as a wrong password), nothing written", async () => {
+  const env = await ready(2);
+  ok(await env.call("lock"));
+  env.local.map.set("vault", { garbage: true });
+  const snap = snapshot(env.local);
+  const r = ok(await env.call("unlock", { password: PW }));
+  assert.deepEqual([r.unlocked, r.recoverable, r.damage, r.generationVerified], [false, true, "header", false]);
+  assert.equal(err(await env.call("restore", { password: PW, confirmed: true })), "invalid:restore");
+  assert.equal(err(await env.call("restore", { password: "wrong password!!", confirmed: true })), "invalid:restore");
+  assert.deepEqual(snapshot(env.local), snap, "nothing written");
+});
+
 test("after lock every sensitive command fails closed", async () => {
   const env = await ready();
   ok(await env.call("lock"));

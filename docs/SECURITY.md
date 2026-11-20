@@ -261,8 +261,10 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
 - No automatic recovery: a damaged vault needs an explicit, confirmed restore. This costs a
   dialog but guarantees that no password attempt or decryption failure writes storage.
 - A structurally destroyed current vault (header unreadable) cannot prove its generation.
-  Recovery is still possible, but only with the separate `allowUnverifiedGeneration`
-  consent. Residual edge: if that happens exactly after a rotation whose backup update
+  The store supports recovery only with the separate `allowUnverifiedGeneration` consent.
+  **The service does not use it yet:** `restore` refuses such a vault until the dedicated
+  warning UX exists (issue #8). The user's way out is then the last encrypted export, as in
+  USER-GUIDE §5. Covered by the test `issue #8` in `test/service.test.mjs`. Residual edge, once enabled: if that happens exactly after a rotation whose backup update
   failed, the confirmed restore could use the old-generation backup; it requires a storage
   failure at step 4, later structural destruction of the vault, and a double confirmation.
 - Not provable in Node, to verify in the browser (C2/C6): a single `storage.local.set` of

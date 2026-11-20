@@ -35,6 +35,10 @@ for (const k of ["host_permissions", "content_scripts", "web_accessible_resource
   check(`no ${k}`, !(k in m));
 }
 check("update_url absent or HTTPS", g.update_url === undefined || /^https:\/\//.test(g.update_url), g.update_url ?? "absent");
+// Only the 0.9.x signed-update test builds carry an update_url (127.0.0.1). 1.x is AMO Listed
+// with Mozilla-managed updates (distribution decision, RELEASE.md §4), so it must have none.
+const major = Number(m.version.split(".")[0]);
+if (major >= 1) check("1.x: no update_url (AMO Listed, Mozilla-managed updates)", g.update_url === undefined, g.update_url ?? "absent");
 check("localized name and description", m.name === "__MSG_extName__" && m.description === "__MSG_extDescription__");
 
 // Files
@@ -57,11 +61,10 @@ check("no remote resources or network calls", hits(REMOTE).length === 0, hits(RE
 check("no synthetic test markers", hits(/CTA-SYNTHETIC|fixture-\d|correct horse battery/i).length === 0, hits(/CTA-SYNTHETIC|fixture-\d|correct horse battery/i).join(", "));
 const b32 = code.flatMap(([f, s]) => (s.match(/\b[A-Z2-7]{16,}={0,6}\b/g) ?? []).filter((x) => x !== "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567").map((x) => `${f}:${x.slice(0, 6)}…`));
 check("no Base32 secret-like strings (16+ chars)", b32.length === 0, b32.join(", "));
-check("no keys or credentials", hits(/BEGIN [A-Z ]*PRIVATE KEY|WEB_EXT_API_(KEY|SECRET)\s*[=:]\s*\S|jwt[_-]?secret/i).length === 0);
+check("no keys, certificates or credentials", hits(/BEGIN [A-Z ]*PRIVATE KEY|BEGIN CERTIFICATE|WEB_EXT_API_(KEY|SECRET)\s*[=:]\s*\S|jwt[_-]?secret/i).length === 0);
 check("no development unlock", hits(/devUnlock|unlockDemo/).length === 0);
 
 // Release gate: the 0.x development notice
-const major = Number(m.version.split(".")[0]);
 const notice = /id="devNotice"/.test(text("options/options.html"));
 if (major === 0) check("0.x: development notice shown on the options page", notice);
 else check("1.x: development notice removed by an explicit release decision", !notice, notice ? "still present: remove it only with the 1.0 release decision (RELEASE.md §5)" : "");

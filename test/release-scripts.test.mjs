@@ -43,6 +43,9 @@ const CASES = [
   ["changed LICENSE", (d) => append(d, "LICENSE", "\nextra\n"), /FAIL\s+LICENSE identical/],
   ["development notice removed in 0.x", (d) => writeFileSync(join(d, "options/options.html"),
     readFileSync(join(d, "options/options.html"), "utf8").replace(/<p id="devNotice"[^>]*><\/p>/, "")), /FAIL\s+0\.x: development notice/],
+  ["1.0 with the localhost test update_url", (d) => manifest(d, (m) => { m.version = "1.0.0"; m.browser_specific_settings.gecko.update_url = "https://127.0.0.1:47811/updates.json"; }), /FAIL\s+1\.x: no update_url/],
+  ["1.0 with any self-hosted update_url", (d) => manifest(d, (m) => { m.version = "1.0.0"; m.browser_specific_settings.gecko.update_url = "https://example.org/u.json"; }), /FAIL\s+1\.x: no update_url/],
+  ["embedded certificate", (d) => append(d, "lib/ui.js", "\n// -----BEGIN CERTIFICATE-----\n"), /FAIL\s+no keys, certificates/],
   ["1.0 with the development notice still present", (d) => manifest(d, (m) => { m.version = "1.0.0"; }), /FAIL\s+1\.x: development notice/],
 ];
 for (const [label, mutate, expected] of CASES) {
@@ -56,12 +59,49 @@ for (const [label, mutate, expected] of CASES) {
   });
 }
 
+test("verify-signed accepts the prepared files plus AMO signature files and nothing else", async () => {
+  const { default: JSZip } = await import("jszip");
+  const { createHash } = await import("node:crypto");
+  const base = mkdtempSync(join(tmpdir(), "cta-signed-"));
+  try {
+    const src = join(base, "source");
+    cpSync(join(root, "src"), src, { recursive: true });
+    manifest(src, (m) => { m.version = "0.9.0"; m.browser_specific_settings.gecko.update_url = "https://127.0.0.1:47811/updates.json"; });
+    const files = ["manifest.json", "LICENSE", "popup/popup.js"]; // a subset is enough for the check
+    const sum = (f) => createHash("sha256").update(readFileSync(join(src, f))).digest("hex");
+    writeFileSync(join(base, "SHA256SUMS"), files.map((f) => `${sum(f)}  ${f}`).join("\n") + "\n");
+    writeFileSync(join(base, "release-source.json"), JSON.stringify({ version: "0.9.0", updateUrl: "https://127.0.0.1:47811/updates.json", sourceCommit: "x", purpose: "test" }));
+    const xpi = async (change = (z) => z) => {
+      const z = new JSZip();
+      for (const f of files) z.file(f, readFileSync(join(src, f)));
+      z.file("META-INF/mozilla.rsa", "sig"); z.file("META-INF/cose.sig", "sig"); z.file("META-INF/manifest.mf", "mf");
+      change(z);
+      const p = join(base, `t${Math.random()}.xpi`);
+      writeFileSync(p, await z.generateAsync({ type: "nodebuffer" }));
+      return spawnSync(process.execPath, [join(root, "scripts/verify-signed.mjs"), p, base], { encoding: "utf8" });
+    };
+    const ok = await xpi();
+    assert.equal(ok.status, 0, ok.stdout);
+    assert.match(ok.stdout, /SHA-256 [0-9a-f]{64}/);
+    for (const [label, change, expected] of [
+      ["changed file", (z) => z.file("popup/popup.js", "changed"), /FAIL\s+every prepared file/],
+      ["missing file", (z) => z.remove("LICENSE"), /FAIL\s+every prepared file/],
+      ["extra file", (z) => z.file("extra.js", "x"), /FAIL\s+no extra files/],
+      ["unsigned", (z) => z.remove("META-INF/mozilla.rsa"), /FAIL\s+AMO signature files/],
+    ]) {
+      const r = await xpi(change);
+      assert.equal(r.status, 1, label);
+      assert.match(r.stdout, expected, label);
+    }
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
 test("release:source refuses unsafe parameters and never signs", () => {
   const run = (...a) => spawnSync(process.execPath, [join(root, "scripts/release-source.mjs"), ...a], { encoding: "utf8" });
   for (const [args, msg] of [
     [["--version", "0.9"], /--version major\.minor\.patch/],
     [["--version", "0.9.0"], /choose exactly one/],
-    [["--version", "0.9.0", "--update-url", "http://example.org/u.json"], /HTTPS/],
+    [["--version", "1.0.0", "--update-url", "https://127.0.0.1:47811/updates.json"], /choose exactly one/],
     [["--version", "1.0.0", "--test-update"], /below 1\.0\.0/],
     [["--version", "0.0.1", "--no-update-url"], /lower than src/],
   ]) {

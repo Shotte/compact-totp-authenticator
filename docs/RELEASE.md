@@ -38,24 +38,37 @@ by ID). The old ID `authenticator@r01` is not reused. The B0 spike uses its own 
 - No minified or generated code → no separate source-code submission needed.
 - Development installs: `about:debugging` → temporary add-on, or `web-ext run`.
 
-## 4. Updates
+## 4. Distribution and updates (decided, CTA-001)
 
-Unlisted add-ons do not update automatically unless the manifest contains
-`browser_specific_settings.gecko.update_url` pointing to an HTTPS `updates.json`
-(for example on GitHub Pages or Releases). Each new version must be signed via AMO first.
-Without `update_url`, users install each new XPI manually.
+Two stages (details and guards: [SIGNING.md](SIGNING.md) §1–2):
 
-Decided: manual installation during development; a self-hosted HTTPS `update_url` is added
-before stable distribution. Natural host: the public GitHub repository (an `updates.json`
-served via GitHub Pages, signed XPIs attached to GitHub Releases). The manifest key cannot
-be added retroactively to already installed versions, so it must be present in the first
-stable release.
+1. **Signed private acceptance builds 0.9.0 and 0.9.1**, AMO **unlisted**, with the
+   test-only `update_url` `https://127.0.0.1:47811/updates.json`. They verify signing,
+   installation in release Firefox, signed automatic updates and the manual acceptance. They
+   are used only in throwaway profiles with synthetic accounts and are never distributed.
+2. **Public release 1.0.0, AMO listed**, without `update_url`: Mozilla manages updates. It
+   is published only after the operator's explicit release approval.
+
+| | AMO listed, Mozilla-managed updates | AMO unlisted, self-hosted `updates.json` |
+|---|---|---|
+| Discovery | AMO page, search, ratings | only via our own link |
+| Updates | automatic through AMO, nothing to host | needs an HTTPS `updates.json` and XPI hosting that stay reachable for all installed versions; the URL can never change for them |
+| Review | Mozilla review before publication; later versions too | automated signing within minutes; Mozilla may review later |
+| Release speed | slower (review queue) | fast |
+| Operating risk | low; no infrastructure | hosting outage or expired certificate stops updates |
+| Trust for users | AMO listing, Mozilla-reviewed | lower; manual XPI installation warning |
+| Fits CTA | yes: small, unminified, no network access, no data collection | only for the private test builds |
+
+Decision: listed for 1.0.0 (operator, CTA-001 "Final Distribution Strategy").
+`scripts/check-release.mjs` fails any 1.x package with an `update_url`.
+`scripts/release-source.mjs` sets an `update_url` only for the test builds below 1.0.0.
+
+An installed unlisted test build does not move to the listed channel (SIGNING.md §2). That
+is why test builds stay in throwaway profiles.
 
 The addons linter accepts only HTTPS `update_url`s for self-hosted builds
-(`web-ext lint --self-hosted`). The signed update test therefore uses test builds 0.9.0/0.9.1
-with `https://127.0.0.1:47811/updates.json`, served by the test itself with a certificate
-trusted only in the throwaway profile (SIGNING.md §5). The production URL is still an
-operator decision.
+(`web-ext lint --self-hosted`). That is why the test builds and the update test's local
+server use HTTPS with a certificate trusted only in the throwaway profile.
 
 ## 4a. Repository and ownership
 
@@ -75,14 +88,18 @@ a static test). Audit 2026-11-19: no third-party runtime code, fonts, icons or i
 bundled (all icons are original SVGs); `web-ext` (MPL-2.0) is a development tool only and
 not shipped.
 
-## 4b. Future AMO distribution
+## 4b. AMO listed release
 
-The project is open source (MIT, attribution to Rayquaza01/authenticator kept in
-`LICENSE`). Initial distribution stays signed and unlisted. A listed AMO release later
-needs: listing texts and screenshots (synthetic data only), the privacy declaration
-matching `data_collection_permissions: none`, and a source link to the public repository.
-Because the source is published unminified and without a build step, no separate source
-upload is required.
+The project is open source: MIT, with the attribution to Rayquaza01/authenticator kept in
+`LICENSE` and in the README. The listed 1.0.0 needs:
+
+- listing texts in German and English and screenshots with synthetic data only
+  ([AMO-LISTING.md](AMO-LISTING.md), draft);
+- the privacy declaration, matching `data_collection_permissions: none`;
+- a source link to the public repository.
+
+The source is published unminified and without a build step, so no separate source upload
+is required.
 
 ## 5. Release checklist (Phase D)
 
@@ -103,11 +120,15 @@ upload is required.
 - [ ] Licensing and attribution: XPI contains `LICENSE` (MIT, identical to the repository
       root, both copyright notices); no new third-party code, fonts, icons or images without
       a compatible license and required attribution; README attribution unchanged
-- [ ] Manual acceptance by the operator: [ABNAHME.md](evidence/phase-d/ABNAHME.md) (issues #2–#6)
+- [ ] Every open issue classified and the issue review accepted
+      ([ISSUE-REVIEW.md](evidence/phase-d/ISSUE-REVIEW.md))
+- [ ] Manual acceptance by the operator: [ABNAHME.md](evidence/phase-d/ABNAHME.md) (issues #2, #3, #6)
+- [ ] Stage 1: operator authorization → sign 0.9.0/0.9.1 unlisted (SIGNING.md §5), verify
+      (§6), run the signed update test (§7)
 - [ ] 1.0 release decision: remove the development notice (`scripts/check-release.mjs` fails a
-      1.x build that still shows it, and a 0.x build without it), production `update_url`
-- [ ] Operator approval → `web-ext sign --channel unlisted` (SIGNING.md §4)
-- [ ] Tag release, attach signed XPI, update `updates.json` if used
+      1.x build that still shows it, a 0.x build without it, and a 1.x build with an `update_url`)
+- [ ] Stage 2: operator's explicit release approval → listed submission of 1.0.0 (SIGNING.md §8)
+- [ ] Tag the release and attach the signed XPI
 
 ## Sources
 

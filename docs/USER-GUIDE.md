@@ -79,7 +79,9 @@ without one.
   again and restore your last encrypted export (§4).
 - **Damaged data:** if CTA reports damaged data at unlock, it offers to restore the
   previous saved state after your confirmation and the correct password. It never
-  overwrites anything without asking. If that is not possible, restore your last export.
+  overwrites anything without asking. If the restore fails although the password is right,
+  the stored data is too damaged to check safely. Then remove CTA (uninstall the add-on),
+  install it again and restore your last encrypted export (§4).
 - **Lost computer or profile:** install CTA elsewhere and restore your encrypted export.
 
 ## 6. Security notes and limitations
