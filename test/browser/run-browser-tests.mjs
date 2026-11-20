@@ -551,6 +551,24 @@ try {
         { start, second, enterCopies, third, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
     }
 
+    // B8-5 (issue #3): the rows are rebuilt when the codes expire (every 30 s); the keyboard
+    // focus must stay on the same entry, otherwise keyboard users lose their place.
+    {
+      await open(pop, "popup/popup.html");
+      await waitFor(pop, `document.body.dataset.rendered === "100"`);
+      await call("input.performActions", { context: pop, actions: [{ type: "key", id: "kb5", actions: ["", "", ""]
+        .flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+      const focused = () => evalJson(pop, `async () => { const a = document.activeElement;
+        return { id: a.dataset.id ?? null, row: [...document.querySelectorAll("#list .row")].indexOf(a), visible: a.matches(":focus-visible"),
+          code: a.querySelector(".code")?.textContent ?? null }; }`);
+      const before = await focused();
+      await sleep(30_000 - (Date.now() % 30_000) + 1500); // past the next period boundary
+      const after = await focused();
+      record("B8-5", "keyboard focus stays on the same entry when the codes refresh at a period boundary",
+        before.row === 2 && !!before.id && after.id === before.id && after.row === 2 && after.visible && after.code !== before.code,
+        { before, after });
+    }
+
     // prefers-reduced-motion: no transition
     if (!CHROME_OK) notTested("B8-3", "prefers-reduced-motion disables the hover transition", NO_CHROME);
     else {

@@ -87,6 +87,10 @@ function render() {
     li.textContent = t("noAccounts");
     $("list").replaceChildren(li);
   } else {
+    // The rows are rebuilt when codes expire (every period); keep the keyboard focus on the
+    // same entry so that keyboard users do not lose their place (issue #3).
+    const active = document.activeElement;
+    const focusedId = active?.classList?.contains("row") ? active.dataset.id : null;
     $("list").replaceChildren(...sortForView(codes, settings.sort).map((c) => {
       const li = document.createElement("li");
       if (matchesSite(c.url, tabUrl)) li.className = "current";
@@ -99,9 +103,11 @@ function render() {
       ico.append(icon("copyIcon"));
       btn.append(span("name", c.name), span("code", c.code), ico);
       btn.addEventListener("click", () => copy(btn, ico, c));
+      btn.dataset.id = c.id;
       li.append(btn);
       return li;
     }));
+    if (focusedId) [...$("list").querySelectorAll(".row")].find((b) => b.dataset.id === focusedId)?.focus({ preventScroll: true });
   }
   document.body.dataset.rendered = String(codes.length);
 }
