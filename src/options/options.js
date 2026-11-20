@@ -98,8 +98,8 @@ async function refresh(clearMessage = true) {
   $("lockBtn").hidden = false;
   renderAccounts();
   updateExportForm();
+  await showPrevious(); // before the state flips, so "unlocked" means the page is complete
   document.body.dataset.state = "unlocked";
-  await showPrevious();
 }
 
 function cell(cls, text) {
