@@ -31,7 +31,20 @@ const entries = Object.values(zip.files).filter((e) => !e.dir);
 const actual = new Map(await Promise.all(entries.map(async (e) => [e.name, sha(await e.async("nodebuffer"))])));
 
 const SIG = /^META-INF\/(manifest\.mf|mozilla\.sf|mozilla\.rsa|cose\.manifest|cose\.sig)$/;
-const changed = [...expected].filter(([f, h]) => actual.get(f) !== h).map(([f]) => f);
+// Signing strips the trailing newline of manifest.json (observed on the real 0.9.0/0.9.1
+// builds). The manifest is therefore compared as parsed JSON (every key and value) against
+// the prepared one; every other file must be byte-identical.
+// The prepared manifest must itself still match SHA256SUMS.
+let preparedManifest = null;
+try {
+  const bytes = readFileSync(join(base, "source/manifest.json"));
+  if (sha(bytes) === expected.get("manifest.json")) preparedManifest = JSON.parse(bytes.toString("utf8"));
+} catch { /* missing: compared by hash only */ }
+let signedManifestText = null;
+try { signedManifestText = await zip.file("manifest.json").async("string"); } catch { /* missing */ }
+const sameJson = (text, obj) => { try { return obj !== null && JSON.stringify(JSON.parse(text)) === JSON.stringify(obj); } catch { return false; } };
+const changed = [...expected].filter(([f, h]) => actual.get(f) !== h &&
+  !(f === "manifest.json" && sameJson(signedManifestText, preparedManifest))).map(([f]) => f);
 const extra = [...actual.keys()].filter((f) => !expected.has(f) && !SIG.test(f));
 check("every prepared file present and byte-identical", changed.length === 0, changed.join(", "));
 check("no extra files besides the AMO signature", extra.length === 0, extra.join(", "));

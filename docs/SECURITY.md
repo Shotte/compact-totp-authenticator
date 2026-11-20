@@ -262,9 +262,16 @@ a write). Mutation checks: removing the generation check fails 8 tests; removing
   dialog but guarantees that no password attempt or decryption failure writes storage.
 - A structurally destroyed current vault (header unreadable) cannot prove its generation.
   The store supports recovery only with the separate `allowUnverifiedGeneration` consent.
-  **The service does not use it yet:** `restore` refuses such a vault until the dedicated
-  warning UX exists (issue #8). The user's way out is then the last encrypted export, as in
-  USER-GUIDE §5. Covered by the test `issue #8` in `test/service.test.mjs`. Residual edge, once enabled: if that happens exactly after a rotation whose backup update
+  **The service does not use it** (issue #8). `unlock` reports such a vault, and stored
+  copies without a single readable header, as `damaged`. The answer is the same for every
+  password, because a structurally unreadable header is a storage fact that does not depend
+  on the password, so no password oracle arises. `restore` stays refused. The UI explains
+  that only the last encrypted export can restore the accounts (USER-GUIDE §5).
+
+  A failing ciphertext under an intact header still reports `unlock`: there, a wrong
+  password and damage cannot be told apart.
+
+  Tests: `issue #8` in `test/service.test.mjs`; browser check C2-5b. Residual edge, once enabled: if that happens exactly after a rotation whose backup update
   failed, the confirmed restore could use the old-generation backup; it requires a storage
   failure at step 4, later structural destruction of the vault, and a double confirmation.
 - Not provable in Node, to verify in the browser (C2/C6): a single `storage.local.set` of

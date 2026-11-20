@@ -109,9 +109,12 @@ is required.
 - [ ] Permission review against SECURITY.md §5
 - [ ] Secret-leak grep, fixtures synthetic
 - [ ] Manual test on Firefox current release (160) and ESR 140, Windows
-- [ ] Manual on Linux and macOS (C4 review, decision 2): native Save dialog for an export,
-  cancel, a failing download (target folder without write permission), native Open dialog
-  and restore of the saved file. Windows is automated by `test/browser/native-dialogs.mjs`.
+- [x] Native file dialogs: accepted on the Windows evidence for Firefox 1.0 (CTA-001, issue #5).
+  N1–N5 in `test/browser/native-dialogs.mjs` cover Save, cancel, a failing download, Open
+  plus restore, and the legacy import.
+  **Portability limitation:** the native dialogs on Linux and macOS are not verified, by
+  automation or by hand. They stay a manual check whenever such a desktop is available.
+  The headless browser suite runs on both platforms in CI.
 - [ ] **Release-blocking: real extension update test** (approved C6 decision): the signed
       previous version updates to the new signed version; the encrypted vault survives; the
       extension ID is unchanged; settings and account order are intact; unlock and TOTP

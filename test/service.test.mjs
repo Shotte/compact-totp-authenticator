@@ -197,19 +197,35 @@ test("recovery: damaged vault -> recoverable without writing; confirmed restore 
   assert.equal(ok(await env.call("listAccounts")).accounts.length, 2, "previous revision restored");
 });
 
-// Issue #8, current behavior: the unverified-generation recovery is disabled in the service.
-// A structurally destroyed vault is reported recoverable, but the confirmed restore is
-// refused with the same reason as a wrong password, and nothing is written.
-test("issue #8: destroyed vault header -> restore refused (same reason as a wrong password), nothing written", async () => {
+// Issue #8: a structurally destroyed vault is reported as "damaged", the same for the right
+// and a wrong password (no password oracle). The unverified-generation restore stays
+// disabled, and nothing is written.
+test("issue #8: destroyed vault header with an openable backup -> damaged for any password, restore refused, nothing written", async () => {
   const env = await ready(2);
   ok(await env.call("lock"));
   env.local.map.set("vault", { garbage: true });
   const snap = snapshot(env.local);
-  const r = ok(await env.call("unlock", { password: PW }));
-  assert.deepEqual([r.unlocked, r.recoverable, r.damage, r.generationVerified], [false, true, "header", false]);
+  assert.equal(err(await env.call("unlock", { password: PW })), "invalid:damaged");
+  assert.equal(err(await env.call("unlock", { password: "wrong password!!" })), "invalid:damaged");
   assert.equal(err(await env.call("restore", { password: PW, confirmed: true })), "invalid:restore");
   assert.equal(err(await env.call("restore", { password: "wrong password!!", confirmed: true })), "invalid:restore");
   assert.deepEqual(snapshot(env.local), snap, "nothing written");
+  assert.deepEqual(await env.session.get("session"), {}, "no session started");
+});
+
+test("issue #8: destroyed vault without any copy -> damaged for any password; intact header with bad ciphertext stays 'unlock'", async () => {
+  const env = await ready(1);
+  ok(await env.call("lock"));
+  const good = structuredClone(env.local.map.get("vault"));
+  env.local.map.delete("vault_backup"); env.local.map.delete("vault_next");
+  env.local.map.set("vault", { garbage: true });
+  assert.equal(err(await env.call("unlock", { password: PW })), "invalid:damaged");
+  assert.equal(err(await env.call("unlock", { password: "wrong password!!" })), "invalid:damaged");
+  // Intact header, damaged ciphertext, no copy: indistinguishable from a wrong password.
+  good.ciphertext = (good.ciphertext[0] === "A" ? "B" : "A") + good.ciphertext.slice(1);
+  env.local.map.set("vault", good);
+  assert.equal(err(await env.call("unlock", { password: PW })), "invalid:unlock");
+  assert.equal(err(await env.call("unlock", { password: "wrong password!!" })), "invalid:unlock");
 });
 
 test("after lock every sensitive command fails closed", async () => {

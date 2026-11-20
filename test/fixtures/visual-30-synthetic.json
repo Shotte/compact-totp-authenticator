@@ -1,0 +1,126 @@
+{
+  "otp_list": [
+    {
+      "name": "Mail",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBR"
+    },
+    {
+      "name": "Bank",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBS"
+    },
+    {
+      "name": "Wolkenspeicher Plus",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBT",
+      "url": "example.com"
+    },
+    {
+      "name": "Bürgerportal Musterstadt",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBU"
+    },
+    {
+      "name": "Stadtwerke Großenhausen – Kundenkonto",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBV"
+    },
+    {
+      "name": "Krankenkasse Süd Online-Geschäftsstelle",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBW"
+    },
+    {
+      "name": "Code-Hosting",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBX"
+    },
+    {
+      "name": "Passwort-Tresor Familie",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBY"
+    },
+    {
+      "name": "Fotoarchiv",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMBZ"
+    },
+    {
+      "name": "Steuerportal",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJQ"
+    },
+    {
+      "name": "Versandhändler Nord",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJR"
+    },
+    {
+      "name": "Musik-Streaming",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJS"
+    },
+    {
+      "name": "Chat",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJT"
+    },
+    {
+      "name": "Buchhaltung Müller & Söhne GmbH",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJU"
+    },
+    {
+      "name": "Domain-Registrar",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJV",
+      "url": "example.org"
+    },
+    {
+      "name": "VPN Büro",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJW"
+    },
+    {
+      "name": "Spieleplattform",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJX"
+    },
+    {
+      "name": "Forum Gärtnerei",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJY"
+    },
+    {
+      "name": "Wiki",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMJZ"
+    },
+    {
+      "name": "Bahn-Konto Fernverkehr",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRQ"
+    },
+    {
+      "name": "Universität – Studierendenportal",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRR"
+    },
+    {
+      "name": "Server-Administration Rechenzentrum Ost",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRS"
+    },
+    {
+      "name": "Kalender",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRT"
+    },
+    {
+      "name": "Ärztekammer Mitgliederbereich",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRU"
+    },
+    {
+      "name": "Spenden",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRV"
+    },
+    {
+      "name": "Versicherung Haftpflicht & Hausrat",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRW"
+    },
+    {
+      "name": "Paketdienst",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRX"
+    },
+    {
+      "name": "Öffentliche Bibliothek",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRY"
+    },
+    {
+      "name": "Straßenverkehrsamt Terminbuchung",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMRZ"
+    },
+    {
+      "name": "Zahlungsdienst",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDIMZQ"
+    }
+  ]
+}

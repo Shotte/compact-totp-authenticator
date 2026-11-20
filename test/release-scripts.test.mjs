@@ -83,7 +83,12 @@ test("verify-signed accepts the prepared files plus AMO signature files and noth
     const ok = await xpi();
     assert.equal(ok.status, 0, ok.stdout);
     assert.match(ok.stdout, /SHA-256 [0-9a-f]{64}/);
+    // Signing strips the manifest's trailing whitespace: accepted, the JSON is identical.
+    const mText = readFileSync(join(src, "manifest.json"), "utf8");
+    const ws = await xpi((z) => z.file("manifest.json", JSON.stringify(JSON.parse(mText), null, 2)));
+    assert.equal(ws.status, 0, ws.stdout);
     for (const [label, change, expected] of [
+      ["changed manifest value", (z) => z.file("manifest.json", JSON.stringify({ ...JSON.parse(mText), permissions: ["storage", "alarms", "activeTab", "tabs"] })), /FAIL\s+every prepared file/],
       ["changed file", (z) => z.file("popup/popup.js", "changed"), /FAIL\s+every prepared file/],
       ["missing file", (z) => z.remove("LICENSE"), /FAIL\s+every prepared file/],
       ["extra file", (z) => z.file("extra.js", "x"), /FAIL\s+no extra files/],
@@ -109,6 +114,16 @@ test("release:source refuses unsafe parameters and never signs", () => {
     assert.equal(r.status, 1, args.join(" "));
     assert.match(r.stderr, msg, args.join(" "));
   }
+  // Signed artifacts of a version are never deleted by preparing it again.
+  const signedDir = join(root, "dist/signing/0.9.99/signed");
+  mkdirSync(signedDir, { recursive: true });
+  writeFileSync(join(signedDir, "keep.xpi"), "signed");
+  try {
+    const r = run("--version", "0.9.99", "--test-update");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /signed artifacts are kept/);
+    assert.equal(readFileSync(join(signedDir, "keep.xpi"), "utf8"), "signed");
+  } finally { rmSync(join(root, "dist/signing/0.9.99"), { recursive: true, force: true }); }
   const src = readFileSync(join(root, "scripts/release-source.mjs"), "utf8");
   assert.doesNotMatch(src.replace(/console\.log\([^)]*\);/g, ""), /web-ext\.js"\),?\s*"sign"|\["sign"/, "the script itself never runs web-ext sign");
 });
