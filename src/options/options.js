@@ -1,6 +1,6 @@
 import { call, t, localize, applyAppearance, errorText } from "../lib/ui.js";
 import { loadSettings, validateSettings, DEFAULT_SETTINGS, APPEARANCE_KEYS } from "../lib/settings.js";
-import { rowHeightPx } from "../lib/appearance.js";
+import { rowHeightPx, contrast, TEXT_CONTRAST } from "../lib/appearance.js";
 import { MAX_IMPORT_BYTES } from "../lib/legacy.js";
 import { legacyCompatibility, secretWarnings } from "../lib/accounts.js";
 
@@ -51,7 +51,10 @@ async function showLocked(mode) {
 }
 
 // Password forms: inputs are cleared after every attempt; progress shown while PBKDF2 runs.
-function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
+// `errors` maps a service reason to a complete, form-specific sentence (feedback 02). A
+// session that expired or was locked meanwhile switches to the locked view and says that
+// the action was not carried out.
+function passwordForm(id, handler, { progress = "unlocking", after, errors = {} } = {}) {
   $(id).addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const form = $(id), fields = [...form.elements], where = areaOf(form);
@@ -61,7 +64,13 @@ function passwordForm(id, handler, { progress = "unlocking", after } = {}) {
     say(t(progress), "progress", where);
     try { await handler(values, where); }
     catch (e) {
-      say(e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error", where);
+      if (e.code === "locked") {
+        if (document.body.dataset.state === "unlocked") await showLocked();
+        say(t("lockedDuringAction"), "error");
+        return;
+      }
+      say(errors[e.reason] ? t(errors[e.reason])
+        : e.reason === "unlock" || e.reason === "restore" ? t("unlockFailed") : e.reason === "damaged" ? t("vaultDamaged") : errorText(e), "error", where);
       if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
     }
     finally {
@@ -325,7 +334,13 @@ function showAppearance(s) {
   const f = $("settingsForm").elements;
   f.fg.disabled = f.bg.disabled = !s.customColors;
   $("fontSizeOut").textContent = `${s.fontSize} px`;
+  // The chosen text color is kept in the settings; if it is too faint on the background the
+  // popup uses a readable one. Say which color is used and why (feedback 02).
   $("contrastNote").hidden = !tokens.fgAdjusted;
+  if (tokens.fgAdjusted) {
+    const ratio = (Math.floor(contrast(s.fg, s.bg) * 10) / 10).toLocaleString(browser.i18n.getUILanguage());
+    $("contrastNote").textContent = t("contrastAdjustedDetail", [s.fg, tokens.fg, ratio, String(TEXT_CONTRAST).replace(".", t("decimalSep"))]);
+  }
   // Effective height of every choice, so that equal results at large font sizes are visible.
   for (const input of f.rowHeight) {
     const choice = input.value === "auto" ? "auto" : Number(input.value);
@@ -473,7 +488,8 @@ async function init() {
     say(t("passwordChanged"));
   });
   passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
-  passwordForm("restoreExportForm", submitRestoreExport);
+  passwordForm("restoreExportForm", submitRestoreExport, { errors: {
+    "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed", "vault-not-empty": "restoreNotEmpty" } });
   $("exportForm").addEventListener("change", updateExportForm);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
   await refresh();

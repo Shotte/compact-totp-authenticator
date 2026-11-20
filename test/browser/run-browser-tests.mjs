@@ -392,6 +392,62 @@ try {
         /\d+ px/.test(big.note) && big.previewRow === big.choices["22"].replace(/[()\s]/g, ""), { big, small });
       await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
     }
+    {
+      // F2-1 (feedback 02, finding 1): repeated appearance changes through the form, with real
+      // pointer and key input where BiDi can drive it (checkbox, slider, radio); the color
+      // inputs get the input and change events the native picker fires. The last valid text
+      // color must win in storage, preview and popup; a too faint one is kept in the settings,
+      // replaced visibly in preview and popup, and explained.
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const show = (sel) => evalJson(opt, `async () => { document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: "center" }); return true; }`);
+      const pick = (name, value) => evalJson(opt, `async () => { const el = document.querySelector("#settingsForm input[name=${name}]");
+        el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 150)); return true; }`);
+      const keys = async (...vals) => call("input.performActions", { context: opt, actions: [{ type: "key", id: "kb2",
+        actions: vals.flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+      const state = () => evalJson(opt, `async () => ({ stored: (await browser.storage.local.get("settings")).settings,
+        previewText: getComputedStyle(document.querySelector("#appearancePreview .name")).color,
+        previewBg: getComputedStyle(document.querySelector("#appearance .preview")).backgroundColor,
+        input: document.querySelector("#settingsForm input[name=fg]").value,
+        note: document.getElementById("contrastNote").hidden ? "" : document.getElementById("contrastNote").textContent })`);
+      const popupText = async () => { await open(pop, "popup/popup.html");
+        await waitFor(pop, `document.body.dataset.state === "unlocked" || document.body.dataset.state === "locked"`);
+        return evalJson(pop, `async () => getComputedStyle(document.querySelector("#list .row .name") ?? document.body).color`); };
+      await show("#settingsForm input[name=customColors]");
+      await clickAt(opt, "#settingsForm input[name=customColors]");
+      await pick("fg", "#ffff00");
+      await pick("bg", "#1e1e1e");
+      await show("#fontSize");
+      await clickAt(opt, "#fontSize");
+      await keys("\uE014", "\uE014", "\uE014"); // ArrowRight: larger font through the real slider
+      await sleep(200);
+      await show("#settingsForm input[name=rowHeight][value='30']");
+      await clickAt(opt, "#settingsForm input[name=rowHeight][value='30']");
+      await sleep(200);
+      await pick("bg", "#202020");
+      await pick("fg", "#66ccff"); // a valid, contrasting color after font and row changes
+      const valid = await state();
+      const validPopup = await popupText();
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await pick("fg", "#3366ff"); // too faint on #202020: corrected visibly, choice kept
+      const faint = await state();
+      const faintPopup = await popupText();
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await pick("fg", "#ffcc00"); // and a valid one wins again
+      const again = await state();
+      record("F2-1", "repeated appearance changes (text color, background, font size, row height, text color again) through the form: the last valid text color wins in storage, preview and popup; a too faint color is kept, replaced visibly with an explanation naming both colors",
+        valid.stored.fg === "#66ccff" && valid.stored.bg === "#202020" && valid.stored.fontSize > 16 && valid.stored.rowHeight === 30 &&
+        valid.previewText === "rgb(102, 204, 255)" && valid.previewBg === "rgb(32, 32, 32)" && valid.note === "" && validPopup === "rgb(102, 204, 255)" &&
+        faint.stored.fg === "#3366ff" && faint.input === "#3366ff" && faint.previewText === "rgb(255, 255, 255)" && faintPopup === "rgb(255, 255, 255)" &&
+        faint.note.includes("#3366ff") && faint.note.includes("#ffffff") &&
+        again.stored.fg === "#ffcc00" && again.previewText === "rgb(255, 204, 0)" && again.note === "" && again.stored.fontSize === valid.stored.fontSize,
+        { valid, validPopup, faint, faintPopup, again });
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    }
     if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
   }
 
@@ -1435,6 +1491,30 @@ try {
       wrong4.kind === "error" && wrongMaster4.kind === "error" && exportAsMaster4.kind === "error" && unchanged4 &&
       right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
       { wrongExportPassword: wrong4, wrongMasterPassword: wrongMaster4, exportPasswordAsMaster: exportAsMaster4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
+
+    // F2-2 (feedback 02, finding 2): every restore failure has its own sentence in the restore
+    // section; a session that ended meanwhile switches to the locked view and says so.
+    {
+      const text = (k) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)})`);
+      const notEmpty = await restoreVia(uniName, EXP); // the vault holds the restored entries
+      await vaultWith([], PW2);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const wrongMaster = await restoreVia(uniName, EXP, WRONG_PW);
+      const wrongExport = await restoreVia(uniName, WRONG_PW);
+      await msg(opt, "lock"); // like the automatic lock while the form is being filled
+      const lockedNow = await restoreVia(uniName, EXP);
+      const lockedView = await evalJson(opt, `async () => document.body.dataset.state`);
+      const sortNote = await evalJson(opt, `async () => !!document.querySelector("[data-i18n=sortNote]")?.textContent`);
+      await msg(opt, "unlock", { password: PW2 });
+      await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // back to the state C4-5 expects
+      const want = { notEmpty: await text("restoreNotEmpty"), wrongMaster: await text("restoreWrongMaster"),
+        wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
+      record("F2-2", "restore errors: not-empty vault, wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
+        notEmpty.area === "restoreStatus" && notEmpty.text === want.notEmpty && wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+        wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
+        lockedView === "locked" && sortNote, { notEmpty, wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+    }
 
     // C4-5: restoring into a vault with accounts is refused; a tampered file fails.
     const before5 = await vaultJson();

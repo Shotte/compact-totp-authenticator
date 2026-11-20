@@ -262,9 +262,6 @@
   "customColors": {
     "message": "Use custom colors"
   },
-  "contrastAdjusted": {
-    "message": "The text color was adjusted to keep enough contrast with the background."
-  },
   "fontSize": {
     "message": "Font size"
   },
@@ -598,5 +595,40 @@
   },
   "importGeneratedName": {
     "message": "generated name, editable"
+  },
+  "contrastAdjustedDetail": {
+    "message": "The chosen text color $CHOSEN$ has too little contrast with the background ($RATIO$ : 1, at least $MIN$ : 1 is needed). To keep the text readable, the popup uses $USED$. Your choice stays saved; pick a lighter or darker color or another background.",
+    "placeholders": {
+      "chosen": {
+        "content": "$1"
+      },
+      "used": {
+        "content": "$2"
+      },
+      "ratio": {
+        "content": "$3"
+      },
+      "min": {
+        "content": "$4"
+      }
+    }
+  },
+  "decimalSep": {
+    "message": "."
+  },
+  "lockedDuringAction": {
+    "message": "The session expired or was locked (automatic lock). The action was not carried out and nothing was changed. Unlock CTA and try again."
+  },
+  "restoreWrongMaster": {
+    "message": "The master password of this vault is wrong. Nothing was restored."
+  },
+  "restoreDecryptFailed": {
+    "message": "The backup could not be decrypted: the export password is wrong or the file is damaged. Nothing was restored."
+  },
+  "restoreNotEmpty": {
+    "message": "Restoring works only into an empty vault. Your existing 2FA entries stay unchanged; nothing was restored."
+  },
+  "sortNote": {
+    "message": "Sorting applies to the popup display. The table of 2FA entries here keeps your manual order."
   }
 }
