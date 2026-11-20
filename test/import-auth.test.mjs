@@ -177,3 +177,16 @@ test("feedback 01: storage.session holds only the binding (session id, revision,
   ok(await env.call("lock"));
   assert.deepEqual(await env.session.get("pendingImport"), {}, "a lock drops it");
 });
+
+test("feedback 01: the stored binding cannot revive an expired session after a restart; unlock gives a new session without it", async () => {
+  const env = await ready();
+  env.svc = env.make(); // event page restarted, binding still in storage.session
+  env.clk.advance(16 * 60_000); // session expired meanwhile
+  const before = snap(env.local);
+  assert.match(err(await apply(env)), /^locked/);
+  assert.equal(snap(env.local), before, "nothing written");
+  assert.deepEqual(await env.session.get(["session", "pendingImport"]), {}, "session and binding wiped");
+  ok(await env.call("unlock", { password: PW }));
+  assert.equal(err(await apply(env)), "conflict", "the old preview is not reusable in the new session");
+  assert.equal(ok(await env.call("listAccounts")).accounts.length, 0);
+});
