@@ -12,7 +12,10 @@
     "lint": "web-ext lint --source-dir src",
     "start": "web-ext run --source-dir src",
     "build": "web-ext build --source-dir src --overwrite-dest && node scripts/check-package.mjs",
-    "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs"
+    "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "release:source": "node scripts/release-source.mjs",
+    "verify:signed": "node scripts/verify-signed.mjs"
   },
   "devDependencies": {
     "web-ext": "10.8.0"

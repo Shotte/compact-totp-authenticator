@@ -1,0 +1,124 @@
+{
+  "otp_list": [
+    {
+      "name": "Test Alpha",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBR"
+    },
+    {
+      "name": "Test Bravo",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBS"
+    },
+    {
+      "name": "Test Charlie",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBT"
+    },
+    {
+      "name": "Test Delta",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBU"
+    },
+    {
+      "name": "Test Echo",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBV"
+    },
+    {
+      "name": "Test Foxtrot",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBW"
+    },
+    {
+      "name": "Test Golf",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBX"
+    },
+    {
+      "name": "Test Hotel",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBY"
+    },
+    {
+      "name": "Test India",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMBZ"
+    },
+    {
+      "name": "Test Juliett",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJQ"
+    },
+    {
+      "name": "Test Kilo",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJR"
+    },
+    {
+      "name": "Test Lima",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJS"
+    },
+    {
+      "name": "Test Mike",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJT"
+    },
+    {
+      "name": "Test November",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJU"
+    },
+    {
+      "name": "Test Oscar",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJV"
+    },
+    {
+      "name": "Test Papa",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJW"
+    },
+    {
+      "name": "Test Quebec",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJX"
+    },
+    {
+      "name": "Test Romeo",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJY"
+    },
+    {
+      "name": "Test Sierra",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMJZ"
+    },
+    {
+      "name": "Test Tango",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRQ"
+    },
+    {
+      "name": "Test Uniform",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRR"
+    },
+    {
+      "name": "Test Victor",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRS"
+    },
+    {
+      "name": "Test Whiskey",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRT"
+    },
+    {
+      "name": "Test Xray",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRU"
+    },
+    {
+      "name": "Test Yankee",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRV"
+    },
+    {
+      "name": "Test Zulu",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRW"
+    },
+    {
+      "name": "Test Nord",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRX"
+    },
+    {
+      "name": "Test Süd",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRY"
+    },
+    {
+      "name": "Test Ost",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMRZ"
+    },
+    {
+      "name": "Test West",
+      "key": "INKECLKTLFHFISCFKREUGLJQGAYDGMZQ"
+    }
+  ]
+}

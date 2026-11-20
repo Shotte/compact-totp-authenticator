@@ -416,6 +416,34 @@ try {
     record("B8-2", "keyboard focus shows a visible inset outline without layout shift", focus.isRow && focus.focusVisible &&
       focus.outline === "solid 2px" && focus.offset === "-2px" && JSON.stringify(focus.rect) === JSON.stringify(before.rect), focus);
 
+    // B8-4 (issue #3): keyboard-only operation with trusted key input. The list is not a tab
+    // stop, Tab walks the rows, Enter and Space copy the focused row, the footer is reachable.
+    {
+      const keys = (...vals) => call("input.performActions", { context: pop, actions: [{ type: "key", id: "kb",
+        actions: vals.flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+      const TAB = "", ENTER = "", SPACE = " ";
+      const where = () => evalJson(pop, `async () => { const a = document.activeElement, rows = [...document.querySelectorAll("#list .row")];
+        return { row: rows.indexOf(a), id: a.id, focusVisible: a.matches(":focus-visible") }; }`);
+      await evalJson(pop, `async () => { // test harness: record the popup's clipboard writes
+        window.__writes = []; const orig = navigator.clipboard.writeText.bind(navigator.clipboard);
+        navigator.clipboard.writeText = (s) => { window.__writes.push(s); return orig(s); }; return true; }`);
+      const copiedRow = async (i) => (await waitFor(pop, `document.querySelectorAll("#list .row")[${i}].dataset.copied === "ok"`, 2000)) &&
+        (await evalJson(pop, `async () => window.__writes.at(-1) === document.querySelectorAll("#list .row")[${i}].querySelector(".code").textContent`));
+      const start = await where(); // after B8-2's single Tab
+      await keys(TAB); const second = await where();
+      await keys(ENTER); const enterCopies = await copiedRow(1);
+      await sleep(1100);
+      await keys(TAB); await keys(SPACE); const spaceCopies = await copiedRow(2);
+      await keys(...Array(97).fill(TAB)); const lastRow = await where();
+      await keys(TAB); const lockBtn = await where();
+      await keys(TAB); const settingsBtn = await where();
+      const writes = await evalJson(pop, `async () => window.__writes.length`);
+      record("B8-4", "keyboard only (issue #3, supporting evidence): first Tab lands on a row (list not a tab stop), Tab walks the rows, Enter and Space copy the focused row once each, Tab reaches lock and settings",
+        start.row === 0 && second.row === 1 && enterCopies && spaceCopies && lastRow.row === 99 && lockBtn.id === "lock" &&
+        settingsBtn.id === "settings" && lockBtn.focusVisible && settingsBtn.focusVisible && writes === 2,
+        { start, second, enterCopies, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
+    }
+
     // prefers-reduced-motion: no transition
     if (!CHROME_OK) notTested("B8-3", "prefers-reduced-motion disables the hover transition", NO_CHROME);
     else {

@@ -13,8 +13,9 @@ continuation of the original extension.
 ## Status
 
 **Development build (0.x) – not ready for production use.** Accounts are stored encrypted
-under a master password, but there is no export or backup yet (Phase C4): if the master
-password is forgotten, the accounts are lost.
+under a master password. If the master password is forgotten, the accounts can only be
+restored from an export made before. User guide: [docs/USER-GUIDE.md](docs/USER-GUIDE.md);
+release preparation: [docs/SIGNING.md](docs/SIGNING.md), [CHANGELOG.md](CHANGELOG.md).
 
 Implemented (Phase B):
 
@@ -53,11 +54,16 @@ Implemented (Phase C5):
 - Import of a legacy `totp.json` or a CTA unencrypted export after a preview and the
   master password: append-only, duplicates skipped, names for unnamed entries, one write.
 
-In review (Phase C6, release verification, not merged):
+Implemented (Phase C6, release verification):
 
 - Security regression, extension update test (unsigned upgrade simulation; the signed
   update test is still open), release audit and operator checklist
   ([docs/evidence/phase-c6](docs/evidence/phase-c6/README.md)).
+
+In review (Phase D preparation, not merged): release package audit (`npm run check:release`),
+signing-source preparation (`npm run release:source`), signing procedure, signed update test
+plan, user guide, changelog and the operator's acceptance checklist
+([docs/evidence/phase-d](docs/evidence/phase-d/README.md)). Nothing is signed or released.
 
 Not implemented:
 

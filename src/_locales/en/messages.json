@@ -322,7 +322,7 @@
     "message": "Your accounts are encrypted with this password. There is no way to recover it: if you forget it, your accounts are lost. Store it safely, e.g. in a password manager."
   },
   "devNotice": {
-    "message": "Development build (0.x), not for production use. There is no export or backup yet: if you forget the master password, your accounts are lost."
+    "message": "Development build (0.x), not for production use. If you forget the master password, your accounts can only be restored from an export you made before."
   },
   "newPassword": {
     "message": "New master password"

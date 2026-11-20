@@ -1,18 +1,25 @@
-// C6.2 – extension update test through Firefox's real add-on update path.
+// C6.2 / D3 – extension update test through Firefox's real add-on update path.
 //
-// What this is: a LOCAL, UNSIGNED upgrade simulation. Version 0.1.0 is installed PERMANENTLY
-// (AddonManager, not a temporary add-on) and updated to 0.1.1 by AddonManager.findUpdates():
-// update_url → updates.json → download → install, the same path a signed self-distributed
-// update takes. It needs a Firefox build that honours xpinstall.signatures.required=false
-// (ESR, Developer Edition, Nightly). Release Firefox refuses unsigned permanent installs; the
-// script then reports NOT_TESTED instead of guessing.
+// Two modes, never mixed up in the results:
 //
-// What this is not: a signed-extension update. Signature verification is switched off in
-// this throwaway profile, so the release-blocking signed-update test (PLAN-C4-C6.md §4)
-// stays NOT_TESTED until signed builds exist (Phase D, needs operator authorization).
+// UNSIGNED (default): a local upgrade simulation. Two packages are built from src/ (0.1.0 →
+//   0.1.1). The old one is installed PERMANENTLY (AddonManager, not a temporary add-on) and
+//   updated by AddonManager.findUpdates(): update_url → updates.json → download → hash
+//   check → install. Signature checks are switched off in the throwaway profile, so it needs
+//   a Firefox that honours xpinstall.signatures.required=false (ESR, Developer Edition,
+//   Nightly); release Firefox refuses and the script reports NOT_TESTED. U-signed stays
+//   NOT_TESTED.
 //
-// Synthetic accounts and passwords only. Writes results to $RESULTS_DIR/update-results.json.
-import { createServer } from "node:http";
+// SIGNED (--old <signed.xpi> --new <signed.xpi>, Phase D3): the two AMO-signed builds are used
+//   as they are, signature checks stay ON (release Firefox works), and both builds must
+//   report a signed state. Only in this mode can U-signed become PASS. Both builds must carry
+//   update_url https://127.0.0.1:47811/updates.json (`npm run release:source -- --test-update`,
+//   see docs/SIGNING.md).
+//
+// The update server is HTTPS on 127.0.0.1:UPDATE_PORT (default 47811) with a certificate made
+// for this run (openssl); it is trusted only inside the throwaway profile.
+// Synthetic accounts and passwords only. Writes $RESULTS_DIR/update-results.json.
+import { createServer } from "node:https";
 import { cpSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -28,25 +35,30 @@ import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = process.env.RESULTS_DIR ? resolve(process.env.RESULTS_DIR) : join(root, "docs/evidence/phase-c6");
-const FIREFOX = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? process.env.FIREFOX_BIN
+const argv = process.argv.slice(2);
+const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
+const SIGNED_OLD = arg("--old"), SIGNED_NEW = arg("--new");
+const SIGNED = !!(SIGNED_OLD && SIGNED_NEW);
+const FIREFOX = arg("--firefox") ?? process.env.FIREFOX_BIN
   ?? { win32: "C:/Program Files/Mozilla Firefox/firefox.exe", darwin: "/Applications/Firefox.app/Contents/MacOS/firefox", linux: "firefox" }[process.platform];
+const PORT = Number(process.env.UPDATE_PORT ?? 47811);
+const BASE = `https://127.0.0.1:${PORT}`;
+const UPDATE_URL = `${BASE}/updates.json`;
 const EXT_ID = "{f587432b-b553-483e-b08d-4feac6378113}";
 const PW = "update test passphrase 2026 ✓"; // synthetic
 const ACCOUNTS = exportRoundTripAccounts();
 const SETTINGS = { ...DEFAULT_SETTINGS, theme: "dark", fontSize: 14, rowHeight: 25, autoLockMinutes: 30 };
 const SVC = "(typeof Services !== \"undefined\" ? Services : ChromeUtils.importESModule(\"resource://gre/modules/Services.sys.mjs\").Services)";
 const AM = "ChromeUtils.importESModule(\"resource://gre/modules/AddonManager.sys.mjs\").AddonManager";
+const SIGNED_MIN = 2; // AddonManager.SIGNEDSTATE_SIGNED
 
 const results = [];
 const record = (id, name, pass, details) => { results.push({ id, name, verdict: pass ? "PASS" : "FAIL", details }); console.log(`${pass ? "PASS" : "FAIL"}  ${id}  ${name}`); };
 const notTested = (id, name, reason) => { results.push({ id, name, verdict: "NOT_TESTED", details: { reason } }); console.log(`NOT_TESTED  ${id}  ${name} (${reason})`); };
 
-// 1. Two unsigned packages from src/, differing only in version; both carry the test update_url.
+// 1. Packages: unsigned mode builds both from src/ with the test update_url; signed mode uses
+//    the given signed XPIs unchanged.
 const work = mkdtempSync(join(tmpdir(), "cta-update-"));
-const server = createServer();
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const PORT = server.address().port;
-const UPDATE_URL = `http://127.0.0.1:${PORT}/updates.json`;
 function build(version) {
   const dir = join(work, `src-${version}`);
   cpSync(join(root, "src"), dir, { recursive: true });
@@ -61,27 +73,49 @@ function build(version) {
   if (r.status !== 0) throw new Error(`web-ext build ${version}: ${r.stderr || r.stdout}`);
   return join(out, name);
 }
-const OLD = build("0.1.0"), NEW = build("0.1.1");
+const OLD = SIGNED ? resolve(SIGNED_OLD) : build("0.1.0");
+const NEW = SIGNED ? resolve(SIGNED_NEW) : build("0.1.1");
 const newBytes = readFileSync(NEW);
+let OLD_VERSION = SIGNED ? null : "0.1.0", NEW_VERSION = SIGNED ? null : "0.1.1"; // signed: read from the XPIs below
+
+// 2. HTTPS update server: a test CA made for this run signs a server certificate for
+//    127.0.0.1 (Firefox refuses a CA certificate used directly as the server certificate).
+//    Only the CA is trusted, and only in the throwaway profile.
+const certDir = join(work, "tls");
+mkdirSync(certDir);
+const tls = (name) => join(certDir, name);
+const openssl = (...args) => {
+  const r = spawnSync("openssl", args, { encoding: "utf8", env: { ...process.env, MSYS_NO_PATHCONV: "1" } });
+  if (r.status !== 0) throw new Error(`openssl ${args[0]}: ${r.stderr}`);
+};
+writeFileSync(tls("leaf.ext"), "subjectAltName=IP:127.0.0.1\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n");
+openssl("req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "2", "-subj", "/CN=CTA update test CA",
+  "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+  "-keyout", tls("ca.key"), "-out", tls("ca.pem"));
+openssl("req", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=127.0.0.1", "-keyout", tls("key.pem"), "-out", tls("leaf.csr"));
+openssl("x509", "-req", "-in", tls("leaf.csr"), "-CA", tls("ca.pem"), "-CAkey", tls("ca.key"), "-CAcreateserial",
+  "-days", "2", "-sha256", "-extfile", tls("leaf.ext"), "-out", tls("cert.pem"));
+const certPem = readFileSync(tls("cert.pem"), "utf8");
+const certB64 = readFileSync(tls("ca.pem"), "utf8").replace(/-----[^-]+-----/g, "").replace(/\s+/g, ""); // the CA is what gets trusted
 let updateRequests = 0, xpiRequests = 0;
-server.on("request", (req, res) => {
+const server = createServer({ key: readFileSync(join(certDir, "key.pem")), cert: certPem }, (req, res) => {
   if (req.url.startsWith("/updates.json")) {
     updateRequests++;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ addons: { [EXT_ID]: { updates: [{ version: "0.1.1",
-      update_link: `http://127.0.0.1:${PORT}/cta-0.1.1.xpi`,
+    res.end(JSON.stringify({ addons: { [EXT_ID]: { updates: [{ version: NEW_VERSION,
+      update_link: `${BASE}/new.xpi`,
       update_hash: `sha256:${createHash("sha256").update(newBytes).digest("hex")}` }] } } }));
-  } else if (req.url === "/cta-0.1.1.xpi") {
+  } else if (req.url === "/new.xpi") {
     xpiRequests++;
     res.setHeader("Content-Type", "application/x-xpinstall");
     res.end(newBytes);
   } else { res.statusCode = 404; res.end(); }
 });
+await new Promise((r, j) => { server.once("error", j); server.listen(PORT, "127.0.0.1", r); });
 
 const PREFS = {
-  "xpinstall.signatures.required": false,         // honoured by ESR/Developer/Nightly only
-  "extensions.checkUpdateSecurity": false,        // plain-http update_url on 127.0.0.1
-  "extensions.install.requireBuiltInCerts": false,
+  ...(SIGNED ? {} : { "xpinstall.signatures.required": false }), // unsigned mode only (ESR/Developer/Nightly)
+  "extensions.install.requireBuiltInCerts": false, // the run's certificate is not a built-in CA
   "extensions.update.requireBuiltInCerts": false,
   "extensions.update.enabled": true,
   "extensions.autoDisableScopes": 0,
@@ -137,15 +171,34 @@ async function codesMatch() {
   return { ok: bad.length === 0 && r.result.codes.length === ACCOUNTS.length, count: r.result.codes.length, mismatches: bad };
 }
 
-const evidence = { startedAt: new Date().toISOString(), kind: "local unsigned upgrade via the AddonManager update path (not a signed update)" };
+const evidence = { startedAt: new Date().toISOString(), kind: SIGNED ? "signed update via the AddonManager update path (signature checks on)" : "local unsigned upgrade via the AddonManager update path (not a signed update)" };
 try {
   const s = await call("session.new", { capabilities: {} });
   evidence.browser = { version: s.capabilities.browserVersion, platform: s.capabilities.platformName };
   let top = await chrome();
   const privileged = top ? await evalIn(top, "async () => typeof ChromeUtils !== \"undefined\"").catch(() => false) : false;
   if (!privileged) throw Object.assign(new Error("chrome scope unavailable"), { notTested: "harness: privileged chrome scope unavailable in this Firefox version" });
+  // Trust the run's certificate in this throwaway profile only (update server on 127.0.0.1).
+  await evalIn(top, `async () => { const db = Cc["@mozilla.org/security/x509certdb;1"].getService(Ci.nsIX509CertDB);
+    db.addCertFromBase64(${JSON.stringify(certB64)}, "C,,"); return true; }`);
+  // TLS preflight from the privileged scope: the update check can only work if this does.
+  evidence.tlsPreflight = await evalIn(top, `async () => { try { const r = await fetch(${JSON.stringify(UPDATE_URL)}, { cache: "no-store" });
+    return { ok: r.ok, status: r.status }; } catch (e) { return { ok: false, error: String(e?.message ?? e) }; } }`);
+  updateRequests = 0; // the preflight is not part of the update
+  if (!evidence.tlsPreflight.ok) throw new Error(`HTTPS update server not reachable from Firefox: ${JSON.stringify(evidence.tlsPreflight)}`);
+  if (SIGNED) { // versions come from the signed packages themselves
+    const v = await evalIn(top, `async () => { const out = [];
+      for (const p of ${JSON.stringify([OLD, NEW])}) { const f = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile); f.initWithPath(p);
+        const i = await ${AM}.getInstallForFile(f); out.push({ version: i.addon?.version ?? i.version ?? null, error: i.error }); i.cancel?.(); }
+      return out; }`);
+    [OLD_VERSION, NEW_VERSION] = v.map((x) => x.version);
+    evidence.packages = v;
+    if (!OLD_VERSION || !NEW_VERSION) throw new Error(`signed packages unreadable: ${JSON.stringify(v)}`);
+  }
+  evidence.mode = SIGNED ? "signed" : "unsigned";
+  evidence.versions = { old: OLD_VERSION, new: NEW_VERSION };
 
-  // 2. Permanent install of 0.1.0 (no temporary add-on).
+  // 3. Permanent install of the old version (no temporary add-on).
   const installed = await evalIn(top, `async () => { const f = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
     f.initWithPath(${JSON.stringify(OLD)});
     try { const i = await ${AM}.getInstallForFile(f); if (i.error) return { error: i.error };
@@ -153,10 +206,11 @@ try {
     catch (e) { return { error: String(e?.message ?? e) }; } }`);
   const before = await addonInfo(top);
   if (!installed?.ok || !before) {
+    if (SIGNED) throw new Error(`signed package refused: ${JSON.stringify(installed)}`);
     throw Object.assign(new Error("install"), { notTested: `this Firefox refuses an unsigned permanent install (${JSON.stringify(installed)}); needs ESR, Developer Edition or Nightly` });
   }
-  record("U-1", "0.1.0 installed permanently (not a temporary add-on), unsigned, active",
-    before.version === "0.1.0" && before.temporary === false && before.isActive && !!before.uuid, { addon: before });
+  record("U-1", `${OLD_VERSION} installed permanently (not a temporary add-on), ${SIGNED ? "signed" : "unsigned"}, active`,
+    before.version === OLD_VERSION && before.temporary === false && before.isActive && !!before.uuid && (!SIGNED || before.signedState >= SIGNED_MIN), { addon: before });
 
   // 3. Synthetic vault, custom order and settings.
   await openPage(before.uuid);
@@ -179,9 +233,9 @@ try {
     try { const n = await install.install(); return { found: true, version: n?.version, state: install.state, error: install.error }; }
     catch (e) { return { found: true, error: String(e?.message ?? e), state: install.state }; } }`);
   let after = null;
-  for (let i = 0; i < 40; i++) { after = await addonInfo(top); if (after?.version === "0.1.1" && after.isActive) break; await sleep(250); }
+  for (let i = 0; i < 40; i++) { after = await addonInfo(top); if (after?.version === NEW_VERSION && after.isActive) break; await sleep(250); }
   record("U-2", "update found through update_url and installed by AddonManager (updates.json fetched, XPI downloaded, hash checked)",
-    upd.found === true && after?.version === "0.1.1" && after.isActive && updateRequests > 0 && xpiRequests > 0,
+    upd.found === true && after?.version === NEW_VERSION && after.isActive && updateRequests > 0 && xpiRequests > 0 && (!SIGNED || after.signedState >= SIGNED_MIN),
     { update: upd, addon: after, updateRequests, xpiRequests });
   record("U-3", "extension ID and moz-extension UUID unchanged; still a permanent install",
     after?.id === before.id && after.uuid === before.uuid && after.temporary === false, { before, after });
@@ -223,15 +277,18 @@ try {
   const unlock2 = await msg("unlock", { password: PW });
   const listRestart = (await msg("listAccounts")).result;
   const settingsRestart = (await storageLocal()).settings;
-  record("U-7", "browser restart after the update: 0.1.1 still installed and active, session locked with no key in storage.session, master password unlocks, data and settings intact",
-    restarted?.version === "0.1.1" && restarted.isActive && st?.initialized && st.unlocked === false && lockedCodes.error === "locked" &&
+  record("U-7", "browser restart after the update: the new version still installed and active, session locked with no key in storage.session, master password unlocks, data and settings intact",
+    restarted?.version === NEW_VERSION && restarted.isActive && st?.initialized && st.unlocked === false && lockedCodes.error === "locked" &&
       sessionArea.length === 0 && unlock2.ok && same(listRestart, listBefore) && same(settingsRestart, SETTINGS),
     { addon: restarted, status: st, sessionKeys: sessionArea, unlock: unlock2.ok });
 } catch (e) {
   if (e.notTested) for (const id of ["U-1", "U-2", "U-3", "U-4", "U-5", "U-6", "U-7"]) notTested(id, "update test", e.notTested);
   else { console.error(e); record("U-error", "update test aborted", false, { error: String(e?.stack ?? e) }); }
 } finally {
-  notTested("U-signed", "signed extension update (AMO-signed 0.1.0 → signed 0.1.1)", "needs signed builds; signing requires operator authorization (Phase D)");
+  const core = results.filter((r) => /^U-[1-7]$/.test(r.id));
+  if (!SIGNED) notTested("U-signed", "signed extension update (two AMO-signed builds)", "unsigned simulation; run with --old/--new and signed XPIs (docs/SIGNING.md)");
+  else record("U-signed", `signed extension update ${OLD_VERSION} → ${NEW_VERSION} with signature checks on: U-1…U-7 all PASS`,
+    core.length === 7 && core.every((r) => r.verdict === "PASS"), { checks: core.map((r) => `${r.id}:${r.verdict}`) });
   try { await ff.close(); } catch { /* gone */ }
   server.close();
   try { rmSync(work, { recursive: true, force: true }); } catch { /* locked */ }

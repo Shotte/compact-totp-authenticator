@@ -1,7 +1,7 @@
 # C4–C6 plan and decisions
 
 Status: C4 merged (PR #15, specification: [SECURITY.md §13](SECURITY.md)). C5 merged (PR #16,
-SECURITY.md §14). C6 is in review (PR #18, evidence in `docs/evidence/phase-c6`). Decisions below were
+SECURITY.md §14). C6 merged (PR #18, evidence in `docs/evidence/phase-c6`); Phase D preparation: SIGNING.md. Decisions below were
 approved in the C3 review decision (CTA-001, 2026-11-19). Material from the preparation
 draft (PR #14) that is now implemented or decided lives here or in SECURITY.md, not twice.
 
@@ -102,7 +102,7 @@ Per-row statuses (existing fixture plus empty names, same-name entries, weak sec
 revision conflict; hash mismatch; kill during commit; 1,000-entry limit; cancel writes
 nothing; no secrets in preview rows.
 
-## 4. C6 – final security and regression testing (in review, PR #18)
+## 4. C6 – final security and regression testing (merged, PR #18)
 
 - **Release-blocking (approved): real Firefox extension update test.** It must show that
   the signed extension updates successfully, the encrypted vault survives, the extension
