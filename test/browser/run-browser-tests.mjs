@@ -343,6 +343,53 @@ try {
         clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
       writeFileSync(join(OUT, `options-appearance-auto-${scheme}-de.png`), Buffer.from(shot.data, "base64"));
     }
+    // F1-1 (feedback 01, finding 2): custom colors recolor only the popup list and the
+    // appearance preview; the options page keeps the theme's own colors (auto, light, dark).
+    if (!CHROME_OK) notTested("F1-1", "custom colors affect only the popup list and the preview, never the options page (auto, light, dark)", NO_CHROME);
+    else {
+      const CUSTOM = { customColors: true, fg: "#ffff00", bg: "#7a0000" };
+      const rgb = (hex) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+      const cases = [];
+      for (const [theme, scheme, pageBg] of [["light", 0, "#ffffff"], ["dark", 1, "#1c1b22"], ["auto", 0, "#1c1b22"], ["auto", 1, "#ffffff"]]) {
+        await setScheme(scheme);
+        await evalJson(opt, `async () => browser.storage.local.set({ settings: ${JSON.stringify({ theme, ...CUSTOM })} })`);
+        await open(opt, "options/options.html");
+        await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        await sleep(200);
+        const page = await evalJson(opt, `async () => { const cs = (sel) => getComputedStyle(document.querySelector(sel));
+          return { body: cs("body").backgroundColor, text: cs("h2").color, label: cs("#settingsForm label").color,
+            button: cs("#resetAppearance").backgroundColor, input: cs("#accountForm input[name=name]").backgroundColor,
+            preview: cs("#appearance .preview").backgroundColor, previewText: cs("#appearancePreview .name").color }; }`);
+        await open(pop, "popup/popup.html");
+        await waitFor(pop, `document.body.dataset.rendered !== undefined`);
+        const popupBg = await evalJson(pop, `async () => getComputedStyle(document.body).backgroundColor`);
+        const pageOwn = page.body === rgb(pageBg) && ![page.text, page.label].includes(rgb(CUSTOM.fg)) &&
+          ![page.button, page.input].includes(rgb(CUSTOM.bg));
+        cases.push({ theme, scheme: scheme ? "light" : "dark", ok: pageOwn && page.preview === rgb(CUSTOM.bg) && page.previewText === rgb(CUSTOM.fg) && popupBg === rgb(CUSTOM.bg), page, popupBg });
+        if (theme !== "auto" || scheme === 0) {
+          const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
+            s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+          const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+          writeFileSync(join(OUT, `feedback01-custom-colors-${theme}${theme === "auto" ? "-dark" : ""}-de.png`), Buffer.from(shot.data, "base64"));
+        }
+      }
+      record("F1-1", "custom colors affect only the popup list and the preview, never the options page (auto, light, dark)", cases.every((c) => c.ok), { cases });
+      // F1-2 (finding 5): every row-height choice shows its effective height; at 20 px font
+      // 22 and 25 px give the same effective height, at 12 px they differ.
+      const eff = async (fontSize) => {
+        await evalJson(opt, `async () => browser.storage.local.set({ settings: { fontSize: ${fontSize}, rowHeight: 22 } })`);
+        await open(opt, "options/options.html");
+        await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        return evalJson(opt, `async () => ({ choices: Object.fromEntries([...document.querySelectorAll("input[name=rowHeight]")].map((i) =>
+          [i.value, i.parentElement.querySelector(".eff").textContent.trim()])), note: document.getElementById("rowNote").textContent,
+          noteShown: !document.getElementById("rowNote").hidden, previewRow: getComputedStyle(document.querySelector("#appearancePreview .row")).height })`);
+      };
+      const big = await eff(20), small = await eff(12);
+      record("F1-2", "row height: effective height shown for every choice and in a note; equal results at a large font are visible; no clipping (preview row = effective height)",
+        big.choices["22"] === big.choices["25"] && small.choices["22"] !== small.choices["25"] && big.noteShown && small.noteShown &&
+        /\d+ px/.test(big.note) && big.previewRow === big.choices["22"].replace(/[()\s]/g, "").replace("px", "px"), { big, small });
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    }
     if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
   }
 
@@ -1292,8 +1339,9 @@ try {
         f.confirmed.checked = ${confirmed};
         document.getElementById("exportButton").scrollIntoView({ block: "center" });
         return !document.getElementById("exportButton").disabled; }`);
-    const pageMessage = () => evalJson(opt, `async () => ({ text: document.getElementById("message").textContent, kind: document.getElementById("message").dataset.kind })`);
-    const settle = async () => { await waitFor(opt, `document.getElementById("message").dataset.kind !== "progress"`, 15_000); return pageMessage(); };
+    // Messages appear in the status area of the section the user works in (feedback 01).
+    const pageMessage = () => evalJson(opt, `async () => { const s = [...document.querySelectorAll(".status")].find((e) => e.textContent); return { text: s?.textContent ?? "", kind: s?.dataset.kind, area: s?.id ?? null }; }`);
+    const settle = async () => { await waitFor(opt, `![...document.querySelectorAll(".status")].some((e) => e.dataset.kind === "progress")`, 15_000); return pageMessage(); };
     const domLeaks = async () => leaks(await evalJson(opt, `async () => document.documentElement.outerHTML`)).length +
       (await evalJson(opt, `async () => document.querySelectorAll("a[download], a[href^='blob:']").length`));
 
@@ -1533,6 +1581,23 @@ try {
         same(names1, ["Vorhanden", "Example Mail", "Demo Cloud", "Padded Key", "example mail", "Short Secret", "Benannt ✓"]) && leak1 === 0 && previewGone &&
         /1/.test(generatedShown.value) && generatedShown.hint.length > 0,
         { message: m1, names: names1, domLeaks: leak1, previewClearedAfterApply: previewGone, generatedName: generatedShown });
+      // C5-6 (feedback 01, findings 3 and 4): the completion message names the skipped entries,
+      // the reasons are listed, and the message appears in the import section, not at the top.
+      const skipped6 = await evalJson(opt, `async () => ({ open: !document.getElementById("importSkipped").hidden,
+        summary: document.getElementById("importSkippedSummary").textContent,
+        items: [...document.querySelectorAll("#importSkippedList li")].map((li) => li.textContent),
+        top: document.getElementById("message").textContent, filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).length })`);
+      record("C5-6", "import result: skipped entries counted in the message and listed with their reasons; the message is shown in the import section only",
+        m1.area === "importStatus" && /5/.test(m1.text) && skipped6.open && /5/.test(skipped6.summary) && skipped6.items.length === 5 &&
+        skipped6.items.some((x) => /Duplikat|duplicate/i.test(x)) && skipped6.items.filter((x) => /ungültig|invalid/i.test(x)).length === 4 &&
+        skipped6.top === "" && skipped6.filled === 1, { message: m1, skipped: skipped6 });
+      { // evidence screenshot: import section with its own status and the opened skipped list
+        const box = await evalJson(opt, `async () => { document.getElementById("importSkipped").open = true;
+          const s = document.getElementById("importStatus").closest("section"); s.scrollIntoView();
+          const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+        const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+        writeFileSync(join(OUT, "feedback01-import-status-de.png"), Buffer.from(shot.data, "base64"));
+      }
       // C5-2: cancel after the preview writes nothing and the old preview cannot be applied
       await vaultWith(kept);
       await open(opt, "options/options.html");
@@ -1544,7 +1609,7 @@ try {
       await evalJson(opt, `async () => document.getElementById("importCancel").scrollIntoView({ block: "center" })`);
       await clickAt(opt, "#importCancel");
       await settle();
-      const after2 = await msg(opt, "importApply", { revision: hash2.revision, fileHash: hash2.fileHash, names: { 10: "x" }, masterPassword: PW });
+      const after2 = await msg(opt, "importApply", { revision: hash2.revision, fileHash: hash2.fileHash, text: LEGACY_TEXT, names: { 10: "x" }, masterPassword: PW });
       record("C5-2", "cancel after the preview: nothing written; the cancelled preview can no longer be applied",
         (await vaultJson()) === before2 && after2.error === "conflict", { applyAfterCancel: after2 });
       // C5-3: vault changed between preview and apply: conflict, nothing imported, preview cleared
@@ -1576,13 +1641,34 @@ try {
       const kept4 = await evalJson(opt, `async () => !document.getElementById("preview").hidden && !document.getElementById("importApply").disabled && !document.getElementById("importMasterPassword").value`);
       const unchanged4 = (await vaultJson()) === before4;
       const direct = (await msg(opt, "importPreview", { text: LEGACY_TEXT })).result;
-      const noPw = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, names: { 10: "x" } });
+      const noPw = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, text: LEGACY_TEXT, names: { 10: "x" } });
       await msg(opt, "lock");
       await msg(opt, "unlock", { password: PW });
-      const stale4 = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, names: { 10: "x" }, masterPassword: PW });
+      const stale4 = await msg(opt, "importApply", { revision: direct.revision, fileHash: direct.fileHash, text: LEGACY_TEXT, names: { 10: "x" }, masterPassword: PW });
       record("C5-4", "import needs the fresh master password (wrong or missing password: error, nothing written, preview kept); after a lock the cached preview is gone and cannot be applied",
         wrong4.kind === "error" && kept4 && unchanged4 && noPw.reason === "current-password" && stale4.error === "conflict" && (await vaultJson()) === before4,
         { wrongPassword: wrong4, previewKeptPasswordCleared: kept4, vaultUnchanged: unchanged4, missingPassword: noPw.reason, staleAfterLock: stale4.error });
+      // C5-5 (feedback 01, finding 1): the event page is suspended while the user reads the
+      // preview; the import must still succeed (it was reported as a conflict before).
+      await vaultWith(kept);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await choose(LEGACY_TEXT);
+      await previewShown();
+      const startedA = (await msg(opt, "status")).result.startedAt;
+      await call("browsingContext.navigate", { context: pop, url: "about:blank", wait: "complete" });
+      await sleep(IDLE_MS * 3);
+      const startedB = (await msg(opt, "status")).result.startedAt;
+      await evalJson(opt, `async () => { const f = document.querySelector("#preview input[type=text]"); f.value = "Nach Pause";
+        document.getElementById("importMasterPassword").value = ${JSON.stringify(PW)};
+        document.getElementById("importApply").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#importApply");
+      const m5 = await settle();
+      const names5 = (await pagePlain(PW)).map((a) => a.name);
+      record("C5-5", "event page suspended between preview and apply: the import succeeds (no false conflict); exactly the importable rows appended once",
+        startedA !== startedB && m5.kind === "ok" && m5.area === "importStatus" &&
+        same(names5, ["Vorhanden", "Example Mail", "Demo Cloud", "Padded Key", "example mail", "Short Secret", "Nach Pause"]),
+        { eventPageRestarted: startedA !== startedB, message: m5, names: names5 });
     }
   }
 

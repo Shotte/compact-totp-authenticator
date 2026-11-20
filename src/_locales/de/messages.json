@@ -18,7 +18,7 @@
     "message": "Einstellungen"
   },
   "noAccounts": {
-    "message": "Keine Konten"
+    "message": "Keine 2FA-Einträge"
   },
   "copyCode": {
     "message": "Code für $NAME$ kopieren",
@@ -38,7 +38,7 @@
     "message": "Compact TOTP Authenticator – Einstellungen"
   },
   "accounts": {
-    "message": "Konten"
+    "message": "2FA-Einträge"
   },
   "colName": {
     "message": "Name"
@@ -82,10 +82,10 @@
     "message": "Gespeichert"
   },
   "addAccount": {
-    "message": "Konto hinzufügen"
+    "message": "2FA-Eintrag hinzufügen"
   },
   "editAccount": {
-    "message": "Konto bearbeiten"
+    "message": "2FA-Eintrag bearbeiten"
   },
   "fieldName": {
     "message": "Name"
@@ -160,7 +160,7 @@
     "message": "Import (totp.json der Originalerweiterung oder unverschlüsselter CTA-Export)"
   },
   "importPreviewNote": {
-    "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung mit deinem Master-Passwort. Vorhandene Konten werden nie geändert; Duplikate werden übersprungen; Konten mit gleichem Namen bleiben erhalten."
+    "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung mit deinem Master-Passwort. Vorhandene 2FA-Einträge werden nie geändert; Duplikate werden übersprungen; Einträge mit gleichem Namen bleiben erhalten."
   },
   "importApply": {
     "message": "Importieren"
@@ -245,7 +245,7 @@
     "message": "Intervall muss 10–300 Sekunden sein"
   },
   "reason_unknown_account": {
-    "message": "Konto existiert nicht mehr"
+    "message": "2FA-Eintrag existiert nicht mehr"
   },
   "appearance": {
     "message": "Darstellung"
@@ -291,6 +291,22 @@
       }
     }
   },
+  "rowEffective": {
+    "message": "$PX$ px",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
+  "rowEffectiveNote": {
+    "message": "Tatsächliche Zeilenhöhe im Popup: $PX$ px.",
+    "placeholders": {
+      "px": {
+        "content": "$1"
+      }
+    }
+  },
   "resetAppearance": {
     "message": "Darstellung auf Standard zurücksetzen"
   },
@@ -319,10 +335,10 @@
     "message": "Master-Passwort anlegen"
   },
   "setupWarning": {
-    "message": "Deine Konten werden mit diesem Passwort verschlüsselt. Es gibt keine Möglichkeit, es wiederherzustellen: Wenn du es vergisst, sind deine Konten verloren. Bewahre es sicher auf, z. B. in einem Passwort-Manager."
+    "message": "Deine 2FA-Einträge werden mit diesem Passwort verschlüsselt. Es gibt keine Möglichkeit, es wiederherzustellen: Wenn du es vergisst, sind deine 2FA-Einträge verloren. Bewahre es sicher auf, z. B. in einem Passwort-Manager."
   },
   "devNotice": {
-    "message": "Entwicklungsversion (0.x), nicht für den produktiven Einsatz. Wenn du das Master-Passwort vergisst, lassen sich deine Konten nur aus einem zuvor erstellten Export wiederherstellen."
+    "message": "Entwicklungsversion (0.x), nicht für den produktiven Einsatz. Wenn du das Master-Passwort vergisst, lassen sich deine 2FA-Einträge nur aus einem zuvor erstellten Export wiederherstellen."
   },
   "newPassword": {
     "message": "Neues Master-Passwort"
@@ -346,10 +362,10 @@
     "message": "Der aktuelle Tresor ist beschädigt, aber eine geprüfte Sicherung derselben Passwort-Generation ist vorhanden. Beim Wiederherstellen kann die letzte Änderung verloren gehen."
   },
   "vaultDamaged": {
-    "message": "Die gespeicherten Daten sind beschädigt und lassen sich nicht sicher wiederherstellen. Ein weiterer Passwortversuch hilft nicht. Stelle deine Konten aus einem verschlüsselten Export wieder her: CTA entfernen, neu installieren, ein Master-Passwort festlegen und „Aus verschlüsselter Sicherung wiederherstellen“ wählen."
+    "message": "Die gespeicherten Daten sind beschädigt und lassen sich nicht sicher wiederherstellen. Ein weiterer Passwortversuch hilft nicht. Stelle deine 2FA-Einträge aus einem verschlüsselten Export wieder her: CTA entfernen, neu installieren, ein Master-Passwort festlegen und „Aus verschlüsselter Sicherung wiederherstellen“ wählen."
   },
   "vaultDamagedShort": {
-    "message": "Die gespeicherten Daten sind beschädigt. Öffne die Einstellungen, um zu sehen, wie du deine Konten aus einem verschlüsselten Export wiederherstellst."
+    "message": "Die gespeicherten Daten sind beschädigt. Öffne die Einstellungen, um zu sehen, wie du deine 2FA-Einträge aus einem verschlüsselten Export wiederherstellst."
   },
   "restoreConfirm": {
     "message": "Mir ist bewusst, dass die letzte Änderung verloren gehen kann."
@@ -433,7 +449,7 @@
     "message": "Mir ist klar, dass diese Datei nicht verschlüsselt ist"
   },
   "legacyCompatible": {
-    "message": "Alle $COUNT$ Konten lassen sich ohne Informationsverlust als totp.json speichern.",
+    "message": "Alle $COUNT$ 2FA-Einträge lassen sich ohne Informationsverlust als totp.json speichern.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -441,7 +457,7 @@
     }
   },
   "legacyIncompatible": {
-    "message": "Nicht ohne Informationsverlust möglich: Die Originalerweiterung kennt nur SHA-1, 6 Stellen und 30 Sekunden. Nutze stattdessen die unverschlüsselte CTA-Datei. Betroffene Konten:"
+    "message": "Nicht ohne Informationsverlust möglich: Die Originalerweiterung kennt nur SHA-1, 6 Stellen und 30 Sekunden. Nutze stattdessen die unverschlüsselte CTA-Datei. Betroffene 2FA-Einträge:"
   },
   "exportButton": {
     "message": "Exportieren"
@@ -450,7 +466,7 @@
     "message": "Export wird erstellt…"
   },
   "exportDone": {
-    "message": "Verschlüsselter Export erstellt ($COUNT$ Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+    "message": "Verschlüsselter Export erstellt ($COUNT$ 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -458,7 +474,7 @@
     }
   },
   "exportPlainDone": {
-    "message": "Unverschlüsselte Datei erstellt ($COUNT$ Konten) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob sie gespeichert wurde, und lösche die Datei, sobald du sie nicht mehr brauchst.",
+    "message": "Unverschlüsselte Datei erstellt ($COUNT$ 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob sie gespeichert wurde, und lösche die Datei, sobald du sie nicht mehr brauchst.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -469,7 +485,7 @@
     "message": "Aus verschlüsselter Sicherung wiederherstellen"
   },
   "restoreExportNote": {
-    "message": "Nur in einen leeren Tresor. Du brauchst das Export-Passwort der Datei und das Master-Passwort dieses Tresors. Das Zusammenführen mit vorhandenen Konten folgt in einer späteren Version."
+    "message": "Die Wiederherstellung funktioniert nur in einen leeren Tresor, also direkt nach dem Festlegen eines neuen Master-Passworts. Vorhandene 2FA-Einträge werden nie überschrieben oder gelöscht. Du brauchst das Export-Passwort der Datei und das Master-Passwort dieses Tresors. Hast du schon Einträge, nutze stattdessen den Import einer unverschlüsselten CTA-Datei; das Zusammenführen verschlüsselter Exporte folgt in einer späteren Version."
   },
   "exportFile": {
     "message": "Sicherungsdatei"
@@ -478,7 +494,7 @@
     "message": "Wiederherstellen"
   },
   "restoreExportDone": {
-    "message": "$COUNT$ Konten wiederhergestellt.",
+    "message": "$COUNT$ 2FA-Einträge wiederhergestellt.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -492,13 +508,13 @@
     "message": "unbekanntes Exportformat"
   },
   "reason_legacy_incompatible": {
-    "message": "einige Konten lassen sich in totp.json nicht darstellen"
+    "message": "einige 2FA-Einträge lassen sich in totp.json nicht darstellen"
   },
   "reason_export_verify": {
     "message": "der Export konnte nicht überprüft werden; es wurde keine Datei erstellt"
   },
   "reason_vault_not_empty": {
-    "message": "Wiederherstellen ist nur in einen leeren Tresor möglich"
+    "message": "Wiederherstellen geht nur in einen leeren Tresor; deine vorhandenen 2FA-Einträge bleiben unverändert"
   },
   "reason_import_decrypt": {
     "message": "falsches Export-Passwort oder beschädigte Datei"
@@ -516,7 +532,7 @@
     "message": "Kein Name: bitte eingeben"
   },
   "importNameLabel": {
-    "message": "Name für das Konto ohne Namen"
+    "message": "Name für den Eintrag ohne Namen"
   },
   "importUnnamed": {
     "message": "Ohne Namen $N$",
@@ -530,7 +546,26 @@
     "message": "Abbrechen"
   },
   "importDone": {
-    "message": "$COUNT$ Konten importiert. Lösche die unverschlüsselte Datei jetzt: Sie enthält deine geheimen Schlüssel im Klartext.",
+    "message": "$COUNT$ 2FA-Einträge importiert. Lösche die unverschlüsselte Datei jetzt: Sie enthält deine geheimen Schlüssel im Klartext.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "importDoneSkipped": {
+    "message": "$IMPORTED$ 2FA-Einträge importiert, $SKIPPED$ übersprungen (Gründe in der Liste darunter). Lösche die unverschlüsselte Datei jetzt: Sie enthält deine geheimen Schlüssel im Klartext.",
+    "placeholders": {
+      "imported": {
+        "content": "$1"
+      },
+      "skipped": {
+        "content": "$2"
+      }
+    }
+  },
+  "importSkippedSummary": {
+    "message": "$COUNT$ übersprungene Einträge und Gründe anzeigen",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -541,13 +576,13 @@
     "message": "Import abgebrochen. Es wurde nichts gespeichert."
   },
   "reason_import_name": {
-    "message": "jedes Konto ohne Namen braucht einen Namen"
+    "message": "jeder Eintrag ohne Namen braucht einen Namen"
   },
   "reason_import_nothing": {
     "message": "nichts zu importieren (nur Duplikate oder ungültige Einträge)"
   },
   "reason_import_too_many": {
-    "message": "insgesamt mehr als 1.000 Konten"
+    "message": "insgesamt mehr als 1.000 2FA-Einträge"
   },
   "reason_parameters": {
     "message": "Algorithmus, Stellen oder Intervall fehlen"
@@ -557,6 +592,9 @@
   },
   "importing": {
     "message": "Importiere…"
+  },
+  "importReread": {
+    "message": "Die Datei ließ sich nicht erneut lesen. Wähle sie für eine neue Vorschau noch einmal aus."
   },
   "importGeneratedName": {
     "message": "erzeugter Name, änderbar"

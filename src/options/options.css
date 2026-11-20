@@ -6,9 +6,10 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .note { color: var(--muted); margin: 4px 0 8px; }
 .generated { color: var(--muted); font-size: 0.9em; }
 #message { min-height: 1.45em; margin: 4px 0; }
-#message[data-kind="error"] { color: var(--err); }
-#message[data-kind="ok"] { color: var(--ok); }
-#message[data-kind="progress"] { color: var(--muted); }
+.status:empty { display: none; }
+.status[data-kind="error"] { color: var(--err); }
+.status[data-kind="ok"] { color: var(--ok); }
+.status[data-kind="progress"] { color: var(--muted); }
 .warning { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--err); border-radius: 6px; background: var(--hover); }
 .auth { max-width: 560px; }
 .auth input[type="password"] { width: 100%; box-sizing: border-box; }
@@ -50,6 +51,7 @@ details { margin: 6px 0; }
 .preview {
   width: 270px; max-width: 100%; padding: 6px 0; margin-bottom: 16px;
   border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: var(--bg); color: var(--fg); /* the popup tokens are set on this box only */
 }
 fieldset { border: 0; margin: 14px 0; padding: 0; min-width: 0; }
 legend { padding: 0; margin-bottom: 6px; }

@@ -16,7 +16,7 @@
       <button id="lockBtn" type="button" data-i18n="lock" hidden></button>
     </header>
     <p id="devNotice" class="note" data-i18n="devNotice"></p>
-    <p id="message" role="status"></p>
+    <p id="message" class="status" role="status"></p>
 
     <section id="lockedView" hidden>
       <form id="setupForm" class="auth" autocomplete="off" hidden>
@@ -57,6 +57,7 @@
           </tr></thead>
           <tbody></tbody>
         </table>
+        <p id="listStatus" class="status" role="status"></p>
       </section>
 
       <section>
@@ -82,6 +83,7 @@
             <button type="button" id="cancelEdit" data-i18n="cancel" hidden></button>
           </div>
         </form>
+        <p id="accountStatus" class="status" role="status"></p>
       </section>
 
       <section>
@@ -97,6 +99,8 @@
           <input id="importMasterPassword" type="password" maxlength="1024" autocomplete="current-password"></label>
         <button id="importApply" type="button" data-i18n="importApply" disabled></button>
         <button id="importCancel" type="button" data-i18n="importCancel" hidden></button>
+        <p id="importStatus" class="status" role="status"></p>
+        <details id="importSkipped" hidden><summary id="importSkippedSummary"></summary><ul id="importSkippedList"></ul></details>
       </section>
 
       <section>
@@ -128,6 +132,7 @@
             <input name="password" type="password" required maxlength="1024" autocomplete="current-password"></label>
           <div class="actions"><button id="exportButton" type="submit" class="primary" data-i18n="exportButton"></button></div>
         </form>
+        <p id="exportStatus" class="status" role="status"></p>
       </section>
 
       <section>
@@ -142,6 +147,7 @@
             <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password"></label>
           <div class="actions"><button type="submit" data-i18n="restoreExportButton"></button></div>
         </form>
+        <p id="restoreStatus" class="status" role="status"></p>
       </section>
 
       <section>
@@ -156,6 +162,7 @@
           <p class="note" data-i18n="changePasswordNote"></p>
           <div class="actions"><button type="submit" data-i18n="changePasswordButton"></button></div>
         </form>
+        <p id="passwordStatus" class="status" role="status"></p>
       </section>
     </div>
 
@@ -198,14 +205,15 @@
 
         <fieldset class="radios">
           <legend data-i18n="rowHeight"></legend>
-          <label><input type="radio" name="rowHeight" value="auto"><span data-i18n="rowAuto"></span></label>
-          <label><input type="radio" name="rowHeight" value="22"><span data-i18n="row22"></span></label>
-          <label><input type="radio" name="rowHeight" value="25"><span data-i18n="row25"></span></label>
-          <label><input type="radio" name="rowHeight" value="30"><span data-i18n="row30"></span></label>
+          <label><input type="radio" name="rowHeight" value="auto"><span data-i18n="rowAuto"></span><span class="eff note"></span></label>
+          <label><input type="radio" name="rowHeight" value="22"><span data-i18n="row22"></span><span class="eff note"></span></label>
+          <label><input type="radio" name="rowHeight" value="25"><span data-i18n="row25"></span><span class="eff note"></span></label>
+          <label><input type="radio" name="rowHeight" value="30"><span data-i18n="row30"></span><span class="eff note"></span></label>
         </fieldset>
         <p id="rowNote" class="note" hidden></p>
 
         <button id="resetAppearance" type="button" data-i18n="resetAppearance"></button>
+        <p id="appearanceStatus" class="status" role="status"></p>
       </section>
 
       <section>
@@ -220,6 +228,7 @@
         <label class="check"><input name="idleLock" type="checkbox"><span data-i18n="idleLock"></span></label>
         <label><span data-i18n="idleLockMinutes"></span><input name="idleLockMinutes" type="number" min="1" max="60"></label>
         <p class="note" data-i18n="idleLockNote"></p>
+        <p id="behaviorStatus" class="status" role="status"></p>
       </section>
     </form>
   </main>

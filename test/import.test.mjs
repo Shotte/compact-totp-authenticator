@@ -19,7 +19,12 @@ const S = (i) => syntheticSecret(i);
 async function ready(existing = []) {
   const env = { session: fakeArea(), local: fakeArea(), alarms: fakeAlarms(), clk: clock() };
   env.svc = createService({ session: env.session, local: env.local, alarms: env.alarms, now: env.clk.now });
-  env.call = (cmd, args = {}) => env.svc.handle({ cmd, ...args });
+  env.call = (cmd, args = {}) => {
+    // Like the options page: the previewed file's text is sent again with importApply.
+    if (cmd === "importPreview") env.lastText = args.text;
+    if (cmd === "importApply" && !("text" in args)) args = { ...args, text: env.lastText };
+    return env.svc.handle({ cmd, ...args });
+  };
   ok(await env.call("setup", { password: PW, confirm: PW }));
   let revision = 1;
   for (const account of existing) ({ revision } = ok(await env.call("addAccount", { revision, account })));

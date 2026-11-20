@@ -44,8 +44,8 @@ test("full lifecycle: no secret or password in any response (except confirmed pl
   // import with preview, wrong master password, then the right one
   const text = JSON.stringify({ otp_list: [{ name: "Imp", key: syntheticSecret(4000) }, { name: "", key: syntheticSecret(4001) }] });
   const p = (await call("importPreview", { text })).result;
-  await call("importApply", { revision: p.revision, fileHash: p.fileHash, names: { 1: "Ohne Namen 1" }, masterPassword: PW2 });
-  revision = (await call("importApply", { revision: p.revision, fileHash: p.fileHash, names: { 1: "Ohne Namen 1" }, masterPassword: PW })).result.revision;
+  await call("importApply", { revision: p.revision, fileHash: p.fileHash, text, names: { 1: "Ohne Namen 1" }, masterPassword: PW2 });
+  revision = (await call("importApply", { revision: p.revision, fileHash: p.fileHash, text, names: { 1: "Ohne Namen 1" }, masterPassword: PW })).result.revision;
   sweep("import");
 
   // exports: encrypted (no secrets in the text), plaintext and legacy only when confirmed

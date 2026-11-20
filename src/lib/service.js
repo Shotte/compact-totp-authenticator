@@ -38,25 +38,27 @@ export function createService({ session, local, alarms, now = Date.now,
   // another epoch must not write or return anything, even if storage still looks valid.
   let epoch = 0;
   let chain = Promise.resolve();
-  // The file text of the last import preview (C5, I6): kept only in event-page memory, bound
-  // to the session id and the preview's vault revision. Dropped on apply, cancel, any failed
-  // apply except a fixable input error, the next preview, and every session end: wipe()
-  // (lock, expiry, idle lock, password change, changed key generation, damaged vault) and
-  // startSession() (new session). An event-page restart loses it with the page. Dropping
-  // only removes the reference; the string is freed by normal garbage collection.
-  let pendingImport = null;
+  // The binding of the last import preview (C5, I6; operator feedback 01): session id, vault
+  // revision and SHA-256 of the file text. No file text and no secret. Kept in storage.session
+  // ("pendingImport") so that an event-page suspension between preview and apply (Firefox:
+  // after about 30 s idle) does not turn a valid import into a false conflict. The page sends
+  // the file text again with importApply; its hash must match. Dropped on apply, cancel, any
+  // failed apply except a fixable input error, the next preview, and every session end:
+  // wipe() (lock, expiry, idle lock, password change, changed key generation, damaged vault)
+  // and startSession() (new session).
+  const dropPending = () => session.remove("pendingImport");
+  const loadPending = async () => (await session.get("pendingImport")).pendingImport ?? null;
   const exclusive = (fn) => { const run = chain.then(fn); chain = run.catch(() => {}); return run; };
 
   async function wipe() {
     epoch++;
-    pendingImport = null;
-    await session.remove("session");
+    await session.remove(["session", "pendingImport"]);
     await alarms.clear("autolock");
   }
 
   async function startSession(key, generation) {
     epoch++;
-    pendingImport = null;
+    await dropPending();
     const { autoLockMinutes } = await loadSettings(local);
     const s = { ...newSession(key, now(), autoLockMinutes * 60_000), id: randomId(), generation };
     await session.set({ session: s });
@@ -400,14 +402,14 @@ export function createService({ session, local, alarms, now = Date.now,
     // file text; both must come back with importApply (I1).
     importPreview({ text }) {
       return exclusive(async () => {
-        pendingImport = null;
+        await dropPending();
         const ctx = await requireSession();
         const { revision, accounts } = await readVault(ctx);
         const { candidates, ...preview } = planImport(text, accounts);
         const fileHash = await sha256(text);
         await recheck(ctx);
         if (ctx.e !== epoch) throw new LockedError("changed"); // never cache for an ended session
-        pendingImport = { sessionId: ctx.s.id, revision, fileHash, text };
+        await session.set({ pendingImport: { sessionId: ctx.s.id, revision, fileHash } });
         return { ...preview, revision, fileHash };
       });
     },
@@ -419,15 +421,16 @@ export function createService({ session, local, alarms, now = Date.now,
     // compare-and-set in commitAccounts. Wrong password, lock, expiry, other file or a
     // changed vault abort without writing. Duplicates and invalid rows are skipped; existing
     // accounts are never changed.
-    importApply({ revision, fileHash, names, masterPassword }) {
+    importApply({ revision, fileHash, text, names, masterPassword }) {
       return exclusive(async () => {
         try {
           const auth = await authorizeSensitive(masterPassword);
-          const pending = pendingImport;
+          const pending = await loadPending();
           if (!pending || pending.sessionId !== auth.ctx.s.id || pending.fileHash !== fileHash
             || pending.revision !== revision || auth.revision !== revision) throw new ConflictError();
+          if (await sha256(text) !== pending.fileHash) throw new ConflictError(); // not the previewed file
           const { accounts } = auth.payload;
-          const { candidates } = planImport(pending.text, accounts);
+          const { candidates } = planImport(text, accounts);
           let next = accounts;
           for (const c of candidates) {
             const { index, needsName, ...fields } = c;
@@ -440,20 +443,20 @@ export function createService({ session, local, alarms, now = Date.now,
           await recheck(auth.ctx);
           const current = await readVault(auth.ctx); // another writer may have changed the vault
           if (current.revision !== revision) throw new ConflictError();
-          pendingImport = null;
+          await dropPending();
           const r = await commitAccounts(auth.ctx, auth.key, next, revision);
           return { ...r, imported: candidates.length };
         } catch (e) {
           // A fixable input (wrong password, missing name) keeps the preview; anything else
           // (conflict, lock, unknown outcome) makes it stale.
-          if (e?.code !== "invalid") pendingImport = null;
+          if (e?.code !== "invalid") await dropPending();
           throw e;
         }
       });
     },
 
     // Drops the pending import text (user cancelled the preview).
-    async importCancel() { pendingImport = null; return {}; },
+    async importCancel() { await dropPending(); return {}; },
   };
 
   const str = (v) => (typeof v === "string" ? v : undefined);
@@ -482,7 +485,8 @@ export function createService({ session, local, alarms, now = Date.now,
       if (typeof names !== "object" || Array.isArray(names) || Object.values(names).some((v) => typeof v !== "string")) {
         throw new acc.InputError("import-name");
       }
-      return { revision: rev(m), fileHash: m.fileHash, names: Object.assign(Object.create(null), names),
+      if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");
+      return { revision: rev(m), fileHash: m.fileHash, text: m.text, names: Object.assign(Object.create(null), names),
         masterPassword: str(m.masterPassword) };
     },
   };
@@ -543,7 +547,7 @@ export function createService({ session, local, alarms, now = Date.now,
     },
 
     // Not reachable by messages (handle() dispatches only api): tests check the cache lifetime.
-    hasPendingImport: () => pendingImport !== null,
+    hasPendingImport: async () => (await loadPending()) !== null,
 
     // Not reachable by messages (handle() dispatches only api); for sensitive features.
     authorizeSensitive: (password) => exclusive(() => authorizeSensitive(password)),

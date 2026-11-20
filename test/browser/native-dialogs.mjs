@@ -101,7 +101,7 @@ try {
   let revision = 1;
   for (const a of expected) revision = (await msg(opt, "addAccount", { revision, account: a })).result.revision;
   await open();
-  const pageMessage = () => evalJson(opt, `async () => ({ text: document.getElementById("message").textContent, kind: document.getElementById("message").dataset.kind })`);
+  const pageMessage = () => evalJson(opt, `async () => { const s = [...document.querySelectorAll(".status")].find((e) => e.textContent); return { text: s?.textContent ?? "", kind: s?.dataset.kind, area: s?.id ?? null }; }`); // contextual status areas (feedback 01)
   const startExport = async () => {
     await evalJson(opt, `async () => { const f = document.getElementById("exportForm").elements; f.kind.value = "encrypted";
       f.password.value = ${JSON.stringify(PW)}; f.exportPassword.value = ${JSON.stringify(EXP)}; f.confirm.value = ${JSON.stringify(EXP)};

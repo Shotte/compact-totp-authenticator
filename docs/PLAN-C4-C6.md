@@ -85,7 +85,7 @@ C5 architecture review decisions (CTA-001, 2026-11-19), as implemented:
 | I3 | One `commit` for the whole import; an interrupted import changes nothing |
 | I4 | Upper bound on the resulting account count (1,000, matching `MAX_IMPORT_ENTRIES`) |
 | I5 | After success, remind the user to delete the plaintext `totp.json` |
-| I6 | The file text travels page → background once; it is never stored or echoed back |
+| I6 | The file text is never stored or echoed back. **Revised (operator feedback 01, proposed for review):** it travels page → background twice, for the preview and again for the apply, where its SHA-256 must match the preview. The background keeps only the binding (session id, revision, hash) in `storage.session`, so an event-page suspension no longer causes a false conflict |
 | I7 | Empty names: replacement names are entered in the preview and validated like manual entry before apply |
 | I8 | Short secrets: imported with a visible warning per row (same policy as manual entry) |
 | I9 | `cta-plain` v1 files (C4) are importable through the same preview |
