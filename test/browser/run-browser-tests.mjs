@@ -374,8 +374,10 @@ try {
         }
       }
       record("F1-1", "custom colors affect only the popup list and the preview, never the options page (auto, light, dark)", cases.every((c) => c.ok), { cases });
-      // F1-2 (finding 5): every row-height choice shows its effective height; at 20 px font
-      // 22 and 25 px give the same effective height, at 12 px they differ.
+    }
+    {
+      // F1-2 (finding 5, no chrome scope needed): every row-height choice shows its effective
+      // height; at 20 px font 22 and 25 px give the same effective height, at 12 px they differ.
       const eff = async (fontSize) => {
         await evalJson(opt, `async () => browser.storage.local.set({ settings: { fontSize: ${fontSize}, rowHeight: 22 } })`);
         await open(opt, "options/options.html");
@@ -387,7 +389,7 @@ try {
       const big = await eff(20), small = await eff(12);
       record("F1-2", "row height: effective height shown for every choice and in a note; equal results at a large font are visible; no clipping (preview row = effective height)",
         big.choices["22"] === big.choices["25"] && small.choices["22"] !== small.choices["25"] && big.noteShown && small.noteShown &&
-        /\d+ px/.test(big.note) && big.previewRow === big.choices["22"].replace(/[()\s]/g, "").replace("px", "px"), { big, small });
+        /\d+ px/.test(big.note) && big.previewRow === big.choices["22"].replace(/[()\s]/g, ""), { big, small });
       await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
     }
     if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
