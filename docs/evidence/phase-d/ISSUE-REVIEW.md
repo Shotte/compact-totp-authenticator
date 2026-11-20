@@ -84,5 +84,9 @@ Blocked. It opens only when:
 - **#5** closed on the architecture's acceptance of the Windows evidence (N1–N5) for
   Firefox 1.0. macOS and Linux are documented as a portability limitation in RELEASE.md §5.
 - **#17** deferred to the milestone "post-1.0".
-- **Still blocking:** #19 (signed update test), and the operator acceptance issues #2, #3,
-  #4, #6. They stay open until the operator has tested them.
+- **#19:** the signed update test passed. 0.9.0 → 0.9.1 on Firefox 160.0.1, signature
+  checks on, U-1…U-7 and U-signed PASS
+  ([signed-update/README.md](signed-update/README.md)). The issue closes when this evidence
+  is merged.
+- **Still blocking:** the operator acceptance issues #2, #3, #4 (ABNAHME 4.1) and #6. They
+  stay open until the operator has tested them.
