@@ -168,7 +168,8 @@ try {
     document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
   await clickAt(opt, "#restoreExportForm button"); // step 1: check the backup (#25)
   await sleep(2500);
-  await evalJson(opt, `async () => { document.getElementById("replaceForm").elements.masterPassword.value = ${JSON.stringify(PW2)};
+  await evalJson(opt, `async () => { const g = document.getElementById("replaceForm").elements; g.exportPassword.value = ${JSON.stringify(EXP)};
+    g.masterPassword.value = ${JSON.stringify(PW2)};
     document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
   await clickAt(opt, "#replaceButton"); // step 2: restore into the empty vault
   await sleep(2500);

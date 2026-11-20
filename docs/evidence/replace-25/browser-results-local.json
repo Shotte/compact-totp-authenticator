@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-20T22:31:20.083Z",
+  "startedAt": "2026-11-20T23:05:07.598Z",
   "browser": {
     "version": "160.0.1",
     "platform": "windows"
@@ -9,25 +9,25 @@
   },
   "chromeScopePrivileged": true,
   "wrongPasswordMs": [
-    117,
-    119,
-    2,
-    2
+    118,
+    116,
+    1,
+    1
   ],
   "unlockLatency": {
     "iterations600kMs": [
       5,
-      4,
       5,
       4,
-      3
+      5,
+      5
     ],
-    "medianMs": 4,
-    "forged10MMs": 1875,
+    "medianMs": 5,
+    "forged10MMs": 1870,
     "oversizedRejectMs": 2,
-    "uiPingMaxMs": 1
+    "uiPingMaxMs": 2
   },
-  "coldUnlockMsAfterRestart": 129,
+  "coldUnlockMsAfterRestart": 127,
   "finalPasswordIsPW": true,
   "layouts": {
     "1": {
@@ -43,10 +43,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "8",
+      "ticker": "21",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 224,
+      "renderMs": 325,
       "expectedBodyHeight": 56
     },
     "25": {
@@ -62,10 +62,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "8",
+      "ticker": "20",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 96,
+      "renderMs": 79,
       "expectedBodyHeight": 591
     },
     "50": {
@@ -81,10 +81,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "7",
+      "ticker": "19",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 87,
+      "renderMs": 80,
       "expectedBodyHeight": 591
     },
     "100": {
@@ -100,14 +100,14 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "6",
+      "ticker": "18",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 77,
+      "renderMs": 88,
       "expectedBodyHeight": 591
     }
   },
-  "finishedAt": "2026-11-20T22:36:44.839Z",
+  "finishedAt": "2026-11-20T23:11:44.320Z",
   "results": [
     {
       "id": "B6-1",
@@ -119,7 +119,7 @@
           "result": {
             "initialized": false,
             "unlocked": false,
-            "startedAt": 1795213881637
+            "startedAt": 1795215909030
           }
         },
         "responses": [
@@ -158,10 +158,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "8",
+        "ticker": "21",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 224,
+        "renderMs": 325,
         "expectedBodyHeight": 56
       }
     },
@@ -182,10 +182,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "8",
+        "ticker": "20",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 96,
+        "renderMs": 79,
         "expectedBodyHeight": 591
       }
     },
@@ -206,10 +206,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "7",
+        "ticker": "19",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 87,
+        "renderMs": 80,
         "expectedBodyHeight": 591
       }
     },
@@ -230,10 +230,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "6",
+        "ticker": "18",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 77,
+        "renderMs": 88,
         "expectedBodyHeight": 591
       }
     },
@@ -1952,8 +1952,8 @@
       "name": "works after event page suspension and restart",
       "verdict": "PASS",
       "details": {
-        "startedAtBefore": 1795213881637,
-        "startedAtAfter": 1795213919713,
+        "startedAtBefore": 1795215909030,
+        "startedAtAfter": 1795215947323,
         "restarted": true,
         "revision": 26
       }
@@ -1966,12 +1966,12 @@
         "before": {
           "initialized": true,
           "unlocked": true,
-          "startedAt": 1795213919713
+          "startedAt": 1795215947323
         },
         "atDeadline": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795213979897
+          "startedAt": 1795216007500
         },
         "alarmWipedAfterSeconds": 61
       }
@@ -2008,15 +2008,15 @@
       "details": {
         "iterations600kMs": [
           5,
-          4,
           5,
           4,
-          3
+          5,
+          5
         ],
-        "medianMs": 4,
-        "forged10MMs": 1875,
+        "medianMs": 5,
+        "forged10MMs": 1870,
         "oversizedRejectMs": 2,
-        "uiPingMaxMs": 1,
+        "uiPingMaxMs": 2,
         "forgedResult": "unlock",
         "oversizedResult": "damaged",
         "storageUnchangedByForgedAttempt": true
@@ -2077,7 +2077,7 @@
         "status": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795213987046
+          "startedAt": 1795216014522
         },
         "sessionKeys": [],
         "unlockMode": true,
@@ -2085,7 +2085,7 @@
           5,
           5
         ],
-        "coldUnlockMs": 129
+        "coldUnlockMs": 127
       }
     },
     {
@@ -2095,7 +2095,7 @@
       "details": {
         "delayMs": 400,
         "accountsBefore": 5,
-        "accountsAfter": 73,
+        "accountsAfter": 67,
         "restoredFromBackup": false
       }
     },
@@ -2105,8 +2105,8 @@
       "verdict": "PASS",
       "details": {
         "delayMs": 1200,
-        "accountsBefore": 73,
-        "accountsAfter": 191,
+        "accountsBefore": 67,
+        "accountsAfter": 188,
         "restoredFromBackup": false
       }
     },
@@ -2119,8 +2119,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          191,
-          191
+          188,
+          188
         ]
       }
     },
@@ -2133,8 +2133,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          191,
-          191
+          188,
+          188
         ]
       }
     },
@@ -2147,8 +2147,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          191,
-          191
+          188,
+          188
         ]
       }
     },
@@ -2163,12 +2163,12 @@
             "ok": true,
             "right": {
               "unlocked": true,
-              "ms": 6,
+              "ms": 10,
               "unchanged": true
             },
             "wrong": {
               "unlocked": false,
-              "ms": 126,
+              "ms": 161,
               "unchanged": true
             }
           },
@@ -2177,12 +2177,12 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 119,
+              "ms": 162,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 6,
+              "ms": 8,
               "unchanged": true
             }
           },
@@ -2212,7 +2212,7 @@
             },
             "right": {
               "unlocked": true,
-              "ms": 8,
+              "ms": 7,
               "unchanged": true
             }
           },
@@ -2221,12 +2221,12 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 156,
+              "ms": 172,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 130,
+              "ms": 166,
               "unchanged": true
             }
           },
@@ -2235,7 +2235,7 @@
             "ok": true,
             "old": {
               "unlocked": false,
-              "ms": 121,
+              "ms": 163,
               "unchanged": true
             },
             "new": {
@@ -2250,17 +2250,17 @@
             "attempts": [
               {
                 "unlocked": true,
+                "ms": 10,
+                "unchanged": true
+              },
+              {
+                "unlocked": true,
                 "ms": 7,
                 "unchanged": true
               },
               {
                 "unlocked": true,
-                "ms": 6,
-                "unchanged": true
-              },
-              {
-                "unlocked": true,
-                "ms": 6,
+                "ms": 7,
                 "unchanged": true
               }
             ]
@@ -2278,13 +2278,13 @@
               {
                 "form": "NFC",
                 "unlocked": true,
-                "ms": 7,
+                "ms": 6,
                 "unchanged": true
               },
               {
                 "form": "NFD",
                 "unlocked": true,
-                "ms": 5,
+                "ms": 7,
                 "unchanged": true
               }
             ]
@@ -2295,7 +2295,7 @@
             "attempts": [
               {
                 "unlocked": false,
-                "ms": 145,
+                "ms": 161,
                 "unchanged": true
               },
               {
@@ -2305,7 +2305,7 @@
               },
               {
                 "unlocked": false,
-                "ms": 6,
+                "ms": 5,
                 "unchanged": true
               }
             ]
@@ -2321,7 +2321,7 @@
         "measurements": [
           {
             "label": "first derivation",
-            "ms": 156,
+            "ms": 155,
             "pbkdf2Calls": 1
           },
           {
@@ -2336,7 +2336,7 @@
           },
           {
             "label": "NFD form (same normalized bytes)",
-            "ms": 1,
+            "ms": 0,
             "pbkdf2Calls": 1
           },
           {
@@ -2346,17 +2346,17 @@
           },
           {
             "label": "different salt",
-            "ms": 157,
+            "ms": 155,
             "pbkdf2Calls": 1
           },
           {
             "label": "iterations + 1",
-            "ms": 156,
+            "ms": 155,
             "pbkdf2Calls": 1
           },
           {
             "label": "raw Web Crypto deriveBits (no app code), first",
-            "ms": 156,
+            "ms": 155,
             "pbkdf2Calls": 0
           },
           {
@@ -2391,22 +2391,22 @@
       "verdict": "PASS",
       "details": {
         "before": {
-          "id": "52f83096-4ff8-4fca-99e4-db3a86667019",
+          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
           "timeoutMs": 900000,
-          "lastActivity": 1795214085576,
-          "deadline": 1795214985576
+          "lastActivity": 1795216113281,
+          "deadline": 1795217013281
         },
         "shorter": {
-          "id": "52f83096-4ff8-4fca-99e4-db3a86667019",
+          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
           "timeoutMs": 60000,
-          "lastActivity": 1795214085576,
-          "deadline": 1795214145576
+          "lastActivity": 1795216113281,
+          "deadline": 1795216173281
         },
         "longerWithoutActivity": {
-          "id": "52f83096-4ff8-4fca-99e4-db3a86667019",
+          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
           "timeoutMs": 60000,
-          "lastActivity": 1795214085576,
-          "deadline": 1795214145576
+          "lastActivity": 1795216113281,
+          "deadline": 1795216173281
         }
       }
     },
@@ -2416,8 +2416,8 @@
       "verdict": "PASS",
       "details": {
         "codesChanged": 3,
-        "deadlineBefore": 1795214987532,
-        "deadlineAfter": 1795214987532
+        "deadlineBefore": 1795217015255,
+        "deadlineAfter": 1795217015255
       }
     },
     {
@@ -2428,8 +2428,8 @@
         "hadPermission": false,
         "granted": true,
         "saved": true,
-        "wipedAfterSeconds": 42,
-        "idleReportedAfterSeconds": 42,
+        "wipedAfterSeconds": 83,
+        "idleReportedAfterSeconds": 83,
         "lockedAfter": "locked",
         "checkedBeforeUncheck": true,
         "permissionRemovedOnUncheck": true
@@ -2481,27 +2481,27 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 27,
+            "lockSentMs": 25,
             "lockOk": true,
-            "exportAnsweredMs": 159,
+            "exportAnsweredMs": 161,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 40,
-            "lockSentMs": 47,
+            "lockSentMs": 45,
             "lockOk": true,
-            "exportAnsweredMs": 159,
+            "exportAnsweredMs": 162,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 80,
-            "lockSentMs": 86,
+            "lockSentMs": 82,
             "lockOk": true,
-            "exportAnsweredMs": 159,
+            "exportAnsweredMs": 164,
             "ok": false,
             "error": "locked",
             "hasResult": false
@@ -2570,7 +2570,7 @@
       "verdict": "PASS",
       "details": {
         "check": {
-          "text": "Sicherung geprüft. Bitte lies die Vorschau und bestätige mit deinem Master-Passwort.",
+          "text": "Sicherung geprüft. Das Export-Passwort wurde verworfen: Gib es zum Bestätigen erneut ein, zusammen mit deinem Master-Passwort.",
           "kind": "ok",
           "area": "restoreStatus"
         },
@@ -2583,6 +2583,7 @@
             "Lokal Beta"
           ],
           "confirmShown": true,
+          "exportPasswordEmpty": true,
           "blockedWithoutConfirm": true
         },
         "noConfirm": {
@@ -2595,9 +2596,10 @@
           "area": "restoreStatus"
         },
         "afterNames": 18,
-        "previous": "Vorheriger Tresor vom 20.11.2026, 23:35:55 mit 2 2FA-Einträgen ist als verschlüsselte Kopie aufbewahrt.",
+        "previous": "Vorheriger Tresorstand vom 21.11.2026, 00:10:34 mit 2 2FA-Einträgen – verschlüsselt aufbewahrt, entsperrbar mit deinem Master-Passwort.",
+        "passwordChangeWarning": true,
         "back": {
-          "text": "Vorheriger Tresor zurückgeholt: 2 2FA-Einträge. Der ersetzte Stand ist jetzt die aufbewahrte Kopie.",
+          "text": "Vorheriger Tresor wiederhergestellt: 2 2FA-Einträge. Der ersetzte Stand ist jetzt der vorherige Tresorstand.",
           "kind": "ok",
           "area": "restoreStatus"
         },
@@ -2606,6 +2608,47 @@
           "Lokal Beta"
         ],
         "destinationPasswordUnchanged": true
+      }
+    },
+    {
+      "id": "R-2",
+      "name": "hard Firefox termination at the write boundaries of a replacement (after the kept copy, after the rollback copy, after the new vault, control): after the restart either the backup or the old entries, exact and in order, never mixed; the destination master password opens it; if replaced, the previous vault is kept",
+      "verdict": "PASS",
+      "details": {
+        "runs": [
+          {
+            "killedAfter": "vault_previous",
+            "outcome": "old",
+            "via": "direct",
+            "keptPrevious": 3,
+            "exportPasswordOpened": false,
+            "ok": true
+          },
+          {
+            "killedAfter": "vault_backup",
+            "outcome": "old",
+            "via": "direct",
+            "keptPrevious": 3,
+            "exportPasswordOpened": false,
+            "ok": true
+          },
+          {
+            "killedAfter": "vault",
+            "outcome": "replaced",
+            "via": "direct",
+            "keptPrevious": 3,
+            "exportPasswordOpened": false,
+            "ok": true
+          },
+          {
+            "killedAfter": "none (control)",
+            "outcome": "replaced",
+            "via": "direct",
+            "keptPrevious": 3,
+            "exportPasswordOpened": false,
+            "ok": true
+          }
+        ]
       }
     },
     {
@@ -2632,8 +2675,8 @@
       "verdict": "PASS",
       "details": {
         "emptyExport": 0,
-        "bigExportMs": 154,
-        "bigImportMs": 52,
+        "bigExportMs": 152,
+        "bigImportMs": 48,
         "bigFileBytes": 186391
       }
     },
@@ -2660,7 +2703,7 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 36,
+            "lockSentMs": 28,
             "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
@@ -2668,7 +2711,7 @@
           },
           {
             "delay": 50,
-            "lockSentMs": 52,
+            "lockSentMs": 62,
             "restoreAnsweredMs": 158,
             "ok": false,
             "error": "locked",
@@ -2676,7 +2719,7 @@
           },
           {
             "delay": 80,
-            "lockSentMs": 85,
+            "lockSentMs": 81,
             "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
@@ -2684,8 +2727,8 @@
           },
           {
             "delay": 120,
-            "lockSentMs": 136,
-            "restoreAnsweredMs": 159,
+            "lockSentMs": 127,
+            "restoreAnsweredMs": 158,
             "ok": false,
             "error": "locked",
             "changed": false

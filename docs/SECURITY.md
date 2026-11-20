@@ -755,13 +755,19 @@ encrypted backup"):
    - The preview returns counts and names only, never secrets: entries in the backup, in
      the current vault, in both (identity = normalized secret and parameters), only in the
      current vault, only in the backup.
-   - `storage.session` keeps only the binding `pendingReplace` (session id, revision,
-     SHA-256 of the file text).
+   - `storage.session` keeps only the binding `pendingReplace`: session id, revision,
+     SHA-256 of the file text, number of entries.
+   - **The export password is discarded after the check** (architecture review, condition
+     A). The page keeps only the `File` reference; no backup contents and no password.
+   - The preview says whether a kept previous vault exists, because the replacement would
+     overwrite it.
    - The preview is not an activity and never extends the session.
 2. **Confirm.**
    - The current vault's master password is verified fresh (`authorizeSensitive`).
    - The binding must match: same session, same revision, same file hash. The page re-reads
-     the file and sends the export password again; the background re-checks the hash.
+     the file. The user enters the export password again, and it re-authenticates the
+     backup. The file hash binds the ciphertext and AES-GCM its plaintext, so the contents
+     are the previewed ones; the number of entries is compared as well.
    - A populated vault needs `confirmed: true`. The page shows a destructive warning with
      the counts and the local-only names, and a required checkbox; otherwise
      `replace-confirmation`, nothing written.
@@ -794,14 +800,21 @@ encrypted backup"):
 A success is reported only for a commit the store verified or reconciled. A failure is
 reported only when storage still holds the old revision.
 
-**Kept copy.**
-- `vault_previous` stays until the user brings it back (`restorePrevious`) or discards it
+**Kept copy: exactly one previous vault state** (architecture review, condition B).
+- `vault_previous` stays until the user restores it (`restorePrevious`) or discards it
   (`discardPrevious`). Both need the fresh master password and an explicit confirmation.
-- Bringing it back is itself a replacement: the replaced contents become the kept copy, so
-  nothing is lost.
-- The next replacement overwrites the copy.
-- A password change drops it after the switch (`rotate`), because the new password could
-  not open it. The UI says so.
+  The UI calls it "previous vault state" and offers "Restore previous vault" and "Discard
+  previous vault".
+- Restoring is itself a replacement: the replaced contents become the kept copy, so nothing
+  is lost.
+- **Never discarded silently.** It is dropped only in two cases:
+  - **The next replacement.** The preview warns about it, and that replacement needs the
+    destructive confirmation.
+  - **A password change.** The kept copy belongs to the old password. The options page
+    explains the loss before the change and asks for a required confirmation.
+    `changePassword` refuses with `previous-exists` unless `discardPrevious: true` is sent,
+    and nothing changes. `rotate` removes it only after the switch to the new password is
+    complete.
 - The copy is never used by the damage recovery (`load`/`restoreBackup`), which only
   considers `vault_backup` and `vault_next`.
 
@@ -813,7 +826,18 @@ reported only when storage still holds the old revision.
 
 A termination at any point leaves either the old vault (directly or via the confirmed
 same-generation restore) or the new vault together with the kept copy. Both open with the
-destination master password. Unit test `replace.test.mjs` checks every boundary.
+destination master password.
+
+Evidence:
+- **Unit test.** `replace.test.mjs` simulates a termination at every boundary.
+- **Real Firefox, browser check R-2** (architecture review, condition C):
+  - A `storage.onChanged` listener in the options page freezes the shared extension
+    process right after the target key is written.
+  - Firefox is then killed hard and restarted with the same throwaway profile.
+  - Killed after `vault_previous` and after `vault_backup`: the old entries. Killed after
+    `vault`, and in the uninterrupted control: the backup's entries plus the kept copy.
+  - Never a mix; the destination master password always opens it, the export password
+    never.
 
 **Session expiry.** With a short automatic lock, the session can expire while the user reads
 the preview and types. The apply then answers `locked`, nothing is written, the binding is
@@ -824,12 +848,13 @@ The old command `importExport` (restore into an empty vault only, C4) stays unch
 compatibility; the options page uses the new flow for both cases.
 
 Tests:
-- `test/replace.test.mjs` (12 tests): empty vault, populated vault, wrong master or export
-  password, damaged or malformed backup, cancel, another file, changed vault, reused
-  preview, session expiry after an event-page restart, preview not an activity, storage
-  failures, termination at every write boundary, bring back, discard, password change,
+- `test/replace.test.mjs` (13 tests): empty vault, populated vault, export password not
+  kept and needed again, wrong master or export password, damaged or malformed backup,
+  cancel, another file, changed vault, reused preview, session expiry after an event-page
+  restart, preview not an activity, storage failures, termination at every write boundary,
+  restore, discard, password change only with consent,
   no secrets;
-- browser checks R-1, C4-4, F2-2.
+- browser checks R-1, R-2 (real hard termination), C4-4, F2-2.
 
 ### 13.5 Download status with the current permissions
 

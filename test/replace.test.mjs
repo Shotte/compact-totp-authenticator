@@ -81,6 +81,15 @@ test("populated vault: preview shows counts and names without secrets; confirmat
   assert.equal(err(await env.call("unlock", { password: OLD })), "invalid:unlock");
 });
 
+test("review A: the export password is not kept; the apply re-authenticates the backup and needs it again", async () => {
+  const env = await previewed();
+  assert.ok(!JSON.stringify([...env.session.map]).includes(EXP), "no export password in storage.session");
+  assert.equal(err(await apply(env, { password: undefined })), "invalid:password", "missing export password refused");
+  assert.equal(err(await apply(env, { password: "another export password" })), "invalid:import-decrypt");
+  assert.deepEqual(await names(env), ["Current Chat", "Current Cloud", "Shared here"]);
+  ok(await apply(env));
+});
+
 test("wrong master password or export password: precise errors, nothing written, the preview stays usable", async () => {
   const env = await previewed();
   const before = snap(env.local);
@@ -203,7 +212,12 @@ test("restore the previous vault (swap, nothing lost), discard it only explicitl
   const env2 = await previewed();
   ok(await apply(env2));
   const NEWPW = "a brand new master password";
-  ok(await env2.call("changePassword", { current: PW, next: NEWPW, confirm: NEWPW }));
+  const before = snap(env2.local);
+  assert.equal(err(await env2.call("changePassword", { current: PW, next: NEWPW, confirm: NEWPW })), "invalid:previous-exists",
+    "never dropped silently: the user must agree first (review B)");
+  assert.equal(snap(env2.local), before, "password not changed, copy kept");
+  assert.equal(ok(await env2.call("previousStatus")).exists, true);
+  ok(await env2.call("changePassword", { current: PW, next: NEWPW, confirm: NEWPW, discardPrevious: true }));
   ok(await env2.call("unlock", { password: NEWPW }));
   assert.equal(ok(await env2.call("previousStatus")).exists, false);
   assert.equal(env2.local.map.has("vault_previous"), false);

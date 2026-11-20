@@ -447,8 +447,9 @@ async function submitExport({ kind, password, exportPassword, confirm, useMaster
 }
 
 // Restore or replace from an encrypted backup (#25). Step 1 opens the backup and shows what
-// would change; the page keeps the File reference and the export password only until the
-// apply, a cancel or a lock, and never any backup contents.
+// would change; afterwards the page keeps only the File reference (until the apply, a cancel
+// or a lock). The export password is discarded after the check and entered again for the
+// replacement (architecture review, condition A); no backup contents are kept.
 let replacePlan = null;
 
 function clearReplace() {
@@ -464,7 +465,7 @@ async function previewReplace({ file, password }, where) {
   if (!file) return;
   const p = await call("replacePreview", { text: await file.text(), password });
   const populated = p.currentCount > 0;
-  replacePlan = { file, password, revision: p.revision, fileHash: p.fileHash, populated };
+  replacePlan = { file, revision: p.revision, fileHash: p.fileHash, populated };
   $("replaceSummary").textContent = t("replaceSummary", [String(p.backupCount)]);
   $("replaceWarning").hidden = !populated;
   $("replaceConfirmLabel").hidden = !populated;
@@ -480,14 +481,18 @@ async function previewReplace({ file, password }, where) {
       $("replaceLoseList").append(li);
     }
     $("replaceConfirmText").textContent = t("replaceConfirm", [String(p.currentCount)]);
+    $("replaceOverwritesCopy").hidden = !p.keptCopy.exists; // exactly one kept copy (review B)
+    if (p.keptCopy.exists) $("replaceOverwritesCopy").textContent = t("replaceOverwritesCopy", [when(p.keptCopy.replacedAt)]);
   }
   $("replacePreview").hidden = false;
   say(t("replaceChecked"), "ok", where);
 }
 
-async function applyReplace({ confirmed, masterPassword }, where) {
+const when = (ms) => new Date(ms).toLocaleString(browser.i18n.getUILanguage());
+
+async function applyReplace({ confirmed, exportPassword: password, masterPassword }, where) {
   if (!replacePlan) return;
-  const { file, password, revision, fileHash, populated } = replacePlan;
+  const { file, revision, fileHash, populated } = replacePlan;
   let text;
   try { text = await file.text(); } catch { clearReplace(); say(t("importReread"), "error", where); return; }
   const r = await call("replaceApply", { revision, fileHash, text, password, masterPassword, confirmed });
@@ -502,9 +507,11 @@ async function showPrevious() {
   let p = { exists: false };
   try { p = await call("previousStatus"); } catch { /* locked: the box stays hidden */ }
   $("previousBox").hidden = !p.exists;
+  $("changePrevious").hidden = !p.exists; // a password change would drop it: say so first
+  $("changeForm").elements.discardPrevious.required = p.exists;
   if (p.exists) {
-    const when = new Date(p.replacedAt).toLocaleString(browser.i18n.getUILanguage());
-    $("previousText").textContent = t("previousText", [when, p.count === null ? "?" : String(p.count)]);
+    $("previousText").textContent = t("previousText", [when(p.replacedAt), p.count === null ? "?" : String(p.count)]);
+    $("changePreviousText").textContent = t("changePreviousText", [when(p.replacedAt)]);
   }
 }
 
@@ -553,12 +560,12 @@ async function init() {
     await refresh(false);
     say(t("restoreDone"));
   });
-  passwordForm("changeForm", async ({ current, next, confirm }) => {
-    try { await call("changePassword", { current, next, confirm }); }
+  passwordForm("changeForm", async ({ current, next, confirm, discardPrevious }) => {
+    try { await call("changePassword", { current, next, confirm, discardPrevious: discardPrevious === true }); }
     catch (e) { if (e.code === "locked" || e.reason === "current-password") await showLocked(); throw e; }
     await showLocked("unlock"); // the old session is gone; unlock with the new password
     say(t("passwordChanged"));
-  });
+  }, { errors: { "previous-exists": "changePreviousNeeded" } });
   passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
   const replaceErrors = { "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed",
     "replace-confirmation": "replaceNeedConfirm", "replace-failed": "replaceFailed", "import-too-many": "replaceTooMany",

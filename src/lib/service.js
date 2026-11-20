@@ -322,10 +322,15 @@ export function createService({ session, local, alarms, now = Date.now,
     // the vault header). On success the session is locked (C2-A3): no key of the old
     // generation stays usable; the user unlocks again with the new password. On failure the
     // session is locked too, so it never looks unlocked while the vault state is uncertain.
-    changePassword({ current, next, confirm }) {
+    changePassword({ current, next, confirm, discardPrevious }) {
       return exclusive(async () => {
         const ctx = await requireSession();
         const p = checkNewPassword(next, confirm ?? "");
+        // A kept previous vault (#25) belongs to the old password and is dropped by the
+        // rotation. Never silently: the user must have been told and agreed (review B).
+        if ((await local.get("vault_previous")).vault_previous && discardPrevious !== true) {
+          throw new acc.InputError("previous-exists");
+        }
         const { revision } = await readVault(ctx);
         // Lock before any key work: operations racing the change can no longer use the
         // old session key (their re-check fails); the user unlocks again afterwards.
@@ -466,8 +471,10 @@ export function createService({ session, local, alarms, now = Date.now,
         const { revision, accounts } = await readVault(ctx);
         const fileHash = await sha256(text);
         if (ctx.e !== epoch) throw new LockedError("changed");
-        await session.set({ pendingReplace: { sessionId: ctx.s.id, revision, fileHash } });
-        return { revision, fileHash, ...replaceSummary(accounts, incoming) };
+        await session.set({ pendingReplace: { sessionId: ctx.s.id, revision, fileHash, backupCount: incoming.length } });
+        const { vault_previous: kept } = await local.get("vault_previous");
+        return { revision, fileHash, ...replaceSummary(accounts, incoming),
+          keptCopy: kept ? { exists: true, replacedAt: kept.replacedAt } : { exists: false } };
       });
     },
 
@@ -484,7 +491,12 @@ export function createService({ session, local, alarms, now = Date.now,
             || pending.revision !== revision || auth.revision !== revision) throw new ConflictError();
           if (await sha256(text) !== pending.fileHash) throw new ConflictError(); // not the previewed file
           if (auth.payload.accounts.length && confirmed !== true) throw new acc.InputError("replace-confirmation");
+          // The export password is not kept after the preview (review A): it is entered again
+          // and re-authenticates the backup here. The file hash binds the ciphertext and
+          // AES-GCM its plaintext, so the contents are the previewed ones; the count is
+          // compared as well.
           const next = await openBackup(text, password);
+          if (next.length !== pending.backupCount) throw new ConflictError();
           if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
           await recheck(auth.ctx);
           const current = await readVault(auth.ctx); // another writer may have changed the vault
@@ -605,7 +617,7 @@ export function createService({ session, local, alarms, now = Date.now,
     setup: (m) => ({ password: str(m.password), confirm: str(m.confirm) }),
     unlock: (m) => ({ password: str(m.password) }),
     restore: (m) => ({ password: str(m.password), confirmed: m.confirmed === true }),
-    changePassword: (m) => ({ current: str(m.current), next: str(m.next), confirm: str(m.confirm) }),
+    changePassword: (m) => ({ current: str(m.current), next: str(m.next), confirm: str(m.confirm), discardPrevious: m.discardPrevious === true }),
     addAccount: (m) => ({ account: m.account, revision: rev(m) }),
     updateAccount: (m) => ({ id: id(m), patch: m.patch, revision: rev(m) }),
     deleteAccount: (m) => ({ id: id(m), revision: rev(m) }),

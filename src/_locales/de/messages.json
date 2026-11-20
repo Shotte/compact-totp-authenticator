@@ -635,7 +635,7 @@
     "message": "Sicherung wird geprüft …"
   },
   "replaceChecked": {
-    "message": "Sicherung geprüft. Bitte lies die Vorschau und bestätige mit deinem Master-Passwort."
+    "message": "Sicherung geprüft. Das Export-Passwort wurde verworfen: Gib es zum Bestätigen erneut ein, zusammen mit deinem Master-Passwort."
   },
   "replaceSummary": {
     "message": "Die Sicherung ist gültig und enthält $COUNT$ 2FA-Einträge.",
@@ -725,7 +725,7 @@
     "message": "Die Datei ist keine gültige verschlüsselte CTA-Sicherung. Es wurde nichts geändert."
   },
   "previousText": {
-    "message": "Vorheriger Tresor vom $WHEN$ mit $COUNT$ 2FA-Einträgen ist als verschlüsselte Kopie aufbewahrt.",
+    "message": "Vorheriger Tresorstand vom $WHEN$ mit $COUNT$ 2FA-Einträgen – verschlüsselt aufbewahrt, entsperrbar mit deinem Master-Passwort.",
     "placeholders": {
       "when": {
         "content": "$1"
@@ -736,16 +736,16 @@
     }
   },
   "previousConfirm": {
-    "message": "Ich verstehe: Zurückholen ersetzt meine aktuellen Einträge (sie werden dann zur Kopie); Verwerfen löscht die Kopie endgültig."
+    "message": "Ich verstehe: Wiederherstellen ersetzt meine aktuellen Einträge (sie werden dann zum vorherigen Tresorstand); Verwerfen löscht den vorherigen Tresorstand endgültig."
   },
   "previousRestore": {
-    "message": "Vorherigen Tresor zurückholen"
+    "message": "Vorherigen Tresor wiederherstellen"
   },
   "previousDiscard": {
-    "message": "Kopie verwerfen"
+    "message": "Vorherigen Tresor verwerfen"
   },
   "previousRestored": {
-    "message": "Vorheriger Tresor zurückgeholt: $COUNT$ 2FA-Einträge. Der ersetzte Stand ist jetzt die aufbewahrte Kopie.",
+    "message": "Vorheriger Tresor wiederhergestellt: $COUNT$ 2FA-Einträge. Der ersetzte Stand ist jetzt der vorherige Tresorstand.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -753,9 +753,34 @@
     }
   },
   "previousDiscarded": {
-    "message": "Die aufbewahrte Kopie wurde gelöscht."
+    "message": "Der vorherige Tresorstand wurde gelöscht."
   },
   "previousGone": {
-    "message": "Es gibt keine aufbewahrte Kopie mehr. Es wurde nichts geändert."
+    "message": "Es gibt keinen vorherigen Tresorstand mehr. Es wurde nichts geändert."
+  },
+  "exportPasswordAgain": {
+    "message": "Export-Passwort der Sicherung (erneut)"
+  },
+  "replaceOverwritesCopy": {
+    "message": "Es gibt immer genau einen aufbewahrten vorherigen Tresorstand. Der bisherige vom $WHEN$ wird dabei durch deinen jetzigen Stand ersetzt.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousText": {
+    "message": "Achtung: Der vorherige Tresorstand vom $WHEN$ ist mit deinem jetzigen Master-Passwort verschlüsselt. Beim Ändern des Passworts wird er gelöscht, weil das neue Passwort ihn nicht öffnen könnte. Stelle ihn vorher wieder her oder exportiere deine Einträge, wenn du ihn noch brauchst.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousConfirm": {
+    "message": "Ich verstehe, dass der vorherige Tresorstand beim Ändern des Passworts gelöscht wird."
+  },
+  "changePreviousNeeded": {
+    "message": "Bitte bestätige zuerst, dass der vorherige Tresorstand gelöscht werden darf. Das Passwort wurde nicht geändert."
   }
 }

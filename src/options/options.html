@@ -154,9 +154,12 @@
             <p id="replaceLoseIntro"></p>
             <ul id="replaceLoseList"></ul>
             <p data-i18n="replaceKeepsCopy"></p>
+            <p id="replaceOverwritesCopy" hidden></p>
           </div>
           <form id="replaceForm" class="auth" autocomplete="off">
             <label class="check" id="replaceConfirmLabel" hidden><input name="confirmed" type="checkbox"><span id="replaceConfirmText"></span></label>
+            <label><span data-i18n="exportPasswordAgain"></span>
+              <input name="exportPassword" type="password" required maxlength="1024" autocomplete="off"></label>
             <label><span data-i18n="currentPassword"></span>
               <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password"></label>
             <div class="actions"><button id="replaceButton" type="submit" class="primary"></button>
@@ -187,6 +190,10 @@
           <label><span data-i18n="confirmPassword"></span>
             <input name="confirm" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
           <p class="note" data-i18n="changePasswordNote"></p>
+          <div id="changePrevious" class="warning" hidden>
+            <p id="changePreviousText"></p>
+            <label class="check"><input name="discardPrevious" type="checkbox"><span data-i18n="changePreviousConfirm"></span></label>
+          </div>
           <div class="actions"><button type="submit" data-i18n="changePasswordButton"></button></div>
         </form>
         <p id="passwordStatus" class="status" role="status"></p>

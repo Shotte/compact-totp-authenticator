@@ -4,6 +4,29 @@ Operator decision: restoring an encrypted backup must also work when the vault a
 entries. Design and outcome table: SECURITY.md §13.4a. Synthetic data only. Not merged,
 signed or published.
 
+## Architecture review conditions (CTA-D-PR28-PR29)
+
+| Condition | Implementation | Evidence |
+|---|---|---|
+| A: export password not retained | Discarded after the check. The replacement form asks for it again, and it re-authenticates the backup. The file hash and the entry count must match the preview; master password and revision as before | unit "review A: the export password is not kept …"; R-1: the field is empty after the check |
+| B: exactly one previous vault state | One `vault_previous`, labelled "previous vault state", with "Restore previous vault" and "Discard previous vault" (fresh master password and confirmation). Never discarded silently: the replacement preview warns that it would be overwritten. A password change explains the loss and needs a confirmation; the service refuses `changePassword` without it (`previous-exists`) | unit "restore the previous vault …"; R-1: password-change warning shown and confirmation required |
+| C: real-browser hard termination | R-2: freeze the extension process right after a target write (`storage.onChanged` busy-wait in the options page, which shares the process with the background page), kill Firefox, restart with the same throwaway profile | table below |
+
+### R-2: hard termination of Firefox 160.0.1 (Windows), synthetic entries, throwaway profile
+
+| Killed after | Outcome after the restart | Opened by | Previous vault kept | Result |
+|---|---|---|---|---|
+| `vault_previous` written (kept copy) | old entries, exact and in order | destination master password, directly | yes (3) | PASS |
+| `vault_backup` written (rollback copy) | old entries, exact and in order | destination master password, directly | yes (3) | PASS |
+| `vault` written, before its read-back | backup's entries, exact and in order | destination master password, directly | yes (3) | PASS |
+| control, not killed during the replacement | backup's entries | destination master password | yes (3) | PASS |
+
+In no case was a mixed list accepted, and the export password never opened the vault. A
+termination inside a single `storage.local.set` (torn write) cannot be produced from
+outside; it is covered by Firefox's single-key atomicity (C2-7) and the unit tests.
+
+## Requirements
+
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | Select a backup, authenticate with the export password | `replacePreview` opens the backup before anything else | unit "wrong master or export password", "damaged or malformed backup" |
@@ -24,10 +47,10 @@ signed or published.
 
 | Check | Result |
 |---|---|
-| `npm test` | PASS 235/235 (new: `replace.test.mjs`, 12 tests) |
+| `npm test` | PASS 236/236 (new: `replace.test.mjs`, 13 tests) |
 | `web-ext lint` | PASS 0/0 |
 | `check:release` | PASS 26/26 |
-| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 99/101 PASS, 2 MANUAL, 0 FAIL (new: R-1) |
+| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 100/102 PASS, 2 MANUAL, 0 FAIL (new: R-1, R-2) |
 | Screenshot | [`replace-warning-de.png`](replace-warning-de.png): destructive warning with synthetic names |
 | Native Open dialog for the restore (`native-dialogs.mjs` N4, `--os-input`) | NOT_TESTED in this PR (adapted to the two steps) |
-| A real browser crash during the replacement | NOT_TESTED in the browser; simulated at every write boundary in the unit test |
+| A real browser crash during the replacement | PASS: R-2 at three write boundaries plus a control (see above) |

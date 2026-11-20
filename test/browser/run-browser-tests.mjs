@@ -153,8 +153,8 @@ try {
   }
   // Hard kill (simulated crash) or graceful quit (C3), relaunch with the same profile,
   // reinstall the extension.
-  async function restart({ graceful = false } = {}) {
-    const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+  async function restart({ graceful = false, pid: knownPid } = {}) {
+    const pid = knownPid ?? (CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid);
     const profile = ff.profile;
     if (graceful) await ff.close({ keepProfile: true }); else await ff.kill(pid);
     ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS, profile });
@@ -1480,11 +1480,11 @@ try {
       await clickAt(opt, "#restoreExportForm button");
       return settle();
     };
-    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true } = {}) => {
+    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true, exportAgain = password } = {}) => {
       const step1 = await checkBackup(name, password);
       if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
       await evalJson(opt, `async () => { const f = document.getElementById("replaceForm").elements;
-        f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        f.masterPassword.value = ${JSON.stringify(masterPassword)}; f.exportPassword.value = ${JSON.stringify(exportAgain)};
         if (!document.getElementById("replaceConfirmLabel").hidden) f.confirmed.checked = ${confirm};
         document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#replaceButton");
@@ -1540,7 +1540,9 @@ try {
         warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
         lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
         confirmShown: !document.getElementById("replaceConfirmLabel").hidden,
-        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = ""; return !v; })() })`);
+        exportPasswordEmpty: document.getElementById("replaceForm").elements.exportPassword.value === "",
+        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x";
+          f.elements.exportPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = f.elements.exportPassword.value = ""; return !v; })() })`);
       { // evidence screenshot: the destructive warning (synthetic names only)
         const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
           const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
@@ -1551,6 +1553,7 @@ try {
       const replaced = await restoreVia(uniName, EXP);
       const afterNames = (await pagePlain(PW2)).map((a) => a.name);
       const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
+      const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
       await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
         f.masterPassword.value = ${JSON.stringify(PW2)}; document.querySelector("#previousForm button[value=restore]").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#previousForm button[value=restore]");
@@ -1560,9 +1563,54 @@ try {
       const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
       record("R-1", "replace a populated vault via the UI: preview with counts and local-only entries, destructive warning, confirmation required, fresh master password; previous vault kept and brought back; destination master password unchanged",
         check.kind === "ok" && preview.shown && preview.warning && /2/.test(preview.text) && same(preview.lose, ["Lokal Alpha", "Lokal Beta"]) &&
-        preview.confirmShown && preview.blockedWithoutConfirm && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
+        preview.confirmShown && preview.blockedWithoutConfirm && preview.exportPasswordEmpty && changeWarn && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
         same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
-        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, back, backNames, destinationPasswordUnchanged: samePw });
+        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
+
+      // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a
+      // replacement. The background page and the options page share the extension process and
+      // its main thread. A storage.onChanged listener in the options page busy-waits as soon as
+      // the target key has been written, so the background cannot issue its next write; Firefox
+      // is then killed in exactly that state. Targets: after the kept copy (vault_previous),
+      // after the rollback copy (vault_backup), after the new vault (vault, before its
+      // read-back), and an uninterrupted control. After the restart: either the backup's entries
+      // (with the kept previous vault) or the old entries, exact and in order, never a mix; the
+      // destination master password opens it; the export password never does.
+      {
+        const local2 = [{ name: "Lokal Gamma", secret: syntheticSecret(920) }, { name: "Lokal Delta", secret: syntheticSecret(921) },
+          { name: "Lokal Epsilon", secret: syntheticSecret(922) }];
+        const OLDN = local2.map((a) => a.name), NEWN = expected.map((a) => a.name);
+        const runs = [];
+        for (const target of ["vault_previous", "vault_backup", "vault", null]) {
+          await vaultWith(local2, PW2);
+          await open(opt, "options/options.html");
+          await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+          const p = (await msg(opt, "replacePreview", { text: exportText, password: EXP })).result;
+          const args = { cmd: "replaceApply", revision: p.revision, fileHash: p.fileHash, text: exportText, password: EXP, masterPassword: PW2, confirmed: true };
+          const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+          await call("script.evaluate", { target: { context: opt }, awaitPromise: false, expression: `(() => {
+            const target = ${JSON.stringify(target)};
+            browser.storage.onChanged.addListener((changes, area) => {
+              if (target && area === "local" && target in changes) { const t = Date.now(); while (Date.now() - t < 6000) { /* freeze the extension process */ } }
+            });
+            browser.runtime.sendMessage(${JSON.stringify(args)}); })()` });
+          await sleep(target ? 1500 : 2500); // frozen at the boundary (or finished, for the control)
+          await restart({ pid }); // hard kill, same profile
+          const wrong = (await msg(opt, "unlock", { password: EXP })).ok;
+          let u = await msg(opt, "unlock", { password: PW2 });
+          let via = "direct";
+          if (u.ok && u.result.recoverable) { u = await msg(opt, "restore", { password: PW2, confirmed: true }); via = "confirmed restore"; }
+          const list = (await msg(opt, "listAccounts")).result?.accounts.map((a) => a.name) ?? null;
+          const outcome = same(list, NEWN) ? "replaced" : same(list, OLDN) ? "old" : "MIXED";
+          const prev = (await msg(opt, "previousStatus")).result;
+          const ok = u.ok && !wrong && outcome !== "MIXED" && (outcome === "old" || (prev?.exists && prev.count === OLDN.length));
+          runs.push({ killedAfter: target ?? "none (control)", outcome, via, keptPrevious: prev?.exists ? prev.count : 0, exportPasswordOpened: wrong, ok });
+        }
+        const byTarget = Object.fromEntries(runs.map((r) => [r.killedAfter, r.outcome]));
+        record("R-2", "hard Firefox termination at the write boundaries of a replacement (after the kept copy, after the rollback copy, after the new vault, control): after the restart either the backup or the old entries, exact and in order, never mixed; the destination master password opens it; if replaced, the previous vault is kept",
+          runs.every((r) => r.ok) && byTarget.vault_previous === "old" && byTarget["none (control)"] === "replaced",
+          { runs });
+      }
       await vaultWith([], PW2);
       await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // the state C4-5 expects
       await open(opt, "options/options.html");

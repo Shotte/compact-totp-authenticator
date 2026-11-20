@@ -635,7 +635,7 @@
     "message": "Checking the backup …"
   },
   "replaceChecked": {
-    "message": "Backup checked. Please read the preview and confirm with your master password."
+    "message": "Backup checked. The export password was discarded: enter it again to confirm, together with your master password."
   },
   "replaceSummary": {
     "message": "The backup is valid and holds $COUNT$ 2FA entries.",
@@ -725,7 +725,7 @@
     "message": "The file is not a valid encrypted CTA backup. Nothing was changed."
   },
   "previousText": {
-    "message": "Previous vault from $WHEN$ with $COUNT$ 2FA entries is kept as an encrypted copy.",
+    "message": "Previous vault state from $WHEN$ with $COUNT$ 2FA entries – kept encrypted, opened by your master password.",
     "placeholders": {
       "when": {
         "content": "$1"
@@ -736,16 +736,16 @@
     }
   },
   "previousConfirm": {
-    "message": "I understand: bringing it back replaces my current entries (they become the copy); discarding deletes the copy for good."
+    "message": "I understand: restoring replaces my current entries (they become the previous vault state); discarding deletes the previous vault state for good."
   },
   "previousRestore": {
-    "message": "Bring back the previous vault"
+    "message": "Restore previous vault"
   },
   "previousDiscard": {
-    "message": "Discard the copy"
+    "message": "Discard previous vault"
   },
   "previousRestored": {
-    "message": "Previous vault brought back: $COUNT$ 2FA entries. The replaced state is now the kept copy.",
+    "message": "Previous vault restored: $COUNT$ 2FA entries. The replaced state is now the previous vault state.",
     "placeholders": {
       "count": {
         "content": "$1"
@@ -753,9 +753,34 @@
     }
   },
   "previousDiscarded": {
-    "message": "The kept copy was deleted."
+    "message": "The previous vault state was deleted."
   },
   "previousGone": {
-    "message": "There is no kept copy any more. Nothing was changed."
+    "message": "There is no previous vault state any more. Nothing was changed."
+  },
+  "exportPasswordAgain": {
+    "message": "Export password of the backup (again)"
+  },
+  "replaceOverwritesCopy": {
+    "message": "There is always exactly one kept previous vault state. The current one from $WHEN$ will be replaced by your present state.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousText": {
+    "message": "Warning: the previous vault state from $WHEN$ is encrypted with your current master password. Changing the password deletes it, because the new password could not open it. Restore it first or export your entries if you still need it.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousConfirm": {
+    "message": "I understand that the previous vault state is deleted when I change the password."
+  },
+  "changePreviousNeeded": {
+    "message": "Please confirm first that the previous vault state may be deleted. The password was not changed."
   }
 }
