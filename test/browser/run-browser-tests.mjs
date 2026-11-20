@@ -537,16 +537,18 @@ try {
       const start = await where(); // after B8-2's single Tab
       await keys(TAB); const second = await where();
       await keys(ENTER); const enterCopies = await copiedRow(1);
-      await sleep(1100);
-      await keys(TAB); await keys(SPACE); const spaceCopies = await copiedRow(2);
+      // wait for the 1 s copy confirmation to end (a fixed sleep was too short on a loaded CI runner)
+      await waitFor(pop, `!document.querySelectorAll("#list .row")[1].dataset.busy`, 5000);
+      await keys(TAB); const third = await where();
+      await keys(SPACE); const spaceCopies = await copiedRow(2);
       await keys(...Array(97).fill(TAB)); const lastRow = await where();
       await keys(TAB); const lockBtn = await where();
       await keys(TAB); const settingsBtn = await where();
       const writes = await evalJson(pop, `async () => window.__writes.length`);
       record("B8-4", "keyboard only (issue #3, supporting evidence): first Tab lands on a row (list not a tab stop), Tab walks the rows, Enter and Space copy the focused row once each, Tab reaches lock and settings",
-        start.row === 0 && second.row === 1 && enterCopies && spaceCopies && lastRow.row === 99 && lockBtn.id === "lock" &&
+        start.row === 0 && second.row === 1 && enterCopies && third.row === 2 && spaceCopies && lastRow.row === 99 && lockBtn.id === "lock" &&
         settingsBtn.id === "settings" && lockBtn.focusVisible && settingsBtn.focusVisible && writes === 2,
-        { start, second, enterCopies, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
+        { start, second, enterCopies, third, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
     }
 
     // prefers-reduced-motion: no transition
