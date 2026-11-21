@@ -23,15 +23,20 @@ Requirements: Firefox 140 or newer (desktop; current release or ESR).
    least 12 characters, entered twice. **Remember it:** without it, your accounts cannot
    be recovered (see §5).
 
+The settings page has three tabs: **2FA entries** (the list, add, edit, delete, reorder),
+**Appearance** (preview, theme, colors, font size, row height, popup sorting) and
+**General** (master password, automatic lock, import, export, restore, previous vault
+state). While the vault is locked, the setup or unlock form appears above the tabs.
+
 ## 2. Daily use
 
 - **Unlock:** enter the master password in the popup. CTA locks again after 15 minutes
   without activity (adjustable), when you click the lock button, and when Firefox
-  restarts. Optionally it also locks when the computer is idle: settings → "Also lock when
+  restarts. Optionally it also locks when the computer is idle: settings → General → "Also lock when
   the computer is idle". This asks for Firefox's optional "idle" permission.
 - **Copy a code:** click a row, or select it with Tab and press Enter or Space. A green
   check mark confirms the copy.
-- **Manage accounts:** add, edit, delete and reorder accounts on the settings page. The
+- **Manage accounts:** add, edit, delete and reorder accounts in the settings tab "2FA entries". The
   secret key is never shown again after saving. Short keys (under 16 characters) are
   accepted with a warning.
 
@@ -40,7 +45,7 @@ Requirements: Firefox 140 or newer (desktop; current release or ESR).
 Make a backup after setting up and after every change. CTA cannot recover anything
 without one.
 
-- **Encrypted export (recommended):** Settings → "Export and backup" → "Encrypted CTA backup
+- **Encrypted export (recommended):** Settings → General → "Export and backup" → "Encrypted CTA backup
   (recommended)". Choose an export
   password (at least 12 characters, different from the master password unless you tick
   the option) and confirm it with your master password. The file `cta-export-<date>.json`
@@ -54,7 +59,7 @@ without one.
 ## 4. Migration and restore
 
 - **From the original extension:** export `totp.json` there, then in CTA open Settings →
-  Import and choose the file. The preview shows each entry:
+  General → Import and choose the file. The preview shows each entry:
   - new, or name exists (both imported);
   - duplicate (skipped);
   - invalid (skipped, with a reason);
@@ -65,13 +70,16 @@ without one.
   [MIGRATION.md](MIGRATION.md).
 - **CTA unencrypted export:** same import, with every parameter kept.
 - **Restore an encrypted export** (new computer, new profile): set up CTA with a master
-  password, then Settings → "Restore from an encrypted backup". Choose the file and enter the
-  export password and your master password. Restoring works only into an empty vault.
+  password, then Settings → General → "Restore from an encrypted backup". Choose the file and enter the
+  export password, then confirm with the export password again and your master password. If
+  the vault already holds entries, CTA first shows what would change and replaces them only
+  after your explicit confirmation; the previous vault state is kept as an encrypted copy that
+  you can restore or discard in the same section.
 
 ## 5. Updates and recovery
 
-- **Updates:** CTA updates through Firefox like other add-ons, once the release build
-  contains an update address (RELEASE.md §4). Your encrypted data, settings and account
+- **Updates:** the public version from addons.mozilla.org updates automatically through
+  Firefox like other add-ons (RELEASE.md §4). Your encrypted data, settings and account
   order are kept. After an update, unlock with your usual master password. Make a fresh
   encrypted export before major updates anyway.
 - **Forgotten master password:** the accounts cannot be decrypted, and nobody (including

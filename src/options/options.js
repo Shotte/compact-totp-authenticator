@@ -23,6 +23,44 @@ function say(text, kind = "ok", where = "message") {
 }
 const areaOf = (el) => el.closest("section")?.querySelector(".status")?.id ?? "message";
 
+// Options tabs (#21): WAI-ARIA tabs pattern with automatic activation (arrow keys, Home,
+// End). The selected tab lives in the location hash, so re-rendering, saving, importing or an
+// error never switches it; a fresh page opens on "2FA entries". Leaving a tab clears its
+// password fields: no password survives a tab switch.
+const TABS = ["entries", "appearance", "general"];
+const currentTab = () => TABS.find((t) => $(`tab-${t}`).getAttribute("aria-selected") === "true");
+function selectTab(name, { focus = false } = {}) {
+  if (!TABS.includes(name)) name = "entries";
+  for (const t of TABS) {
+    const on = t === name, tab = $(`tab-${t}`), panel = $(`panel-${t}`);
+    tab.setAttribute("aria-selected", String(on));
+    tab.tabIndex = on ? 0 : -1;
+    if (!on && !panel.hidden) for (const p of panel.querySelectorAll('input[type="password"]')) p.value = "";
+    panel.hidden = !on;
+  }
+  if (focus) $(`tab-${name}`).focus();
+  if (location.hash.slice(1) !== name) history.replaceState(null, "", `#${name}`);
+}
+function initTabs() {
+  for (const t of TABS) $(`tab-${t}`).addEventListener("click", () => selectTab(t));
+  $("tabs").addEventListener("keydown", (ev) => {
+    const i = TABS.indexOf(currentTab());
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[ev.key];
+    if (next === undefined) return;
+    ev.preventDefault();
+    selectTab(TABS[(next + TABS.length) % TABS.length], { focus: true });
+  });
+  addEventListener("hashchange", () => selectTab(location.hash.slice(1)));
+  selectTab(location.hash.slice(1));
+}
+
+// Vault-dependent parts of every tab are shown only while unlocked; a hint points to the
+// setup or unlock form above the tabs otherwise.
+function showVault(unlocked) {
+  for (const el of document.querySelectorAll(".needs-vault")) el.hidden = !unlocked;
+  for (const el of document.querySelectorAll(".locked-only")) el.hidden = unlocked;
+}
+
 async function run(fn, where = "message") {
   try { return await fn(); } catch (e) {
     if (e.code === "locked") await showLocked();
@@ -41,7 +79,7 @@ async function showLocked(mode) {
   clearReplace();
   $("previousBox").hidden = true;
   $("lockedView").hidden = false;
-  $("unlockedView").hidden = true;
+  showVault(false);
   $("lockBtn").hidden = true;
   for (const [id, m] of [["setupForm", "setup"], ["unlockForm", "unlock"], ["recoveryForm", "recover"]]) {
     $(id).hidden = m !== mode;
@@ -94,7 +132,7 @@ async function refresh(clearMessage = true) {
   }
   if (clearMessage) say("");
   $("lockedView").hidden = true;
-  $("unlockedView").hidden = false;
+  showVault(true);
   $("lockBtn").hidden = false;
   renderAccounts();
   updateExportForm();
@@ -383,8 +421,12 @@ async function initSettings() {
   showAppearance(settings);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => showAppearance(settings));
   const form = $("settingsForm");
-  form.addEventListener("input", () => showAppearance(readSettingsForm())); // live preview while dragging
-  form.addEventListener("change", async (ev) => {
+  // The lock settings in the General tab belong to this form through the form attribute; their
+  // events do not bubble through it, so both listeners sit on the document (#21).
+  const ofForm = (t) => t === form || t.form === form;
+  document.addEventListener("input", (ev) => { if (ofForm(ev.target)) showAppearance(readSettingsForm()); }); // live preview while dragging
+  document.addEventListener("change", async (ev) => {
+    if (!ofForm(ev.target)) return;
     const denied = ev.target.name === "idleLock" && !(await idlePermission(ev.target));
     if (denied) ev.target.checked = false;
     const next = readSettingsForm();
@@ -530,6 +572,7 @@ async function submitPrevious({ action, confirmed, masterPassword }, where) {
 
 async function init() {
   localize();
+  initTabs();
   await initSettings();
   $("accountForm").addEventListener("submit", submitAccount);
   // Shared secret policy: a valid but short secret is accepted with a visible warning.
