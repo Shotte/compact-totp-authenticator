@@ -1732,7 +1732,9 @@ try {
       }
       // Inside PBKDF2: must abort without writing. Every attempt: the answer is truthful
       // (success exactly when the vault was written), also when the lock came late.
-      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs);
+      // An answer that reports the lock after the write (lockedAfterWrite) proves the lock was not
+      // inside; page-side timestamps alone misclassified that on a slow ESR 140 runner.
+      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs && !r.lockedAfterWrite);
       const truthful = races.every((r) => r.ok === r.changed);
       await vaultWith([], PW2);
       const unchanged = inside.every((r) => !r.changed);
