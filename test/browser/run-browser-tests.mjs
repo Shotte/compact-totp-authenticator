@@ -2108,9 +2108,10 @@ try {
       await call("browsingContext.close", { context: ctx });
     }
     const names = layout[0].names;
+    const [up, down] = await evalJson(opt, `async () => ["moveUp", "moveDown"].map((k) => browser.i18n.getMessage(k))`); // UI language of the run (de locally, en in CI)
     record("F3-1", "account rows with websites, long URLs and long names: the four actions stay on one line and right-aligned in every row at 1024/1280/1920 px and 100-200 % zoom and at 480 px; no horizontal overflow (360 px may wrap); move buttons are named per entry",
       layout.every((l) => l.overflow <= 0 && l.rows === 4 && (l.wrapAllowed || (l.oneLine && l.aligned))) &&
-      names[0] === "Hoch: Kurz" && names[1] === "Runter: Kurz", { layout, names });
+      names[0] === `${up}: Kurz` && names[1] === `${down}: Kurz`, { layout, names });
   }
 
   // C6.3/C6.5: release checks that can run without a person (issues #2–#6 stay open; these
