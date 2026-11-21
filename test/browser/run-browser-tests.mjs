@@ -86,9 +86,9 @@ async function evalJson(ctx, fnSource) {
   if (r.type === "exception") throw new Error(`eval: ${r.exceptionDetails.text}`);
   return JSON.parse(r.result.value);
 }
-// A message sent exactly while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in
-// this profile) is not delivered ("Receiving end does not exist"); it was not processed,
-// so sending it again is safe. Seen once on Windows CI during a 1,000-message loop.
+// A message sent while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in this
+// profile) can fail with "Receiving end does not exist" (seen on Windows CI during a
+// 1,000-message loop). Whether it was processed is not known to the sender.
 // Like the product (lib/ui.js call()): only read-only commands are repeated after a delivery
 // error. A write may have been delivered although the sender saw "Receiving end does not
 // exist" (event page restarting); repeating it blindly would turn into a false conflict.
