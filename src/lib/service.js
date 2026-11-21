@@ -48,17 +48,21 @@ export function createService({ session, local, alarms, now = Date.now,
   // and startSession() (new session).
   const dropPending = () => session.remove("pendingImport");
   const loadPending = async () => (await session.get("pendingImport")).pendingImport ?? null;
+  // Same kind of binding for the vault replacement preview (#25): session id, revision and
+  // file hash only. Neither the backup's contents nor any password are kept.
+  const dropReplace = () => session.remove("pendingReplace");
+  const loadReplace = async () => (await session.get("pendingReplace")).pendingReplace ?? null;
   const exclusive = (fn) => { const run = chain.then(fn); chain = run.catch(() => {}); return run; };
 
   async function wipe() {
     epoch++;
-    await session.remove(["session", "pendingImport"]);
+    await session.remove(["session", "pendingImport", "pendingReplace"]);
     await alarms.clear("autolock");
   }
 
   async function startSession(key, generation) {
     epoch++;
-    await dropPending();
+    await session.remove(["pendingImport", "pendingReplace"]);
     const { autoLockMinutes } = await loadSettings(local);
     const s = { ...newSession(key, now(), autoLockMinutes * 60_000), id: randomId(), generation };
     await session.set({ session: s });
@@ -195,6 +199,58 @@ export function createService({ session, local, alarms, now = Date.now,
     return { ctx, key, revision: r.revision, payload: r.payload };
   }
 
+  // Opens an encrypted backup with its export password (#25). Bounded parsing before any
+  // PBKDF2; a wrong password and a damaged file are indistinguishable (AES-GCM).
+  async function openBackup(text, password) {
+    if (typeof password !== "string" || !password || [...password].length > MAX_PASSWORD_LENGTH) {
+      throw new acc.InputError("password");
+    }
+    const file = parseExport(text);
+    let payload;
+    try { payload = await openExport(await deriveKey(password, file.kdf), file); }
+    catch (e) { if (e.reason === "payload") throw e; throw new acc.InputError("import-decrypt"); }
+    return accountsFromPortable(payload.accounts, randomId);
+  }
+
+  // What a replacement changes, without secrets: counts and names. Identity is the
+  // normalized secret, as for duplicates in the import (the name never proves identity).
+  const LIST_MAX = 20;
+  function replaceSummary(current, incoming) {
+    const key = (a) => `${a.secret}|${a.algorithm}|${a.digits}|${a.period}`;
+    const inBackup = new Set(incoming.map(key)), inCurrent = new Set(current.map(key));
+    const onlyCurrent = current.filter((a) => !inBackup.has(key(a))).map((a) => a.name);
+    const onlyBackup = incoming.filter((a) => !inCurrent.has(key(a))).map((a) => a.name);
+    return {
+      currentCount: current.length, backupCount: incoming.length,
+      inBoth: incoming.length - onlyBackup.length,
+      onlyCurrent: { count: onlyCurrent.length, names: onlyCurrent.slice(0, LIST_MAX) },
+      onlyBackup: { count: onlyBackup.length, names: onlyBackup.slice(0, LIST_MAX) },
+    };
+  }
+
+  // Replaces the vault contents with `next` after the authorization checks of the caller.
+  // A populated vault is first copied (vault_previous, verified); then the one write path
+  // commitAccounts with its truthful outcomes. A failure before the commit, or a commit the
+  // store rolled back, changed nothing ("replace-failed"); an unresolved one is "unknown".
+  async function replaceContents(auth, next, revision) {
+    const populated = auth.payload.accounts.length > 0;
+    if (auth.ctx.e !== epoch) throw new LockedError("changed");
+    if (populated) {
+      try { await store.keepPrevious(auth.key, revision, now()); }
+      catch (e) {
+        if (e instanceof VaultError && e.reason === "conflict") throw new ConflictError();
+        throw new acc.InputError("replace-failed"); // the vault itself was not touched
+      }
+    }
+    let r;
+    try { r = await commitAccounts(auth.ctx, auth.key, next, revision); }
+    catch (e) {
+      if (e instanceof VaultError) throw new acc.InputError("replace-failed"); // reconciled: not written
+      throw e;
+    }
+    return { ...r, replaced: next.length, previous: auth.payload.accounts.length, keptPrevious: populated };
+  }
+
   const api = {
     async status() {
       const { session: s } = await session.get("session");
@@ -266,10 +322,15 @@ export function createService({ session, local, alarms, now = Date.now,
     // the vault header). On success the session is locked (C2-A3): no key of the old
     // generation stays usable; the user unlocks again with the new password. On failure the
     // session is locked too, so it never looks unlocked while the vault state is uncertain.
-    changePassword({ current, next, confirm }) {
+    changePassword({ current, next, confirm, discardPrevious }) {
       return exclusive(async () => {
         const ctx = await requireSession();
         const p = checkNewPassword(next, confirm ?? "");
+        // A kept previous vault (#25) belongs to the old password and is dropped by the
+        // rotation. Never silently: the user must have been told and agreed (review B).
+        if ((await local.get("vault_previous")).vault_previous && discardPrevious !== true) {
+          throw new acc.InputError("previous-exists");
+        }
         const { revision } = await readVault(ctx);
         // Lock before any key work: operations racing the change can no longer use the
         // old session key (their re-check fails); the user unlocks again afterwards.
@@ -397,6 +458,98 @@ export function createService({ session, local, alarms, now = Date.now,
       });
     },
 
+    // Restore or replace from an encrypted backup (#25), step 1: the backup is opened with its
+    // export password and compared with the current vault. Writes nothing to the vault;
+    // stores only the binding (session id, revision, file hash) in storage.session. Not an
+    // activity: a preview never extends the session.
+    replacePreview({ text, password }) {
+      return exclusive(async () => {
+        await dropReplace();
+        const ctx = await requireSession();
+        const incoming = await openBackup(text, password);
+        await recheck(ctx); // lock or expiry during PBKDF2 aborts
+        const { revision, accounts } = await readVault(ctx);
+        const fileHash = await sha256(text);
+        if (ctx.e !== epoch) throw new LockedError("changed");
+        await session.set({ pendingReplace: { sessionId: ctx.s.id, revision, fileHash, backupCount: incoming.length } });
+        const { vault_previous: kept } = await local.get("vault_previous");
+        return { revision, fileHash, ...replaceSummary(accounts, incoming),
+          keptCopy: kept ? { exists: true, replacedAt: kept.replacedAt } : { exists: false } };
+      });
+    },
+
+    // Step 2: fresh master password of THIS vault, the same preview (session, revision, file
+    // hash; the file and export password are sent again), an explicit confirmation if the
+    // vault holds entries, a re-read right before the write. The destination keeps its master
+    // password and key generation: the backup's entries are sealed with the vault's own key.
+    replaceApply({ revision, fileHash, text, password, masterPassword, confirmed }) {
+      return exclusive(async () => {
+        try {
+          const auth = await authorizeSensitive(masterPassword);
+          const pending = await loadReplace();
+          if (!pending || pending.sessionId !== auth.ctx.s.id || pending.fileHash !== fileHash
+            || pending.revision !== revision || auth.revision !== revision) throw new ConflictError();
+          if (await sha256(text) !== pending.fileHash) throw new ConflictError(); // not the previewed file
+          if (auth.payload.accounts.length && confirmed !== true) throw new acc.InputError("replace-confirmation");
+          // The export password is not kept after the preview (review A): it is entered again
+          // and re-authenticates the backup here. The file hash binds the ciphertext and
+          // AES-GCM its plaintext, so the contents are the previewed ones; the count is
+          // compared as well.
+          const next = await openBackup(text, password);
+          if (next.length !== pending.backupCount) throw new ConflictError();
+          if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
+          await recheck(auth.ctx);
+          const current = await readVault(auth.ctx); // another writer may have changed the vault
+          if (current.revision !== revision) throw new ConflictError();
+          const r = await replaceContents(auth, next, revision);
+          await dropReplace(); // only after the commit; a failure that changed nothing may retry
+          return r;
+        } catch (e) {
+          // A fixable input (wrong password, missing confirmation, a failure that changed
+          // nothing) keeps the preview; a conflict, lock or unknown outcome makes it stale.
+          if (e?.code !== "invalid") await dropReplace();
+          throw e;
+        }
+      });
+    },
+
+    // The user cancelled the replacement preview.
+    async replaceCancel() { await dropReplace(); return {}; },
+
+    // The kept copy of the vault before the last replacement: time and number of entries.
+    previousStatus() {
+      return exclusive(async () => {
+        const ctx = await requireSession();
+        await readVault(ctx);
+        const p = await store.previous(ctx.s.key);
+        return p ? { exists: true, replacedAt: p.replacedAt, count: p.payload?.accounts.length ?? null } : { exists: false };
+      });
+    },
+
+    // Brings the kept copy back. Same rules as a replacement: fresh master password, explicit
+    // confirmation; the replaced contents become the kept copy in turn (nothing is lost).
+    restorePrevious({ masterPassword, confirmed }) {
+      return exclusive(async () => {
+        const auth = await authorizeSensitive(masterPassword);
+        if (confirmed !== true) throw new acc.InputError("replace-confirmation");
+        const p = await store.previous(auth.key);
+        if (!p?.payload) throw new acc.InputError("no-previous");
+        await recheck(auth.ctx);
+        return replaceContents(auth, p.payload.accounts, auth.revision);
+      });
+    },
+
+    // Deletes the kept copy: only explicitly, with a fresh master password.
+    discardPrevious({ masterPassword, confirmed }) {
+      return exclusive(async () => {
+        const auth = await authorizeSensitive(masterPassword);
+        if (confirmed !== true) throw new acc.InputError("confirmation");
+        await recheck(auth.ctx);
+        await store.discardPrevious();
+        return {};
+      });
+    },
+
     // Import step 1 (C5): preview of a legacy totp.json or a cta-plain v1 file. Writes
     // nothing. Returns rows without secrets plus the vault revision and a SHA-256 of the
     // file text; both must come back with importApply (I1).
@@ -464,7 +617,7 @@ export function createService({ session, local, alarms, now = Date.now,
     setup: (m) => ({ password: str(m.password), confirm: str(m.confirm) }),
     unlock: (m) => ({ password: str(m.password) }),
     restore: (m) => ({ password: str(m.password), confirmed: m.confirmed === true }),
-    changePassword: (m) => ({ current: str(m.current), next: str(m.next), confirm: str(m.confirm) }),
+    changePassword: (m) => ({ current: str(m.current), next: str(m.next), confirm: str(m.confirm), discardPrevious: m.discardPrevious === true }),
     addAccount: (m) => ({ account: m.account, revision: rev(m) }),
     updateAccount: (m) => ({ id: id(m), patch: m.patch, revision: rev(m) }),
     deleteAccount: (m) => ({ id: id(m), revision: rev(m) }),
@@ -479,6 +632,18 @@ export function createService({ session, local, alarms, now = Date.now,
       if (typeof m.text !== "string" || m.text.length > MAX_IMPORT_BYTES) throw new acc.InputError("text");
       return { text: m.text };
     },
+    replacePreview: (m) => {
+      if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
+      return { text: m.text, password: str(m.password) };
+    },
+    replaceApply: (m) => {
+      if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
+      if (typeof m.fileHash !== "string") throw new acc.InputError("file-hash");
+      return { revision: rev(m), fileHash: m.fileHash, text: m.text, password: str(m.password),
+        masterPassword: str(m.masterPassword), confirmed: m.confirmed === true };
+    },
+    restorePrevious: (m) => ({ masterPassword: str(m.masterPassword), confirmed: m.confirmed === true }),
+    discardPrevious: (m) => ({ masterPassword: str(m.masterPassword), confirmed: m.confirmed === true }),
     importApply: (m) => {
       if (typeof m.fileHash !== "string") throw new acc.InputError("file-hash");
       const names = m.names ?? {};

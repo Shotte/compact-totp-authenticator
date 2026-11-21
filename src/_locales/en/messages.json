@@ -482,7 +482,7 @@
     "message": "Restore from an encrypted backup"
   },
   "restoreExportNote": {
-    "message": "Restoring works only into an empty vault, that is right after setting a new master password. Existing 2FA entries are never overwritten or deleted. You need the export password of the file and the master password of this vault. If you already have entries, import an unencrypted CTA file instead; merging encrypted exports follows in a later version."
+    "message": "Choose an encrypted CTA backup and enter its export password. CTA checks the backup and shows you first what will change. If your vault is empty, the entries are restored. If it already holds entries, the backup replaces them only after your explicit confirmation; the previous vault is kept as an encrypted copy. Your master password stays the same in every case."
   },
   "exportFile": {
     "message": "Backup file"
@@ -625,10 +625,162 @@
   "restoreDecryptFailed": {
     "message": "The backup could not be decrypted: the export password is wrong or the file is damaged. Nothing was restored."
   },
-  "restoreNotEmpty": {
-    "message": "Restoring works only into an empty vault. Your existing 2FA entries stay unchanged; nothing was restored."
-  },
   "sortNote": {
     "message": "Sorting applies to the popup display. The table of 2FA entries here keeps your manual order."
+  },
+  "replaceCheck": {
+    "message": "Check backup"
+  },
+  "replaceChecking": {
+    "message": "Checking the backup …"
+  },
+  "replaceChecked": {
+    "message": "Backup checked. The export password was discarded: enter it again to confirm, together with your master password."
+  },
+  "replaceSummary": {
+    "message": "The backup is valid and holds $COUNT$ 2FA entries.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceWarning": {
+    "message": "Warning: your vault holds $CURRENT$ 2FA entries. They will be completely replaced by the $BACKUP$ entries of the backup ($BOTH$ of them are in both).",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "backup": {
+        "content": "$2"
+      },
+      "both": {
+        "content": "$3"
+      }
+    }
+  },
+  "replaceLoseIntro": {
+    "message": "These $COUNT$ entries exist only in your current vault; after the replacement they are only in the kept copy:",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceLoseNone": {
+    "message": "Every entry of your current vault is also in the backup."
+  },
+  "replaceMore": {
+    "message": "… and $COUNT$ more",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceKeepsCopy": {
+    "message": "Before the replacement your current vault is saved and verified as an encrypted copy. You can bring it back here until you discard the copy, replace again or change your master password."
+  },
+  "replaceConfirm": {
+    "message": "I want to replace my $COUNT$ current 2FA entries with the backup.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceButton": {
+    "message": "Replace vault"
+  },
+  "replacing": {
+    "message": "Working …"
+  },
+  "replaceDone": {
+    "message": "Vault replaced: $NEW$ 2FA entries from the backup. Your previous $OLD$ entries are kept as an encrypted copy.",
+    "placeholders": {
+      "new": {
+        "content": "$1"
+      },
+      "old": {
+        "content": "$2"
+      }
+    }
+  },
+  "replaceCancelled": {
+    "message": "Cancelled. Nothing was changed."
+  },
+  "replaceNeedConfirm": {
+    "message": "Please confirm explicitly that your current 2FA entries should be replaced. Nothing was changed."
+  },
+  "replaceFailed": {
+    "message": "The replacement failed. Your vault is unchanged; you can try again."
+  },
+  "replaceConflict": {
+    "message": "Your vault changed after the check. Nothing was replaced. Please check the backup again."
+  },
+  "replaceTooMany": {
+    "message": "The backup holds more than 1,000 2FA entries. Nothing was changed."
+  },
+  "replaceInvalidFile": {
+    "message": "The file is not a valid encrypted CTA backup. Nothing was changed."
+  },
+  "previousText": {
+    "message": "Previous vault state from $WHEN$ with $COUNT$ 2FA entries – kept encrypted, opened by your master password.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "previousConfirm": {
+    "message": "I understand: restoring replaces my current entries (they become the previous vault state); discarding deletes the previous vault state for good."
+  },
+  "previousRestore": {
+    "message": "Restore previous vault"
+  },
+  "previousDiscard": {
+    "message": "Discard previous vault"
+  },
+  "previousRestored": {
+    "message": "Previous vault restored: $COUNT$ 2FA entries. The replaced state is now the previous vault state.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "previousDiscarded": {
+    "message": "The previous vault state was deleted."
+  },
+  "previousGone": {
+    "message": "There is no previous vault state any more. Nothing was changed."
+  },
+  "exportPasswordAgain": {
+    "message": "Export password of the backup (again)"
+  },
+  "replaceOverwritesCopy": {
+    "message": "There is always exactly one kept previous vault state. The current one from $WHEN$ will be replaced by your present state.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousText": {
+    "message": "Warning: the previous vault state from $WHEN$ is encrypted with your current master password. Changing the password deletes it, because the new password could not open it. Restore it first or export your entries if you still need it.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      }
+    }
+  },
+  "changePreviousConfirm": {
+    "message": "I understand that the previous vault state is deleted when I change the password."
+  },
+  "changePreviousNeeded": {
+    "message": "Please confirm first that the previous vault state may be deleted. The password was not changed."
   }
 }

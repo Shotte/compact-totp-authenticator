@@ -86,13 +86,21 @@ async function evalJson(ctx, fnSource) {
   if (r.type === "exception") throw new Error(`eval: ${r.exceptionDetails.text}`);
   return JSON.parse(r.result.value);
 }
-// A message sent exactly while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in
-// this profile) is not delivered ("Receiving end does not exist"); it was not processed,
-// so sending it again is safe. Seen once on Windows CI during a 1,000-message loop.
+// A message sent while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in this
+// profile) can fail with "Receiving end does not exist" (seen on Windows CI during a
+// 1,000-message loop). Whether it was processed is not known to the sender.
+// Like the product (lib/ui.js call()): only read-only commands are repeated after a delivery
+// error. A write may have been delivered although the sender saw "Receiving end does not
+// exist" (event page restarting); repeating it blindly would turn into a false conflict.
+const REPEATABLE = new Set(["status", "getCodes", "listAccounts", "previousStatus", "importPreview", "lock", "unlock"]);
 async function msg(ctx, cmd, args = {}) {
   for (let attempt = 1; ; attempt++) {
     try { return await evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`); }
-    catch (e) { if (attempt >= 3 || !/Receiving end does not exist/.test(e.message)) throw e; await sleep(300); }
+    catch (e) {
+      if (!/Receiving end does not exist/.test(e.message)) throw e;
+      if (!REPEATABLE.has(cmd) || attempt >= 3) return { ok: false, error: "delivery", reason: e.message.slice(0, 80) };
+      await sleep(300);
+    }
   }
 }
 async function waitFor(ctx, cond, timeout = 5000) {
@@ -136,7 +144,7 @@ try {
   await open(opt, "options/options.html");
 
   // Harness helpers (C2): real master-password vaults instead of the removed demo unlock.
-  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next"]);
+  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next", "vault_previous"]);
     await browser.storage.session.clear(); }`);
   async function resetVault(n, password = PW) {
     await wipeVault();
@@ -146,15 +154,23 @@ try {
     for (const a of syntheticAccounts(n)) {
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
-      if (!res.ok) throw new Error("addAccount failed: " + JSON.stringify(res));
+      if (!res.ok) {
+        // Setup helper: after a delivery error, storage decides whether this write happened.
+        await sleep(500);
+        const now = (await msg(opt, "listAccounts")).result;
+        const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
+        revision = now.revision;
+        continue;
+      }
       revision = res.result.revision;
     }
     return revision;
   }
   // Hard kill (simulated crash) or graceful quit (C3), relaunch with the same profile,
   // reinstall the extension.
-  async function restart({ graceful = false } = {}) {
-    const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+  async function restart({ graceful = false, pid: knownPid } = {}) {
+    const pid = knownPid ?? (CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid);
     const profile = ff.profile;
     if (graceful) await ff.close({ keepProfile: true }); else await ff.kill(pid);
     ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS, profile });
@@ -1489,14 +1505,25 @@ try {
     // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
     // the file is handed to the real file input through DataTransfer, with a Unicode name.
     const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
-    const restoreVia = async (name, password, masterPassword = PW2) => {
+    // #25: two steps. 1: file + export password → check; 2: master password (+ confirmation
+    // for a populated vault) → restore or replace.
+    const checkBackup = async (name, password) => {
       await evalJson(opt, `async () => { const dt = new DataTransfer();
         dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
         const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
-        const f = document.getElementById("restoreExportForm").elements;
-        f.password.value = ${JSON.stringify(password)}; f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        document.getElementById("restoreExportForm").elements.password.value = ${JSON.stringify(password)};
         document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#restoreExportForm button");
+      return settle();
+    };
+    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true, exportAgain = password } = {}) => {
+      const step1 = await checkBackup(name, password);
+      if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
+      await evalJson(opt, `async () => { const f = document.getElementById("replaceForm").elements;
+        f.masterPassword.value = ${JSON.stringify(masterPassword)}; f.exportPassword.value = ${JSON.stringify(exportAgain)};
+        if (!document.getElementById("replaceConfirmLabel").hidden) f.confirmed.checked = ${confirm};
+        document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#replaceButton");
       return settle();
     };
     const before4 = await vaultJson();
@@ -1516,7 +1543,6 @@ try {
     // section; a session that ended meanwhile switches to the locked view and says so.
     {
       const text = (k) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)})`);
-      const notEmpty = await restoreVia(uniName, EXP); // the vault holds the restored entries
       await vaultWith([], PW2);
       await open(opt, "options/options.html");
       await waitFor(opt, "document.body.dataset.state === 'unlocked'");
@@ -1528,12 +1554,103 @@ try {
       const sortNote = await evalJson(opt, `async () => !!document.querySelector("[data-i18n=sortNote]")?.textContent`);
       await msg(opt, "unlock", { password: PW2 });
       await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // back to the state C4-5 expects
-      const want = { notEmpty: await text("restoreNotEmpty"), wrongMaster: await text("restoreWrongMaster"),
+      const want = { wrongMaster: await text("restoreWrongMaster"),
         wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
-      record("F2-2", "restore errors: not-empty vault, wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
-        notEmpty.area === "restoreStatus" && notEmpty.text === want.notEmpty && wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+      record("F2-2", "restore errors: wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
+        wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
         wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
-        lockedView === "locked" && sortNote, { notEmpty, wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+        lockedView === "locked" && sortNote, { wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+    }
+
+    // R-1 (#25): replacing a populated vault through the UI: preview with counts and the
+    // entries that exist only locally, destructive warning, required confirmation, fresh
+    // master password; the previous vault is kept and can be brought back; the destination
+    // master password stays.
+    {
+      const local = [{ name: "Lokal Alpha", secret: syntheticSecret(910) }, { name: "Lokal Beta", secret: syntheticSecret(911) }];
+      await vaultWith(local, PW2);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const check = await checkBackup(uniName, EXP);
+      const preview = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
+        warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
+        lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
+        confirmShown: !document.getElementById("replaceConfirmLabel").hidden,
+        exportPasswordEmpty: document.getElementById("replaceForm").elements.exportPassword.value === "",
+        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x";
+          f.elements.exportPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = f.elements.exportPassword.value = ""; return !v; })() })`);
+      { // evidence screenshot: the destructive warning (synthetic names only)
+        const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
+          const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+        const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+        writeFileSync(join(OUT, "replace-warning-de.png"), Buffer.from(shot.data, "base64"));
+      }
+      const noConfirm = await msg(opt, "replaceApply", { revision: (await msg(opt, "listAccounts")).result.revision, fileHash: "0".repeat(64), text: exportText, password: EXP, masterPassword: PW2 });
+      const replaced = await restoreVia(uniName, EXP);
+      const afterNames = (await pagePlain(PW2)).map((a) => a.name);
+      const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
+      const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
+      await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
+        f.masterPassword.value = ${JSON.stringify(PW2)}; document.querySelector("#previousForm button[value=restore]").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#previousForm button[value=restore]");
+      const back = await settle();
+      const backNames = (await pagePlain(PW2)).map((a) => a.name);
+      await msg(opt, "lock");
+      const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
+      record("R-1", "replace a populated vault via the UI: preview with counts and local-only entries, destructive warning, confirmation required, fresh master password; previous vault kept and brought back; destination master password unchanged",
+        check.kind === "ok" && preview.shown && preview.warning && /2/.test(preview.text) && same(preview.lose, ["Lokal Alpha", "Lokal Beta"]) &&
+        preview.confirmShown && preview.blockedWithoutConfirm && preview.exportPasswordEmpty && changeWarn && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
+        same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
+        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
+
+      // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a
+      // replacement. The background page and the options page share the extension process and
+      // its main thread. A storage.onChanged listener in the options page busy-waits as soon as
+      // the target key has been written, so the background cannot issue its next write; Firefox
+      // is then killed in exactly that state. Targets: after the kept copy (vault_previous),
+      // after the rollback copy (vault_backup), after the new vault (vault, before its
+      // read-back), and an uninterrupted control. After the restart: either the backup's entries
+      // (with the kept previous vault) or the old entries, exact and in order, never a mix; the
+      // destination master password opens it; the export password never does.
+      {
+        const local2 = [{ name: "Lokal Gamma", secret: syntheticSecret(920) }, { name: "Lokal Delta", secret: syntheticSecret(921) },
+          { name: "Lokal Epsilon", secret: syntheticSecret(922) }];
+        const OLDN = local2.map((a) => a.name), NEWN = expected.map((a) => a.name);
+        const runs = [];
+        for (const target of ["vault_previous", "vault_backup", "vault", null]) {
+          await vaultWith(local2, PW2);
+          await open(opt, "options/options.html");
+          await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+          const p = (await msg(opt, "replacePreview", { text: exportText, password: EXP })).result;
+          const args = { cmd: "replaceApply", revision: p.revision, fileHash: p.fileHash, text: exportText, password: EXP, masterPassword: PW2, confirmed: true };
+          const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+          await call("script.evaluate", { target: { context: opt }, awaitPromise: false, expression: `(() => {
+            const target = ${JSON.stringify(target)};
+            browser.storage.onChanged.addListener((changes, area) => {
+              if (target && area === "local" && target in changes) { const t = Date.now(); while (Date.now() - t < 6000) { /* freeze the extension process */ } }
+            });
+            browser.runtime.sendMessage(${JSON.stringify(args)}); })()` });
+          await sleep(target ? 1500 : 2500); // frozen at the boundary (or finished, for the control)
+          await restart({ pid }); // hard kill, same profile
+          const wrong = (await msg(opt, "unlock", { password: EXP })).ok;
+          let u = await msg(opt, "unlock", { password: PW2 });
+          let via = "direct";
+          if (u.ok && u.result.recoverable) { u = await msg(opt, "restore", { password: PW2, confirmed: true }); via = "confirmed restore"; }
+          const list = (await msg(opt, "listAccounts")).result?.accounts.map((a) => a.name) ?? null;
+          const outcome = same(list, NEWN) ? "replaced" : same(list, OLDN) ? "old" : "MIXED";
+          const prev = (await msg(opt, "previousStatus")).result;
+          const ok = u.ok && !wrong && outcome !== "MIXED" && (outcome === "old" || (prev?.exists && prev.count === OLDN.length));
+          runs.push({ killedAfter: target ?? "none (control)", outcome, via, keptPrevious: prev?.exists ? prev.count : 0, exportPasswordOpened: wrong, ok });
+        }
+        const byTarget = Object.fromEntries(runs.map((r) => [r.killedAfter, r.outcome]));
+        record("R-2", "hard Firefox termination at the write boundaries of a replacement (after the kept copy, after the rollback copy, after the new vault, control): after the restart either the backup or the old entries, exact and in order, never mixed; the destination master password opens it; if replaced, the previous vault is kept",
+          runs.every((r) => r.ok) && byTarget.vault_previous === "old" && byTarget["none (control)"] === "replaced",
+          { runs });
+      }
+      await vaultWith([], PW2);
+      await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // the state C4-5 expects
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
     }
 
     // C4-5: restoring into a vault with accounts is refused; a tampered file fails.
@@ -1631,7 +1748,9 @@ try {
       }
       // Inside PBKDF2: must abort without writing. Every attempt: the answer is truthful
       // (success exactly when the vault was written), also when the lock came late.
-      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs);
+      // An answer that reports the lock after the write (lockedAfterWrite) proves the lock was not
+      // inside; page-side timestamps alone misclassified that on a slow ESR 140 runner.
+      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs && !r.lockedAfterWrite);
       const truthful = races.every((r) => r.ok === r.changed);
       await vaultWith([], PW2);
       const unchanged = inside.every((r) => !r.changed);
