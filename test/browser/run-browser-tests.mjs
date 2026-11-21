@@ -89,10 +89,18 @@ async function evalJson(ctx, fnSource) {
 // A message sent exactly while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in
 // this profile) is not delivered ("Receiving end does not exist"); it was not processed,
 // so sending it again is safe. Seen once on Windows CI during a 1,000-message loop.
+// Like the product (lib/ui.js call()): only read-only commands are repeated after a delivery
+// error. A write may have been delivered although the sender saw "Receiving end does not
+// exist" (event page restarting); repeating it blindly would turn into a false conflict.
+const REPEATABLE = new Set(["status", "getCodes", "listAccounts", "previousStatus", "importPreview", "lock", "unlock"]);
 async function msg(ctx, cmd, args = {}) {
   for (let attempt = 1; ; attempt++) {
     try { return await evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`); }
-    catch (e) { if (attempt >= 3 || !/Receiving end does not exist/.test(e.message)) throw e; await sleep(300); }
+    catch (e) {
+      if (!/Receiving end does not exist/.test(e.message)) throw e;
+      if (!REPEATABLE.has(cmd) || attempt >= 3) return { ok: false, error: "delivery", reason: e.message.slice(0, 80) };
+      await sleep(300);
+    }
   }
 }
 async function waitFor(ctx, cond, timeout = 5000) {
@@ -146,7 +154,15 @@ try {
     for (const a of syntheticAccounts(n)) {
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
-      if (!res.ok) throw new Error("addAccount failed: " + JSON.stringify(res));
+      if (!res.ok) {
+        // Setup helper: after a delivery error, storage decides whether this write happened.
+        await sleep(500);
+        const now = (await msg(opt, "listAccounts")).result;
+        const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
+        revision = now.revision;
+        continue;
+      }
       revision = res.result.revision;
     }
     return revision;

@@ -50,7 +50,7 @@ outside; it is covered by Firefox's single-key atomicity (C2-7) and the unit tes
 | `npm test` | PASS 236/236 (new: `replace.test.mjs`, 13 tests) |
 | `web-ext lint` | PASS 0/0 |
 | `check:release` | PASS 26/26 |
-| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 100/102 PASS, 2 MANUAL, 0 FAIL (new: R-1, R-2) |
+| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 101/103 PASS, 2 MANUAL, 0 FAIL (new: R-1, R-2; with PR #30: B8-5) |
 | Screenshot | [`replace-warning-de.png`](replace-warning-de.png): destructive warning with synthetic names |
 | Native Open dialog for the restore (`native-dialogs.mjs` N4, `--os-input`) | NOT_TESTED in this PR (adapted to the two steps) |
 | A real browser crash during the replacement | PASS: R-2 at three write boundaries plus a control (see above) |

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-20T23:05:07.598Z",
+  "startedAt": "2026-11-21T00:13:41.939Z",
   "browser": {
     "version": "160.0.1",
     "platform": "windows"
@@ -9,25 +9,25 @@
   },
   "chromeScopePrivileged": true,
   "wrongPasswordMs": [
-    118,
-    116,
+    119,
+    117,
     1,
-    1
+    2
   ],
   "unlockLatency": {
     "iterations600kMs": [
-      5,
-      5,
+      4,
       4,
       5,
-      5
+      4,
+      3
     ],
-    "medianMs": 5,
-    "forged10MMs": 1870,
+    "medianMs": 4,
+    "forged10MMs": 1865,
     "oversizedRejectMs": 2,
-    "uiPingMaxMs": 2
+    "uiPingMaxMs": 4
   },
-  "coldUnlockMsAfterRestart": 127,
+  "coldUnlockMsAfterRestart": 129,
   "finalPasswordIsPW": true,
   "layouts": {
     "1": {
@@ -43,10 +43,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "21",
+      "ticker": "16",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 325,
+      "renderMs": 225,
       "expectedBodyHeight": 56
     },
     "25": {
@@ -62,10 +62,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "20",
+      "ticker": "16",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 79,
+      "renderMs": 90,
       "expectedBodyHeight": 591
     },
     "50": {
@@ -81,10 +81,10 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "19",
+      "ticker": "15",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 80,
+      "renderMs": 78,
       "expectedBodyHeight": 591
     },
     "100": {
@@ -100,14 +100,14 @@
       "fontFamily": "monospace",
       "fontSize": "16px",
       "codesOk": true,
-      "ticker": "18",
+      "ticker": "14",
       "lastRowReachable": true,
       "footerVisible": true,
-      "renderMs": 88,
+      "renderMs": 82,
       "expectedBodyHeight": 591
     }
   },
-  "finishedAt": "2026-11-20T23:11:44.320Z",
+  "finishedAt": "2026-11-21T00:20:52.300Z",
   "results": [
     {
       "id": "B6-1",
@@ -119,7 +119,7 @@
           "result": {
             "initialized": false,
             "unlocked": false,
-            "startedAt": 1795215909030
+            "startedAt": 1795220023463
           }
         },
         "responses": [
@@ -158,10 +158,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "21",
+        "ticker": "16",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 325,
+        "renderMs": 225,
         "expectedBodyHeight": 56
       }
     },
@@ -182,10 +182,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "20",
+        "ticker": "16",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 79,
+        "renderMs": 90,
         "expectedBodyHeight": 591
       }
     },
@@ -206,10 +206,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "19",
+        "ticker": "15",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 80,
+        "renderMs": 78,
         "expectedBodyHeight": 591
       }
     },
@@ -230,10 +230,10 @@
         "fontFamily": "monospace",
         "fontSize": "16px",
         "codesOk": true,
-        "ticker": "18",
+        "ticker": "14",
         "lastRowReachable": true,
         "footerVisible": true,
-        "renderMs": 88,
+        "renderMs": 82,
         "expectedBodyHeight": 591
       }
     },
@@ -1746,6 +1746,11 @@
           "focusVisible": true
         },
         "enterCopies": true,
+        "third": {
+          "row": 2,
+          "id": "",
+          "focusVisible": true
+        },
         "spaceCopies": true,
         "lastRow": {
           "row": 99,
@@ -1763,6 +1768,25 @@
           "focusVisible": true
         },
         "writes": 2
+      }
+    },
+    {
+      "id": "B8-5",
+      "name": "keyboard focus stays on the same entry when the codes refresh at a period boundary",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "id": "8630243d-011c-4eee-93b0-36f90f7bd035",
+          "row": 2,
+          "visible": true,
+          "code": "47957145"
+        },
+        "after": {
+          "id": "8630243d-011c-4eee-93b0-36f90f7bd035",
+          "row": 2,
+          "visible": true,
+          "code": "94984139"
+        }
       }
     },
     {
@@ -1952,8 +1976,8 @@
       "name": "works after event page suspension and restart",
       "verdict": "PASS",
       "details": {
-        "startedAtBefore": 1795215909030,
-        "startedAtAfter": 1795215947323,
+        "startedAtBefore": 1795220070460,
+        "startedAtAfter": 1795220085349,
         "restarted": true,
         "revision": 26
       }
@@ -1966,12 +1990,12 @@
         "before": {
           "initialized": true,
           "unlocked": true,
-          "startedAt": 1795215947323
+          "startedAt": 1795220085349
         },
         "atDeadline": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795216007500
+          "startedAt": 1795220145567
         },
         "alarmWipedAfterSeconds": 61
       }
@@ -2007,16 +2031,16 @@
       "verdict": "PASS",
       "details": {
         "iterations600kMs": [
-          5,
-          5,
+          4,
           4,
           5,
-          5
+          4,
+          3
         ],
-        "medianMs": 5,
-        "forged10MMs": 1870,
+        "medianMs": 4,
+        "forged10MMs": 1865,
         "oversizedRejectMs": 2,
-        "uiPingMaxMs": 2,
+        "uiPingMaxMs": 4,
         "forgedResult": "unlock",
         "oversizedResult": "damaged",
         "storageUnchangedByForgedAttempt": true
@@ -2077,7 +2101,7 @@
         "status": {
           "initialized": true,
           "unlocked": false,
-          "startedAt": 1795216014522
+          "startedAt": 1795220152588
         },
         "sessionKeys": [],
         "unlockMode": true,
@@ -2085,7 +2109,7 @@
           5,
           5
         ],
-        "coldUnlockMs": 127
+        "coldUnlockMs": 129
       }
     },
     {
@@ -2095,7 +2119,7 @@
       "details": {
         "delayMs": 400,
         "accountsBefore": 5,
-        "accountsAfter": 67,
+        "accountsAfter": 68,
         "restoredFromBackup": false
       }
     },
@@ -2105,8 +2129,8 @@
       "verdict": "PASS",
       "details": {
         "delayMs": 1200,
-        "accountsBefore": 67,
-        "accountsAfter": 188,
+        "accountsBefore": 68,
+        "accountsAfter": 189,
         "restoredFromBackup": false
       }
     },
@@ -2119,8 +2143,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          188,
-          188
+          189,
+          189
         ]
       }
     },
@@ -2133,8 +2157,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          188,
-          188
+          189,
+          189
         ]
       }
     },
@@ -2147,8 +2171,8 @@
         "oldPassword": "no",
         "newPassword": "ok",
         "accounts": [
-          188,
-          188
+          189,
+          189
         ]
       }
     },
@@ -2168,7 +2192,7 @@
             },
             "wrong": {
               "unlocked": false,
-              "ms": 161,
+              "ms": 137,
               "unchanged": true
             }
           },
@@ -2177,7 +2201,7 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 162,
+              "ms": 120,
               "unchanged": true
             },
             "right": {
@@ -2192,7 +2216,7 @@
             "expired": true,
             "wrong": {
               "unlocked": false,
-              "ms": 120,
+              "ms": 121,
               "unchanged": true
             },
             "right": {
@@ -2207,12 +2231,12 @@
             "eventPageRestarted": true,
             "wrong": {
               "unlocked": false,
-              "ms": 120,
+              "ms": 119,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 7,
+              "ms": 8,
               "unchanged": true
             }
           },
@@ -2221,12 +2245,12 @@
             "ok": true,
             "wrong": {
               "unlocked": false,
-              "ms": 172,
+              "ms": 170,
               "unchanged": true
             },
             "right": {
               "unlocked": true,
-              "ms": 166,
+              "ms": 170,
               "unchanged": true
             }
           },
@@ -2235,12 +2259,12 @@
             "ok": true,
             "old": {
               "unlocked": false,
-              "ms": 163,
+              "ms": 161,
               "unchanged": true
             },
             "new": {
               "unlocked": true,
-              "ms": 8,
+              "ms": 7,
               "unchanged": true
             }
           },
@@ -2250,17 +2274,17 @@
             "attempts": [
               {
                 "unlocked": true,
-                "ms": 10,
+                "ms": 8,
                 "unchanged": true
               },
               {
                 "unlocked": true,
-                "ms": 7,
+                "ms": 6,
                 "unchanged": true
               },
               {
                 "unlocked": true,
-                "ms": 7,
+                "ms": 6,
                 "unchanged": true
               }
             ]
@@ -2300,7 +2324,7 @@
               },
               {
                 "unlocked": false,
-                "ms": 6,
+                "ms": 5,
                 "unchanged": true
               },
               {
@@ -2321,7 +2345,7 @@
         "measurements": [
           {
             "label": "first derivation",
-            "ms": 155,
+            "ms": 156,
             "pbkdf2Calls": 1
           },
           {
@@ -2341,22 +2365,22 @@
           },
           {
             "label": "different password",
-            "ms": 156,
+            "ms": 155,
             "pbkdf2Calls": 1
           },
           {
             "label": "different salt",
-            "ms": 155,
+            "ms": 156,
             "pbkdf2Calls": 1
           },
           {
             "label": "iterations + 1",
-            "ms": 155,
+            "ms": 140,
             "pbkdf2Calls": 1
           },
           {
             "label": "raw Web Crypto deriveBits (no app code), first",
-            "ms": 155,
+            "ms": 113,
             "pbkdf2Calls": 0
           },
           {
@@ -2391,22 +2415,22 @@
       "verdict": "PASS",
       "details": {
         "before": {
-          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
+          "id": "a0b2cc06-f2e7-4965-82e7-23149946383e",
           "timeoutMs": 900000,
-          "lastActivity": 1795216113281,
-          "deadline": 1795217013281
+          "lastActivity": 1795220251404,
+          "deadline": 1795221151404
         },
         "shorter": {
-          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
+          "id": "a0b2cc06-f2e7-4965-82e7-23149946383e",
           "timeoutMs": 60000,
-          "lastActivity": 1795216113281,
-          "deadline": 1795216173281
+          "lastActivity": 1795220251404,
+          "deadline": 1795220311404
         },
         "longerWithoutActivity": {
-          "id": "3a940979-979c-4f35-ad0c-c83ccd5b2ffb",
+          "id": "a0b2cc06-f2e7-4965-82e7-23149946383e",
           "timeoutMs": 60000,
-          "lastActivity": 1795216113281,
-          "deadline": 1795216173281
+          "lastActivity": 1795220251404,
+          "deadline": 1795220311404
         }
       }
     },
@@ -2416,8 +2440,8 @@
       "verdict": "PASS",
       "details": {
         "codesChanged": 3,
-        "deadlineBefore": 1795217015255,
-        "deadlineAfter": 1795217015255
+        "deadlineBefore": 1795221153352,
+        "deadlineAfter": 1795221153352
       }
     },
     {
@@ -2428,8 +2452,8 @@
         "hadPermission": false,
         "granted": true,
         "saved": true,
-        "wipedAfterSeconds": 83,
-        "idleReportedAfterSeconds": 83,
+        "wipedAfterSeconds": 91,
+        "idleReportedAfterSeconds": 91,
         "lockedAfter": "locked",
         "checkedBeforeUncheck": true,
         "permissionRemovedOnUncheck": true
@@ -2440,7 +2464,7 @@
       "name": "encrypted export via the options UI: file downloaded, decrypts outside Firefox to identical accounts (all algorithms, digits, periods, Unicode, order); no secrets left in the page",
       "verdict": "PASS",
       "details": {
-        "file": "cta-export-2026-11-20.json",
+        "file": "cta-export-2026-11-21.json",
         "message": {
           "text": "Verschlüsselter Export erstellt (18 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
           "kind": "ok",
@@ -2481,27 +2505,27 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 25,
+            "lockSentMs": 26,
             "lockOk": true,
-            "exportAnsweredMs": 161,
+            "exportAnsweredMs": 118,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 40,
-            "lockSentMs": 45,
+            "lockSentMs": 43,
             "lockOk": true,
-            "exportAnsweredMs": 162,
+            "exportAnsweredMs": 117,
             "ok": false,
             "error": "locked",
             "hasResult": false
           },
           {
             "delay": 80,
-            "lockSentMs": 82,
+            "lockSentMs": 90,
             "lockOk": true,
-            "exportAnsweredMs": 164,
+            "exportAnsweredMs": 119,
             "ok": false,
             "error": "locked",
             "hasResult": false
@@ -2596,7 +2620,7 @@
           "area": "restoreStatus"
         },
         "afterNames": 18,
-        "previous": "Vorheriger Tresorstand vom 21.11.2026, 00:10:34 mit 2 2FA-Einträgen – verschlüsselt aufbewahrt, entsperrbar mit deinem Master-Passwort.",
+        "previous": "Vorheriger Tresorstand vom 21.11.2026, 01:19:42 mit 2 2FA-Einträgen – verschlüsselt aufbewahrt, entsperrbar mit deinem Master-Passwort.",
         "passwordChangeWarning": true,
         "back": {
           "text": "Vorheriger Tresor wiederhergestellt: 2 2FA-Einträge. Der ersetzte Stand ist jetzt der vorherige Tresorstand.",
@@ -2675,8 +2699,8 @@
       "verdict": "PASS",
       "details": {
         "emptyExport": 0,
-        "bigExportMs": 152,
-        "bigImportMs": 48,
+        "bigExportMs": 208,
+        "bigImportMs": 57,
         "bigFileBytes": 186391
       }
     },
@@ -2687,7 +2711,7 @@
       "details": {
         "warningShown": true,
         "filesWithoutConfirmation": 0,
-        "plainFile": "cta-plaintext-2026-11-20.json",
+        "plainFile": "cta-plaintext-2026-11-21.json",
         "legacyButtonEnabledWhenLossy": false,
         "legacyListed": 17,
         "legacyDirect": "legacy-incompatible",
@@ -2703,7 +2727,7 @@
         "races": [
           {
             "delay": 20,
-            "lockSentMs": 28,
+            "lockSentMs": 25,
             "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
@@ -2711,15 +2735,15 @@
           },
           {
             "delay": 50,
-            "lockSentMs": 62,
-            "restoreAnsweredMs": 158,
+            "lockSentMs": 58,
+            "restoreAnsweredMs": 160,
             "ok": false,
             "error": "locked",
             "changed": false
           },
           {
             "delay": 80,
-            "lockSentMs": 81,
+            "lockSentMs": 88,
             "restoreAnsweredMs": 159,
             "ok": false,
             "error": "locked",
@@ -2727,14 +2751,14 @@
           },
           {
             "delay": 120,
-            "lockSentMs": 127,
-            "restoreAnsweredMs": 158,
-            "ok": false,
-            "error": "locked",
-            "changed": false
+            "lockSentMs": 133,
+            "restoreAnsweredMs": 122,
+            "ok": true,
+            "lockedAfterWrite": false,
+            "changed": true
           }
         ],
-        "attemptsInsidePbkdf2": 4,
+        "attemptsInsidePbkdf2": 3,
         "insideUnchanged": true,
         "truthful": true,
         "lockedUnchanged": true,
