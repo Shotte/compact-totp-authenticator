@@ -74,16 +74,16 @@ Vorbereitung (einmalig, etwa 5 Minuten):
 |---|---|---|---|
 | 2.0 | Nach Schritt 5: Kürzelverwaltung ansehen, dann **Strg+Umschalt+9** und **Strg+Umschalt+2** auf einer Webseite drücken | Dort steht weiter **Strg+Umschalt+9**; Strg+Umschalt+9 öffnet das Popup, Strg+Umschalt+2 nicht | |
 | 2.1 | **Allgemein → Wiederherstellen** ansehen | Überschrift „Wiederherstellen: Tresor durch eine verschlüsselte Sicherung ersetzen“; klar erkennbar anders als „Import: Einträge hinzufügen“; „Schritt 1: Sicherung prüfen – ändert noch nichts“ | |
-| 2.2 | Datei wählen, **falsches** Export-Passwort → „Sicherung prüfen“ | Meldung direkt unter Schritt 1: Export-Passwort falsch oder Datei beschädigt; nichts geändert | |
+| 2.2 | Datei wählen, **falsches** Export-Passwort → „Sicherung prüfen“ | Meldung direkt unter Schritt 1: „Die Sicherung ließ sich nicht entschlüsseln: Das Export-Passwort ist falsch oder die Datei ist beschädigt …“; nichts geändert | |
 | 2.3 | Richtiges Export-Passwort → „Sicherung prüfen“ | Die Seite springt von selbst zu „Schritt 2: Ersetzen bestätigen“, der Fokus steht dort (mit Tab geht es zu den Feldern von Schritt 2); unter Schritt 1 steht nur „Sicherung geprüft, noch nichts geändert. Weiter mit Schritt 2.“ | |
-| 2.4 | Schritt 2 lesen | Vorschau mit Anzahl; rote Warnung; „Neu nach Export“ steht bei „nur in deinem aktuellen Tresor“; der Text „Warum noch einmal? …“ erklärt verständlich, warum Export-Passwort und Master-Passwort erneut nötig sind | |
-| 2.5 | Häkchen setzen, Export-Passwort erneut, **falsches** Master-Passwort → „Tresor ersetzen“ | Meldung „Master-Passwort falsch“ direkt unter den Knöpfen von Schritt 2, nirgends sonst eine Meldung; nichts geändert | |
+| 2.4 | Schritt 2 lesen | Vorschau mit Anzahl; rote Warnung; „Neu nach Export“ steht unter „Diese … Einträge gibt es nur in deinem aktuellen Tresor …“; der Text „Warum noch einmal? …“ erklärt verständlich, warum Export-Passwort und Master-Passwort erneut nötig sind | |
+| 2.5 | Häkchen setzen, Export-Passwort erneut, **falsches** Master-Passwort → „Tresor ersetzen“ | Meldung „Das Master-Passwort dieses Tresors ist falsch. Es wurde nichts wiederhergestellt.“ direkt unter den Knöpfen von Schritt 2, nirgends sonst eine Meldung; nichts geändert | |
 | 2.6 | Ohne Häkchen versuchen | Ersetzen ist nicht möglich | |
 | 2.7 | Häkchen, Export-Passwort, richtiges Master-Passwort → „Tresor ersetzen“ | Schritt 2 schließt sich; unter Schritt 1 steht eindeutig „Tresor ersetzt: Er enthält jetzt die 30 2FA-Einträge der Sicherung. Dein bisheriger Stand mit 30 Einträgen ist verschlüsselt aufbewahrt …“; keine alte Meldung sichtbar | |
 | 2.8 | **2FA-Einträge** und Popup ansehen | Wie beim Export: „Test Bravo“ wieder da, „Neu nach Export“ weg; Master-Passwort unverändert | |
 | 2.9 | **Master-Passwort ändern** ansehen, nicht absenden | Neutraler grauer Hinweis „Nur wichtig, wenn du das Master-Passwort änderst …“ (keine rote Fehlermeldung) | |
-| 2.10 | Box „Vorheriger Tresorstand“: Häkchen + Master-Passwort → „Vorherigen Tresor wiederherstellen“ | Meldung direkt in der Box; der Stand mit „Neu nach Export“ ist zurück | |
-| 2.11 | Zum Schluss: Häkchen + Master-Passwort → „Vorherigen Tresor verwerfen“ | Meldung „gelöscht“; die Box verschwindet | |
+| 2.10 | Box „Vorheriger Tresorstand“: Häkchen + Master-Passwort → „Vorherigen Tresor wiederherstellen“ | Meldung „Vorheriger Tresor wiederhergestellt: 30 2FA-Einträge …“ direkt in der Box; der Stand mit „Neu nach Export“ ist zurück | |
+| 2.11 | Zum Schluss: Häkchen + Master-Passwort → „Vorherigen Tresor verwerfen“ | Meldung „Der vorherige Tresorstand wurde gelöscht.“; die Box verschwindet | |
 
 ## 3. Kontozeilen und Zoom (optisch)
 
