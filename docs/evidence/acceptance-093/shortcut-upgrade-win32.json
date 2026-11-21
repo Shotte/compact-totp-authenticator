@@ -1,0 +1,59 @@
+{
+  "startedAt": "2026-11-21T21:02:52.148Z",
+  "platform": "win32",
+  "nativeKeys": true,
+  "oldDefault": "Alt+Shift+A",
+  "newDefault": "Ctrl+Shift+2",
+  "custom": "Ctrl+Shift+9",
+  "scenarios": {
+    "A": {
+      "before": {
+        "version": "0.9.3",
+        "shortcut": "Alt+Shift+A"
+      },
+      "after": {
+        "version": "0.9.99",
+        "shortcut": "Ctrl+Shift+2"
+      },
+      "pressedNew": {
+        "de": true,
+        "us": true
+      },
+      "pressedOld": {
+        "de": false,
+        "us": false
+      },
+      "expected": "old default replaced by Ctrl+Shift+2",
+      "verdict": "PASS"
+    },
+    "B": {
+      "before": {
+        "version": "0.9.3",
+        "shortcut": "Ctrl+Shift+9"
+      },
+      "after": {
+        "version": "0.9.99",
+        "shortcut": "Ctrl+Shift+9"
+      },
+      "pressedCustom": {
+        "de": true,
+        "us": true
+      },
+      "expected": "customized Ctrl+Shift+9 kept",
+      "verdict": "PASS"
+    },
+    "C": {
+      "after": {
+        "version": "0.9.99",
+        "shortcut": "Ctrl+Shift+2"
+      },
+      "pressedNew": {
+        "de": true,
+        "us": true
+      },
+      "expected": "fresh install uses Ctrl+Shift+2",
+      "verdict": "PASS"
+    }
+  },
+  "finishedAt": "2026-11-21T21:03:18.839Z"
+}

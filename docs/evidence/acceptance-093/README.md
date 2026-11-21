@@ -92,6 +92,31 @@ Result file: `shortcut-probe-win32.json`.
 
 Local: PASS.
 
+### Shortcut on upgrade
+
+`test/browser/shortcut-upgrade.mjs` (Firefox 160.0.1, German UI, Windows 11) uses two copies of
+the same add-on ID. "Old" is git main with Alt+Shift+A, set to version 0.9.3. "New" is this
+branch with Ctrl+Shift+2, set to version 0.9.99. Each scenario runs in a fresh profile. The
+effective shortcut is read with `browser.commands.getAll()` and pressed natively with the
+German and US layouts. Result file: `shortcut-upgrade-win32.json`.
+
+| Scenario | Before | After the upgrade | Native press | Verdict |
+|---|---|---|---|---|
+| A: old default, then upgrade | Alt+Shift+A | Ctrl+Shift+2 | Ctrl+Shift+2 opens the popup; Alt+Shift+A no longer does | PASS |
+| B: shortcut customized (Ctrl+Shift+9), then upgrade | Ctrl+Shift+9 | Ctrl+Shift+9 (kept) | Ctrl+Shift+9 opens the popup | PASS |
+| C: fresh installation | – | Ctrl+Shift+2 | opens the popup | PASS |
+
+Firefox keeps a shortcut that the user changed in the shortcut manager as a stored setting, and
+an update does not overwrite it. A shortcut that was never changed follows the new
+`suggested_key`.
+
+**Limitation.** Release Firefox installs unsigned add-ons only temporarily. The upgrade here is a
+temporary reinstall with a higher version, which Firefox reports to the extension as an update.
+The update of a signed, permanently installed add-on through its update manifest uses the same
+shortcut storage, but it was not run. It stays NOT_TESTED until a signed test build exists. The
+customization in scenario B was made with `browser.commands.update`, the API behind the shortcut
+manager, not by clicking in about:addons.
+
 ## F3-3 (P1 UX): vault replacement flow
 
 **Cause.** After the check, step 2 opened out of view. The reason for entering the export
@@ -136,7 +161,8 @@ replacement were easy to confuse.
 | `npm test` (unit) | 236/236 pass |
 | `run-browser-tests.mjs`, local Windows, Firefox 160.0.1, visible | 107/111 pass, 0 fail, 2 manual, 2 not tested (see below); `browser-results.json` |
 | `native-dialogs.mjs`, local Windows | N1–N5 5/5 pass; `native-dialogs-windows.json` |
-| CI (5 platforms) | see the PR checks |
+| `shortcut-upgrade.mjs`, local Windows | A, B, C 3/3 pass; `shortcut-upgrade-win32.json` |
+| CI (5 platforms), run 44946512574 | 8/8 checks pass |
 
 Manual and not tested items in the local run:
 
@@ -154,8 +180,10 @@ The other screenshots in this directory are the suite's regular output from the 
   OS-wide shortcuts (other tools, keyboard drivers), which the probe cannot see.
 - macOS (Command+Shift+2) and Linux with a real key press: CI checks only the static conflict
   list.
-- Whether an installation that is updated from 0.9.3 picks up the new default: NOT_TESTED. A
-  shortcut that was customized manually is kept by Firefox.
+- The signed update path from 0.9.3 (permanent installation, update manifest): NOT_TESTED. Only
+  the temporary-reinstall upgrade was tested; see "Shortcut on upgrade". It should be checked
+  with the next signed test build: the old default should become Ctrl+Shift+2, and a
+  customized shortcut should be kept.
 - Screen-reader announcements of the replacement flow: NOT_TESTED.
 - The look of the new replacement flow and of the hint, and real Ctrl+Plus zoom. The tests use
   CSS zoom.
