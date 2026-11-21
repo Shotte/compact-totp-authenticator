@@ -86,13 +86,21 @@ async function evalJson(ctx, fnSource) {
   if (r.type === "exception") throw new Error(`eval: ${r.exceptionDetails.text}`);
   return JSON.parse(r.result.value);
 }
-// A message sent exactly while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in
-// this profile) is not delivered ("Receiving end does not exist"); it was not processed,
-// so sending it again is safe. Seen once on Windows CI during a 1,000-message loop.
+// A message sent while Firefox restarts the event page (idle timeout IDLE_MS = 3 s in this
+// profile) can fail with "Receiving end does not exist" (seen on Windows CI during a
+// 1,000-message loop). Whether it was processed is not known to the sender.
+// Like the product (lib/ui.js call()): only read-only commands are repeated after a delivery
+// error. A write may have been delivered although the sender saw "Receiving end does not
+// exist" (event page restarting); repeating it blindly would turn into a false conflict.
+const REPEATABLE = new Set(["status", "getCodes", "listAccounts", "previousStatus", "importPreview", "lock", "unlock"]);
 async function msg(ctx, cmd, args = {}) {
   for (let attempt = 1; ; attempt++) {
     try { return await evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`); }
-    catch (e) { if (attempt >= 3 || !/Receiving end does not exist/.test(e.message)) throw e; await sleep(300); }
+    catch (e) {
+      if (!/Receiving end does not exist/.test(e.message)) throw e;
+      if (!REPEATABLE.has(cmd) || attempt >= 3) return { ok: false, error: "delivery", reason: e.message.slice(0, 80) };
+      await sleep(300);
+    }
   }
 }
 async function waitFor(ctx, cond, timeout = 5000) {
@@ -111,7 +119,14 @@ async function node(ctx, selector) {
     expression: `document.querySelector(${JSON.stringify(selector)})`, resultOwnership: "root" });
   return { sharedId: r.result.sharedId };
 }
+async function showTabOf(ctx, selector) { // options tabs (#21): select the tab that holds the element
+  await evalJson(ctx, `async () => { const p = document.querySelector(${JSON.stringify(selector)})?.closest("[role=tabpanel]");
+    if (p?.hidden) document.getElementById(p.getAttribute("aria-labelledby")).click(); }`);
+}
 async function clickAt(ctx, selector) { // trusted input → transient user activation
+  // Options tabs (#21): like a user, first select the tab that holds the target.
+  await evalJson(ctx, `async () => { const SEL = ${JSON.stringify(selector)}; const el = document.querySelector(SEL); const panel = el?.closest("[role=tabpanel]"); if (panel?.hidden) document.getElementById(panel.getAttribute("aria-labelledby")).click();
+    document.querySelector(SEL)?.scrollIntoView({ block: "center" }); }`);
   const el = await node(ctx, selector);
   await call("input.performActions", { context: ctx, actions: [{ type: "pointer", id: "mouse",
     parameters: { pointerType: "mouse" }, actions: [
@@ -136,25 +151,41 @@ try {
   await open(opt, "options/options.html");
 
   // Harness helpers (C2): real master-password vaults instead of the removed demo unlock.
-  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next"]);
+  const wipeVault = () => evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next", "vault_previous"]);
     await browser.storage.session.clear(); }`);
   async function resetVault(n, password = PW) {
     await wipeVault();
     const r = await msg(opt, "setup", { password, confirm: password });
     if (!r.ok) throw new Error("setup failed: " + JSON.stringify(r));
-    let revision = 1;
-    for (const a of syntheticAccounts(n)) {
+    let revision = 1, retries = 0;
+    const list = syntheticAccounts(n);
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
-      if (!res.ok) throw new Error("addAccount failed: " + JSON.stringify(res));
+      if (!res.ok) {
+        // Setup helper: after a delivery error, storage decides whether this write happened.
+        await sleep(500);
+        const now = (await msg(opt, "listAccounts")).result;
+        const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        // Storage unchanged after a delivery error: provably not processed, so sending it again is
+        // safe (seen on Windows CI, #31). Anything else stops with the diagnostics.
+        if (res.error === "delivery" && now && now.revision === revision && retries++ < 3) {
+          console.log(`seeding (#31): addAccount at revision ${revision} not delivered (storage unchanged), sent again`);
+          i--; continue;
+        }
+        if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
+        revision = now.revision;
+        continue;
+      }
       revision = res.result.revision;
     }
     return revision;
   }
   // Hard kill (simulated crash) or graceful quit (C3), relaunch with the same profile,
   // reinstall the extension.
-  async function restart({ graceful = false } = {}) {
-    const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+  async function restart({ graceful = false, pid: knownPid } = {}) {
+    const pid = knownPid ?? (CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid);
     const profile = ff.profile;
     if (graceful) await ff.close({ keepProfile: true }); else await ff.kill(pid);
     ff = await launchFirefox({ firefox: FIREFOX, prefs: PREFS, profile });
@@ -337,6 +368,7 @@ try {
     for (const [scheme, v] of CHROME_OK ? [["dark", 0], ["light", 1]] : []) {
       await setScheme(v);
       await sleep(300);
+      await showTabOf(opt, "#appearance");
       const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
         s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
       const shot = await call("browsingContext.captureScreenshot", { context: opt,
@@ -367,6 +399,7 @@ try {
           ![page.button, page.input].includes(rgb(CUSTOM.bg));
         cases.push({ theme, scheme: scheme ? "light" : "dark", ok: pageOwn && page.preview === rgb(CUSTOM.bg) && page.previewText === rgb(CUSTOM.fg) && popupBg === rgb(CUSTOM.bg), page, popupBg });
         if (theme !== "auto" || scheme === 0) {
+          await showTabOf(opt, "#appearance");
           const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
             s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
           const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
@@ -382,6 +415,7 @@ try {
         await evalJson(opt, `async () => browser.storage.local.set({ settings: { fontSize: ${fontSize}, rowHeight: 22 } })`);
         await open(opt, "options/options.html");
         await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        await showTabOf(opt, "#appearance");
         return evalJson(opt, `async () => ({ choices: Object.fromEntries([...document.querySelectorAll("input[name=rowHeight]")].map((i) =>
           [i.value, i.parentElement.querySelector(".eff").textContent.trim()])), note: document.getElementById("rowNote").textContent,
           noteShown: !document.getElementById("rowNote").hidden, previewRow: getComputedStyle(document.querySelector("#appearancePreview .row")).height })`);
@@ -390,6 +424,62 @@ try {
       record("F1-2", "row height: effective height shown for every choice and in a note; equal results at a large font are visible; no clipping (preview row = effective height)",
         big.choices["22"] === big.choices["25"] && small.choices["22"] !== small.choices["25"] && big.noteShown && small.noteShown &&
         /\d+ px/.test(big.note) && big.previewRow === big.choices["22"].replace(/[()\s]/g, ""), { big, small });
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+    }
+    {
+      // F2-1 (feedback 02, finding 1): repeated appearance changes through the form, with real
+      // pointer and key input where BiDi can drive it (checkbox, slider, radio); the color
+      // inputs get the input and change events the native picker fires. The last valid text
+      // color must win in storage, preview and popup; a too faint one is kept in the settings,
+      // replaced visibly in preview and popup, and explained.
+      await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const show = (sel) => evalJson(opt, `async () => { document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: "center" }); return true; }`);
+      const pick = (name, value) => evalJson(opt, `async () => { const el = document.querySelector("#settingsForm input[name=${name}]");
+        el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 150)); return true; }`);
+      const keys = async (...vals) => call("input.performActions", { context: opt, actions: [{ type: "key", id: "kb2",
+        actions: vals.flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+      const state = () => evalJson(opt, `async () => ({ stored: (await browser.storage.local.get("settings")).settings,
+        previewText: getComputedStyle(document.querySelector("#appearancePreview .name")).color,
+        previewBg: getComputedStyle(document.querySelector("#appearance .preview")).backgroundColor,
+        input: document.querySelector("#settingsForm input[name=fg]").value,
+        note: document.getElementById("contrastNote").hidden ? "" : document.getElementById("contrastNote").textContent })`);
+      const popupText = async () => { await open(pop, "popup/popup.html");
+        await waitFor(pop, `document.body.dataset.state === "unlocked" || document.body.dataset.state === "locked"`);
+        return evalJson(pop, `async () => getComputedStyle(document.querySelector("#list .row .name") ?? document.body).color`); };
+      await show("#settingsForm input[name=customColors]");
+      await clickAt(opt, "#settingsForm input[name=customColors]");
+      await pick("fg", "#ffff00");
+      await pick("bg", "#1e1e1e");
+      await show("#fontSize");
+      await clickAt(opt, "#fontSize");
+      await keys("\uE014", "\uE014", "\uE014"); // ArrowRight: larger font through the real slider
+      await sleep(200);
+      await show("#settingsForm input[name=rowHeight][value='30']");
+      await clickAt(opt, "#settingsForm input[name=rowHeight][value='30']");
+      await sleep(200);
+      await pick("bg", "#202020");
+      await pick("fg", "#66ccff"); // a valid, contrasting color after font and row changes
+      const valid = await state();
+      const validPopup = await popupText();
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await pick("fg", "#3366ff"); // too faint on #202020: corrected visibly, choice kept
+      const faint = await state();
+      const faintPopup = await popupText();
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      await pick("fg", "#ffcc00"); // and a valid one wins again
+      const again = await state();
+      record("F2-1", "repeated appearance changes (text color, background, font size, row height, text color again) through the form: the last valid text color wins in storage, preview and popup; a too faint color is kept, replaced visibly with an explanation naming both colors",
+        valid.stored.fg === "#66ccff" && valid.stored.bg === "#202020" && valid.stored.fontSize > 16 && valid.stored.rowHeight === 30 &&
+        valid.previewText === "rgb(102, 204, 255)" && valid.previewBg === "rgb(32, 32, 32)" && valid.note === "" && validPopup === "rgb(102, 204, 255)" &&
+        faint.stored.fg === "#3366ff" && faint.input === "#3366ff" && faint.previewText === "rgb(255, 255, 255)" && faintPopup === "rgb(255, 255, 255)" &&
+        faint.note.includes("#3366ff") && faint.note.includes("#ffffff") &&
+        again.stored.fg === "#ffcc00" && again.previewText === "rgb(255, 204, 0)" && again.note === "" && again.stored.fontSize === valid.stored.fontSize,
+        { valid, validPopup, faint, faintPopup, again });
       await evalJson(opt, `async () => browser.storage.local.remove("settings")`);
     }
     if (CHROME_OK) await evalJson(chrome, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
@@ -481,16 +571,36 @@ try {
       const start = await where(); // after B8-2's single Tab
       await keys(TAB); const second = await where();
       await keys(ENTER); const enterCopies = await copiedRow(1);
-      await sleep(1100);
-      await keys(TAB); await keys(SPACE); const spaceCopies = await copiedRow(2);
+      // wait for the 1 s copy confirmation to end (a fixed sleep was too short on a loaded CI runner)
+      await waitFor(pop, `!document.querySelectorAll("#list .row")[1].dataset.busy`, 5000);
+      await keys(TAB); const third = await where();
+      await keys(SPACE); const spaceCopies = await copiedRow(2);
       await keys(...Array(97).fill(TAB)); const lastRow = await where();
       await keys(TAB); const lockBtn = await where();
       await keys(TAB); const settingsBtn = await where();
       const writes = await evalJson(pop, `async () => window.__writes.length`);
       record("B8-4", "keyboard only (issue #3, supporting evidence): first Tab lands on a row (list not a tab stop), Tab walks the rows, Enter and Space copy the focused row once each, Tab reaches lock and settings",
-        start.row === 0 && second.row === 1 && enterCopies && spaceCopies && lastRow.row === 99 && lockBtn.id === "lock" &&
+        start.row === 0 && second.row === 1 && enterCopies && third.row === 2 && spaceCopies && lastRow.row === 99 && lockBtn.id === "lock" &&
         settingsBtn.id === "settings" && lockBtn.focusVisible && settingsBtn.focusVisible && writes === 2,
-        { start, second, enterCopies, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
+        { start, second, enterCopies, third, spaceCopies, lastRow, lockBtn, settingsBtn, writes });
+    }
+
+    // B8-5 (issue #3): the rows are rebuilt when the codes expire (every 30 s); the keyboard
+    // focus must stay on the same entry, otherwise keyboard users lose their place.
+    {
+      await open(pop, "popup/popup.html");
+      await waitFor(pop, `document.body.dataset.rendered === "100"`);
+      await call("input.performActions", { context: pop, actions: [{ type: "key", id: "kb5", actions: ["", "", ""]
+        .flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+      const focused = () => evalJson(pop, `async () => { const a = document.activeElement;
+        return { id: a.dataset.id ?? null, row: [...document.querySelectorAll("#list .row")].indexOf(a), visible: a.matches(":focus-visible"),
+          code: a.querySelector(".code")?.textContent ?? null }; }`);
+      const before = await focused();
+      await sleep(30_000 - (Date.now() % 30_000) + 1500); // past the next period boundary
+      const after = await focused();
+      record("B8-5", "keyboard focus stays on the same entry when the codes refresh at a period boundary",
+        before.row === 2 && !!before.id && after.id === before.id && after.row === 2 && after.visible && after.code !== before.code,
+        { before, after });
     }
 
     // prefers-reduced-motion: no transition
@@ -1413,14 +1523,25 @@ try {
     // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
     // the file is handed to the real file input through DataTransfer, with a Unicode name.
     const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
-    const restoreVia = async (name, password, masterPassword = PW2) => {
+    // #25: two steps. 1: file + export password → check; 2: master password (+ confirmation
+    // for a populated vault) → restore or replace.
+    const checkBackup = async (name, password) => {
       await evalJson(opt, `async () => { const dt = new DataTransfer();
         dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
         const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
-        const f = document.getElementById("restoreExportForm").elements;
-        f.password.value = ${JSON.stringify(password)}; f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        document.getElementById("restoreExportForm").elements.password.value = ${JSON.stringify(password)};
         document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
       await clickAt(opt, "#restoreExportForm button");
+      return settle();
+    };
+    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true, exportAgain = password } = {}) => {
+      const step1 = await checkBackup(name, password);
+      if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
+      await evalJson(opt, `async () => { const f = document.getElementById("replaceForm").elements;
+        f.masterPassword.value = ${JSON.stringify(masterPassword)}; f.exportPassword.value = ${JSON.stringify(exportAgain)};
+        if (!document.getElementById("replaceConfirmLabel").hidden) f.confirmed.checked = ${confirm};
+        document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#replaceButton");
       return settle();
     };
     const before4 = await vaultJson();
@@ -1435,6 +1556,121 @@ try {
       wrong4.kind === "error" && wrongMaster4.kind === "error" && exportAsMaster4.kind === "error" && unchanged4 &&
       right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
       { wrongExportPassword: wrong4, wrongMasterPassword: wrongMaster4, exportPasswordAsMaster: exportAsMaster4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
+
+    // F2-2 (feedback 02, finding 2): every restore failure has its own sentence in the restore
+    // section; a session that ended meanwhile switches to the locked view and says so.
+    {
+      const text = (k) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)})`);
+      await vaultWith([], PW2);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const wrongMaster = await restoreVia(uniName, EXP, WRONG_PW);
+      const wrongExport = await restoreVia(uniName, WRONG_PW);
+      await msg(opt, "lock"); // like the automatic lock while the form is being filled
+      const lockedNow = await restoreVia(uniName, EXP);
+      const lockedView = await evalJson(opt, `async () => document.body.dataset.state`);
+      const sortNote = await evalJson(opt, `async () => !!document.querySelector("[data-i18n=sortNote]")?.textContent`);
+      await msg(opt, "unlock", { password: PW2 });
+      await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // back to the state C4-5 expects
+      const want = { wrongMaster: await text("restoreWrongMaster"),
+        wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
+      record("F2-2", "restore errors: wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
+        wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+        wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
+        lockedView === "locked" && sortNote, { wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+    }
+
+    // R-1 (#25): replacing a populated vault through the UI: preview with counts and the
+    // entries that exist only locally, destructive warning, required confirmation, fresh
+    // master password; the previous vault is kept and can be brought back; the destination
+    // master password stays.
+    {
+      const local = [{ name: "Lokal Alpha", secret: syntheticSecret(910) }, { name: "Lokal Beta", secret: syntheticSecret(911) }];
+      await vaultWith(local, PW2);
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+      const check = await checkBackup(uniName, EXP);
+      const preview = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
+        warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
+        lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
+        confirmShown: !document.getElementById("replaceConfirmLabel").hidden,
+        exportPasswordEmpty: document.getElementById("replaceForm").elements.exportPassword.value === "",
+        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x";
+          f.elements.exportPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = f.elements.exportPassword.value = ""; return !v; })() })`);
+      { // evidence screenshot: the destructive warning (synthetic names only)
+        await showTabOf(opt, "#restoreStatus");
+        const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
+          const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+        const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+        writeFileSync(join(OUT, "replace-warning-de.png"), Buffer.from(shot.data, "base64"));
+      }
+      const noConfirm = await msg(opt, "replaceApply", { revision: (await msg(opt, "listAccounts")).result.revision, fileHash: "0".repeat(64), text: exportText, password: EXP, masterPassword: PW2 });
+      const replaced = await restoreVia(uniName, EXP);
+      const afterNames = (await pagePlain(PW2)).map((a) => a.name);
+      const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
+      const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
+      await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
+        f.masterPassword.value = ${JSON.stringify(PW2)}; document.querySelector("#previousForm button[value=restore]").scrollIntoView({ block: "center" }); }`);
+      await clickAt(opt, "#previousForm button[value=restore]");
+      const back = await settle();
+      const backNames = (await pagePlain(PW2)).map((a) => a.name);
+      await msg(opt, "lock");
+      const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
+      record("R-1", "replace a populated vault via the UI: preview with counts and local-only entries, destructive warning, confirmation required, fresh master password; previous vault kept and brought back; destination master password unchanged",
+        check.kind === "ok" && preview.shown && preview.warning && /2/.test(preview.text) && same(preview.lose, ["Lokal Alpha", "Lokal Beta"]) &&
+        preview.confirmShown && preview.blockedWithoutConfirm && preview.exportPasswordEmpty && changeWarn && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
+        same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
+        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
+
+      // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a
+      // replacement. The background page and the options page share the extension process and
+      // its main thread. A storage.onChanged listener in the options page busy-waits as soon as
+      // the target key has been written, so the background cannot issue its next write; Firefox
+      // is then killed in exactly that state. Targets: after the kept copy (vault_previous),
+      // after the rollback copy (vault_backup), after the new vault (vault, before its
+      // read-back), and an uninterrupted control. After the restart: either the backup's entries
+      // (with the kept previous vault) or the old entries, exact and in order, never a mix; the
+      // destination master password opens it; the export password never does.
+      {
+        const local2 = [{ name: "Lokal Gamma", secret: syntheticSecret(920) }, { name: "Lokal Delta", secret: syntheticSecret(921) },
+          { name: "Lokal Epsilon", secret: syntheticSecret(922) }];
+        const OLDN = local2.map((a) => a.name), NEWN = expected.map((a) => a.name);
+        const runs = [];
+        for (const target of ["vault_previous", "vault_backup", "vault", null]) {
+          await vaultWith(local2, PW2);
+          await open(opt, "options/options.html");
+          await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+          const p = (await msg(opt, "replacePreview", { text: exportText, password: EXP })).result;
+          const args = { cmd: "replaceApply", revision: p.revision, fileHash: p.fileHash, text: exportText, password: EXP, masterPassword: PW2, confirmed: true };
+          const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
+          await call("script.evaluate", { target: { context: opt }, awaitPromise: false, expression: `(() => {
+            const target = ${JSON.stringify(target)};
+            browser.storage.onChanged.addListener((changes, area) => {
+              if (target && area === "local" && target in changes) { const t = Date.now(); while (Date.now() - t < 6000) { /* freeze the extension process */ } }
+            });
+            browser.runtime.sendMessage(${JSON.stringify(args)}); })()` });
+          await sleep(target ? 1500 : 2500); // frozen at the boundary (or finished, for the control)
+          await restart({ pid }); // hard kill, same profile
+          const wrong = (await msg(opt, "unlock", { password: EXP })).ok;
+          let u = await msg(opt, "unlock", { password: PW2 });
+          let via = "direct";
+          if (u.ok && u.result.recoverable) { u = await msg(opt, "restore", { password: PW2, confirmed: true }); via = "confirmed restore"; }
+          const list = (await msg(opt, "listAccounts")).result?.accounts.map((a) => a.name) ?? null;
+          const outcome = same(list, NEWN) ? "replaced" : same(list, OLDN) ? "old" : "MIXED";
+          const prev = (await msg(opt, "previousStatus")).result;
+          const ok = u.ok && !wrong && outcome !== "MIXED" && (outcome === "old" || (prev?.exists && prev.count === OLDN.length));
+          runs.push({ killedAfter: target ?? "none (control)", outcome, via, keptPrevious: prev?.exists ? prev.count : 0, exportPasswordOpened: wrong, ok });
+        }
+        const byTarget = Object.fromEntries(runs.map((r) => [r.killedAfter, r.outcome]));
+        record("R-2", "hard Firefox termination at the write boundaries of a replacement (after the kept copy, after the rollback copy, after the new vault, control): after the restart either the backup or the old entries, exact and in order, never mixed; the destination master password opens it; if replaced, the previous vault is kept",
+          runs.every((r) => r.ok) && byTarget.vault_previous === "old" && byTarget["none (control)"] === "replaced",
+          { runs });
+      }
+      await vaultWith([], PW2);
+      await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // the state C4-5 expects
+      await open(opt, "options/options.html");
+      await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    }
 
     // C4-5: restoring into a vault with accounts is refused; a tampered file fails.
     const before5 = await vaultJson();
@@ -1531,7 +1767,9 @@ try {
       }
       // Inside PBKDF2: must abort without writing. Every attempt: the answer is truthful
       // (success exactly when the vault was written), also when the lock came late.
-      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs);
+      // An answer that reports the lock after the write (lockedAfterWrite) proves the lock was not
+      // inside; page-side timestamps alone misclassified that on a slow ESR 140 runner.
+      const inside = races.filter((r) => r.lockSentMs >= 15 && r.lockSentMs + 15 < r.restoreAnsweredMs && !r.lockedAfterWrite);
       const truthful = races.every((r) => r.ok === r.changed);
       await vaultWith([], PW2);
       const unchanged = inside.every((r) => !r.changed);
@@ -1594,6 +1832,7 @@ try {
         skipped6.items.some((x) => /Duplikat|duplicate/i.test(x)) && skipped6.items.filter((x) => /ungültig|invalid/i.test(x)).length === 4 &&
         skipped6.top === "" && skipped6.filled === 1, { message: m1, skipped: skipped6 });
       { // evidence screenshot: import section with its own status and the opened skipped list
+        await showTabOf(opt, "#importStatus");
         const box = await evalJson(opt, `async () => { document.getElementById("importSkipped").open = true;
           const s = document.getElementById("importStatus").closest("section"); s.scrollIntoView();
           const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
@@ -1674,6 +1913,141 @@ try {
     }
   }
 
+  }
+
+  // T: options tabs (#21). Synthetic entries only.
+  {
+    await resetVault(6);
+    const tabState = () => evalJson(opt, `async () => Object.fromEntries(["entries", "appearance", "general"].map((t) => {
+      const tab = document.getElementById("tab-" + t), panel = document.getElementById("panel-" + t);
+      return [t, { selected: tab.getAttribute("aria-selected"), tabindex: tab.tabIndex, panelHidden: panel.hidden,
+        controls: tab.getAttribute("aria-controls"), labelledby: panel.getAttribute("aria-labelledby"), role: [tab.getAttribute("role"), panel.getAttribute("role")].join("/") }];
+    }))`);
+    const selected = (st) => Object.entries(st).filter(([, v]) => v.selected === "true").map(([k]) => k);
+
+    // T-1: default tab and ARIA semantics
+    await call("browsingContext.navigate", { context: opt, url: BASE + "options/options.html", wait: "complete" });
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const t1 = await tabState();
+    const t1hash = await evalJson(opt, `async () => ({ hash: location.hash, list: document.getElementById("tabs").getAttribute("role"),
+      label: document.getElementById("tabs").getAttribute("aria-label"), rows: document.querySelectorAll("#accounts tbody tr").length })`);
+    record("T-1", "options tabs: opens on \"2FA-Einträge\"; tablist/tab/tabpanel roles, aria-selected, aria-controls, aria-labelledby, roving tabindex; only the selected panel visible",
+      same(selected(t1), ["entries"]) && t1.entries.tabindex === 0 && t1.appearance.tabindex === -1 && t1.general.tabindex === -1 &&
+      !t1.entries.panelHidden && t1.appearance.panelHidden && t1.general.panelHidden && t1hash.list === "tablist" && !!t1hash.label &&
+      Object.entries(t1).every(([k, v]) => v.role === "tab/tabpanel" && v.controls === "panel-" + k && v.labelledby === "tab-" + k) &&
+      t1hash.hash === "#entries" && t1hash.rows === 6, { tabs: t1, page: t1hash });
+
+    // T-2: keyboard operation (trusted keys) with visible focus
+    const press = (...vals) => call("input.performActions", { context: opt, actions: [{ type: "key", id: "kbt",
+      actions: vals.flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+    const focusInfo = () => evalJson(opt, `async () => ({ id: document.activeElement.id, visible: document.activeElement.matches(":focus-visible") })`);
+    // :focus-visible is only reported while the window is active: bring the test window to the
+    // front; if the operator works in another window meanwhile, the focus ring is not evaluable.
+    await call("browsingContext.activate", { context: opt }).catch(() => {});
+    await evalJson(opt, `async () => { document.getElementById("tab-entries").click(); document.getElementById("lockBtn").focus(); }`);
+    await press("\uE004"); // Tab: from the header's lock button to the selected tab
+    const reached = await focusInfo();
+    const seq = [];
+    for (const [label, key] of [["right", "\uE014"], ["right", "\uE014"], ["right (wraps)", "\uE014"], ["left (wraps)", "\uE012"], ["home", "\uE011"], ["end", "\uE010"]]) {
+      await press(key);
+      await sleep(80);
+      seq.push({ key: label, selected: selected(await tabState()), focus: await focusInfo() });
+    }
+    await press("\uE004"); // Tab moves from the tab into the selected panel
+    const intoPanel = await evalJson(opt, `async () => document.activeElement.id`);
+    const want = [["appearance"], ["general"], ["entries"], ["general"], ["entries"], ["general"]];
+    const windowActive = await evalJson(opt, `async () => document.hasFocus()`);
+    const behaviour = reached.id === "tab-entries" && seq.every((x, i) => same(x.selected, want[i]) && x.focus.id === "tab-" + want[i][0]) && intoPanel === "panel-general";
+    if (!windowActive && behaviour) notTested("T-2", "options tabs by keyboard: arrow keys, Home and End select and focus tabs (wrapping), focus visible; Tab moves into the panel",
+      "selection and focus movement PASS; the focus ring is not evaluable because the test window was not the active window (operator working in parallel)");
+    else record("T-2", "options tabs by keyboard: arrow keys, Home and End select and focus tabs (wrapping), focus visible; Tab moves into the panel",
+      reached.id === "tab-entries" && reached.visible &&
+      seq.every((x, i) => same(x.selected, want[i]) && x.focus.id === "tab-" + want[i][0] && x.focus.visible) && intoPanel === "panel-general",
+      { reached, sequence: seq, afterTab: intoPanel });
+
+    // T-3: the selected tab survives a reload, a save and an error; messages stay in the tab and section
+    await clickAt(opt, "#tab-general");
+    await call("browsingContext.reload", { context: opt, wait: "complete" });
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const afterReload = selected(await tabState());
+    await evalJson(opt, `async () => { const el = document.querySelector("[name=autoLockMinutes]"); el.value = "9";
+      el.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 300)); }`);
+    const save = await evalJson(opt, `async () => ({ text: document.getElementById("behaviorStatus").textContent, kind: document.getElementById("behaviorStatus").dataset.kind,
+      stored: (await browser.storage.local.get("settings")).settings?.autoLockMinutes })`);
+    const afterSave = selected(await tabState());
+    await evalJson(opt, `async () => { const input = document.getElementById("importFile"); const dt = new DataTransfer();
+      dt.items.add(new File(["{not json"], "kaputt.json", { type: "application/json" })); input.files = dt.files; input.dispatchEvent(new Event("change")); }`);
+    await waitFor(opt, `document.getElementById("importStatus").dataset.kind === "error"`, 15000);
+    const err3 = await evalJson(opt, `async () => ({ area: [...document.querySelectorAll(".status")].find((e) => e.textContent)?.id, visible: !document.getElementById("panel-general").hidden })`);
+    const afterError = selected(await tabState());
+    await evalJson(opt, `async () => { const el = document.querySelector("[name=autoLockMinutes]"); el.value = "15"; el.dispatchEvent(new Event("change", { bubbles: true })); }`);
+    record("T-3", "options tabs: the selected tab stays after a reload, a saved setting and an error; the messages appear in the section of the action, inside the visible tab",
+      same(afterReload, ["general"]) && same(afterSave, ["general"]) && save.stored === 9 && save.kind === "ok" && !!save.text &&
+      same(afterError, ["general"]) && err3.area === "importStatus" && err3.visible, { afterReload, save, afterSave, error: err3, afterError });
+
+    // T-6 (review): popup sorting lives in General → Behaviour; a change is saved and reported there
+    await clickAt(opt, "#tab-general");
+    const t6 = await evalJson(opt, `async () => { const sel = document.querySelector("select[name=sort]");
+      const where = { panel: sel.closest("[role=tabpanel]")?.id, section: sel.closest("section")?.id, inAppearance: !!document.querySelector("#panel-appearance select[name=sort]") };
+      sel.value = "revalpha"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 300));
+      const after = { stored: (await browser.storage.local.get("settings")).settings?.sort, status: document.getElementById("behaviorStatus").textContent,
+        selected: document.querySelector("[role=tab][aria-selected=true]").id };
+      sel.value = "manual"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 200));
+      return { ...where, ...after }; }`);
+    record("T-6", "popup sorting is in General → Behaviour (not in Appearance); a change is saved and confirmed in that section; the tab does not switch",
+      t6.panel === "panel-general" && t6.section === "lockSettings" && !t6.inAppearance && t6.stored === "revalpha" && !!t6.status && t6.selected === "tab-general", t6);
+
+    // T-4: unsaved input survives a tab switch; password fields are cleared when their tab is left
+    await clickAt(opt, "#tab-entries");
+    await evalJson(opt, `async () => { const f = document.getElementById("accountForm").elements; f.name.value = "Entwurf ungespeichert"; f.url.value = "example.org"; }`);
+    await evalJson(opt, `async () => { document.getElementById("changeForm").elements.current.value = "typed but not sent";
+      document.getElementById("exportForm").elements.password.value = "typed but not sent"; }`);
+    await clickAt(opt, "#tab-appearance");
+    await clickAt(opt, "#tab-entries");
+    const draft = await evalJson(opt, `async () => { const f = document.getElementById("accountForm").elements; return { name: f.name.value, url: f.url.value }; }`);
+    await clickAt(opt, "#tab-general");
+    await evalJson(opt, `async () => { document.getElementById("changeForm").elements.current.value = "typed in general"; }`);
+    await clickAt(opt, "#tab-entries");
+    const pw = await evalJson(opt, `async () => [...document.querySelectorAll("#panel-general input[type=password]")].map((i) => i.value).filter(Boolean).length`);
+    await evalJson(opt, `async () => document.getElementById("accountForm").reset()`);
+    record("T-4", "options tabs: unsaved, non-secret input is kept across tab switches; password fields of a tab are empty after leaving it",
+      draft.name === "Entwurf ungespeichert" && draft.url === "example.org" && pw === 0, { draft, passwordsLeftInGeneral: pw });
+
+    // T-5: desktop sizes and zoom levels without horizontal overflow; screenshots of all tabs (de).
+    // The viewport is set on a fresh tab before it loads the page (like the popup tab); an
+    // extension page that is already loaded does not accept setViewport.
+    const sizes = [];
+    const sized = async (w, h, hash) => {
+      const ctx = (await call("browsingContext.create", { type: "tab" })).context;
+      await call("browsingContext.setViewport", { context: ctx, viewport: { width: w, height: h } });
+      await call("browsingContext.navigate", { context: ctx, url: BASE + "options/options.html#" + hash, wait: "complete" });
+      await waitFor(ctx, "document.body.dataset.state === 'unlocked'");
+      return ctx;
+    };
+    for (const [w, h] of [[1024, 768], [1280, 800], [1920, 1080]]) {
+      const ctx = await sized(w, h, "entries");
+      for (const zoom of [1, 1.5, 2]) {
+        for (const t of ["entries", "appearance", "general"]) {
+          const m = await evalJson(ctx, `async () => { document.documentElement.style.zoom = "${zoom}"; document.getElementById("tab-${t}").click();
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const tabs = document.getElementById("tabs").getBoundingClientRect();
+            return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, tabsVisible: tabs.width > 0 && tabs.height > 0 }; }`);
+          sizes.push({ w, zoom, tab: t, ...m });
+        }
+      }
+      await call("browsingContext.close", { context: ctx });
+    }
+    for (const t of ["entries", "appearance", "general"]) {
+      const ctx = await sized(1280, 800, t);
+      await sleep(200);
+      const box = await evalJson(ctx, `async () => { const m = document.querySelector("main").getBoundingClientRect();
+        return { x: m.x + scrollX, y: m.y + scrollY, w: m.width, h: Math.min(m.height, 4000) }; }`);
+      const shot = await call("browsingContext.captureScreenshot", { context: ctx, origin: "document", clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+      writeFileSync(join(OUT, `tabs-${t}-de.png`), Buffer.from(shot.data, "base64"));
+      await call("browsingContext.close", { context: ctx });
+    }
+    record("T-5", "options tabs at 1024, 1280 and 1920 px width and 100/150/200 % zoom: no horizontal overflow, tab bar visible; screenshots of all three tabs",
+      sizes.every((x) => x.overflow <= 0 && x.tabsVisible), { checked: sizes.length, worst: sizes.reduce((a, b) => (b.overflow > a.overflow ? b : a)) });
   }
 
   // C6.3/C6.5: release checks that can run without a person (issues #2–#6 stay open; these

@@ -1,0 +1,48 @@
+{
+  "startedAt": "2026-11-21T10:31:07.969Z",
+  "firefox": "C:/Program Files/Mozilla Firefox/firefox.exe",
+  "platform": "win32",
+  "rounds": [
+    {
+      "round": 1,
+      "ms": 35985,
+      "finalCount": 1000,
+      "finalRevision": 1001,
+      "complete": true,
+      "anomalies": []
+    },
+    {
+      "round": 2,
+      "ms": 31249,
+      "finalCount": 1000,
+      "finalRevision": 1001,
+      "complete": true,
+      "anomalies": []
+    },
+    {
+      "round": 3,
+      "ms": 30237,
+      "finalCount": 1000,
+      "finalRevision": 1001,
+      "complete": true,
+      "anomalies": []
+    },
+    {
+      "round": 4,
+      "ms": 34556,
+      "finalCount": 1000,
+      "finalRevision": 1001,
+      "complete": true,
+      "anomalies": []
+    },
+    {
+      "round": 5,
+      "ms": 31774,
+      "finalCount": 1000,
+      "finalRevision": 1001,
+      "complete": true,
+      "anomalies": []
+    }
+  ],
+  "verdict": "PASS"
+}

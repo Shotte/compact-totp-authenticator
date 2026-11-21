@@ -26,10 +26,11 @@ button.primary { border-color: var(--fg); }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
-td.name, td.site { overflow-wrap: anywhere; }
+td.name, td.site { overflow-wrap: anywhere; white-space: normal; } /* not the popup .name rule from rows.css */
 td.type { font-family: monospace; white-space: nowrap; color: var(--muted); }
-td.actions { white-space: nowrap; text-align: right; }
-td.actions button { padding: 4px 10px; }
+/* The action buttons wrap instead of widening the table (zoom up to 200 %, #21 T-5). */
+td.actions { text-align: right; flex-wrap: wrap; justify-content: flex-end; } /* .actions is a flex row (form buttons); let it wrap here */
+td.actions button { padding: 4px 10px; margin: 2px 0 2px 4px; }
 
 #accountForm label, #settingsForm section > label, .colors label, .auth label:not(.check) {
   display: grid; grid-template-columns: 12em 1fr; align-items: center; gap: 8px; margin: 6px 0;
@@ -63,8 +64,19 @@ legend { padding: 0; margin-bottom: 6px; }
 .check { display: flex; align-items: center; gap: 8px; }
 .colors { margin-left: 26px; }
 .slider { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; margin: 14px 0; }
-.slider input { grid-column: 1 / -1; width: 100%; accent-color: var(--fg); }
+.slider input { grid-column: 1 / -1; width: 100%; min-width: 0; margin: 0; box-sizing: border-box; accent-color: var(--fg); }
 .slider output { font-variant-numeric: tabular-nums; }
 .radios label { display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; }
 .radios input { width: 18px; height: 18px; margin: 0; accent-color: var(--fg); }
 #resetAppearance { margin-top: 4px; }
+
+/* Options tabs (#21): follow the theme tokens; visible focus on tab and panel. */
+[role="tablist"] { display: flex; flex-wrap: wrap; gap: 2px; margin: 14px 0 18px; border-bottom: 1px solid var(--line); }
+[role="tab"] {
+  margin-bottom: -1px; padding: 8px 16px; border: 1px solid transparent; border-bottom: 0;
+  border-radius: 6px 6px 0 0; background: none; color: var(--muted);
+}
+[role="tab"]:hover:not([aria-selected="true"]) { background: var(--hover); color: var(--fg); }
+[role="tab"][aria-selected="true"] { background: var(--bg); color: var(--fg); border-color: var(--line); border-bottom: 1px solid var(--bg); font-weight: 600; }
+[role="tab"]:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+[role="tabpanel"]:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 4px; }
