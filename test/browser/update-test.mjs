@@ -19,6 +19,14 @@
 // The update server is HTTPS on 127.0.0.1:UPDATE_PORT (default 47811) with a certificate made
 // for this run (openssl); it is trusted only inside the throwaway profile.
 // Synthetic accounts and passwords only. Writes $RESULTS_DIR/update-results.json.
+//
+// Popup shortcut across the update (U-S1..U-S3, issue #6):
+//   --custom-shortcut <combo>  sets a user shortcut on the old version before the update (with
+//                              browser.commands.update, the API behind the about:addons shortcut
+//                              manager); the result file is then update-results-custom-shortcut.json.
+//   U-S1 API level: before, after the update and after the restart (commands.getAll).
+//   U-S2/U-S3 real key events (Windows, visible browser only, else NOT_TESTED): the active
+//   shortcut opens the toolbar popup and nothing else; the replaced shortcuts no longer do.
 import { createServer } from "node:https";
 import { cpSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -32,6 +40,7 @@ import { exportRoundTripAccounts, syntheticSecret } from "../helpers/fixtures.mj
 import { totp } from "../../src/lib/totp.js";
 import { decodeBase32 } from "../../src/lib/base32.js";
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
+import { pressNative, LAYOUTS, opensPopupOnly } from "./shortcuts.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const OUT = process.env.RESULTS_DIR ? resolve(process.env.RESULTS_DIR) : join(root, "docs/evidence/phase-c6");
@@ -39,6 +48,8 @@ const argv = process.argv.slice(2);
 const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
 const SIGNED_OLD = arg("--old"), SIGNED_NEW = arg("--new");
 const SIGNED = !!(SIGNED_OLD && SIGNED_NEW);
+const CUSTOM = arg("--custom-shortcut");
+const NATIVE = process.platform === "win32" && process.env.MOZ_HEADLESS !== "1";
 const FIREFOX = arg("--firefox") ?? process.env.FIREFOX_BIN
   ?? { win32: "C:/Program Files/Mozilla Firefox/firefox.exe", darwin: "/Applications/Firefox.app/Contents/MacOS/firefox", linux: "firefox" }[process.platform];
 const PORT = Number(process.env.UPDATE_PORT ?? 47811);
@@ -153,6 +164,8 @@ async function msg(cmd, args = {}) {
     catch (e) { if (i >= 5 || !/Receiving end does not exist|eval:/.test(e.message)) throw e; await sleep(500); }
   }
 }
+const shortcut = () => evalIn(page, `async () => ({ default: browser.runtime.getManifest().commands?._execute_action?.suggested_key?.default ?? null,
+  active: (await browser.commands.getAll()).find((c) => c.name === "_execute_action")?.shortcut ?? null })`);
 const storageLocal = () => evalIn(page, "async () => browser.storage.local.get()");
 const plain = async () => (await msg("exportVault", { kind: "plain", password: PW, confirmed: true })).result;
 // Codes from the extension must equal RFC 6238 codes computed here for the same instant.
@@ -221,6 +234,8 @@ try {
   const ids = (await msg("listAccounts")).result.accounts.map((a) => a.id);
   revision = (await msg("moveAccount", { id: ids.at(-1), toIndex: 0, revision })).result.revision; // non-default order
   await evalIn(page, `async () => browser.storage.local.set({ settings: ${JSON.stringify(SETTINGS)} })`);
+  if (CUSTOM) await evalIn(page, `async () => browser.commands.update({ name: "_execute_action", shortcut: ${JSON.stringify(CUSTOM)} })`);
+  const keyBefore = await shortcut();
   const listBefore = (await msg("listAccounts")).result;
   const storeBefore = await storageLocal();
   const plainBefore = await plain();
@@ -245,6 +260,7 @@ try {
   page = undefined;
   await openPage(after.uuid);
   await sleep(800);
+  const keyAfterUpdate = await shortcut();
   const storeAfter = await storageLocal();
   record("U-4", "storage.local unchanged by the update: encrypted vault, backup and settings byte-identical, nothing reinitialized",
     same(storeAfter, storeBefore) && !!storeAfter.vault && same(storeAfter.settings, SETTINGS),
@@ -281,6 +297,35 @@ try {
     restarted?.version === NEW_VERSION && restarted.isActive && st?.initialized && st.unlocked === false && lockedCodes.error === "locked" &&
       sessionArea.length === 0 && unlock2.ok && same(listRestart, listBefore) && same(settingsRestart, SETTINGS),
     { addon: restarted, status: st, sessionKeys: sessionArea, unlock: unlock2.ok });
+
+  // U-S1..U-S3 (#6): the popup shortcut across the update and the restart.
+  {
+    const keyAfterRestart = await shortcut();
+    const oldDefault = keyBefore.default, newDefault = keyAfterUpdate.default;
+    const want = CUSTOM ?? newDefault;
+    record("U-S1", CUSTOM
+      ? `API level: the user shortcut ${CUSTOM} set on ${OLD_VERSION} is kept after the update and the restart (new default ${newDefault} not applied)`
+      : `API level: the unchanged default ${oldDefault} of ${OLD_VERSION} becomes the new default ${newDefault} after the update and stays after the restart`,
+      keyBefore.active === (CUSTOM ?? oldDefault) && keyAfterUpdate.active === want && keyAfterRestart.active === want,
+      { before: keyBefore, afterUpdate: keyAfterUpdate, afterRestart: keyAfterRestart });
+    const replaced = [...new Set([oldDefault, newDefault])].filter((k) => k && k !== want);
+    if (!NATIVE) {
+      notTested("U-S2", `real key event: ${want} opens the toolbar popup`, "native key events need Windows with a visible browser");
+      notTested("U-S3", "real key event: replaced shortcuts no longer open the popup", "native key events need Windows with a visible browser");
+    } else {
+      const active = {};
+      for (const [l, id] of Object.entries(LAYOUTS)) active[l] = await pressNative(evalIn, top, want, id).catch((e) => ({ error: String(e?.message ?? e) }));
+      record("U-S2", `real key event (German and US layout): ${want} opens the toolbar popup and nothing else`,
+        Object.values(active).every(opensPopupOnly), { shortcut: want, pressed: active });
+      if (!replaced.length) notTested("U-S3", "real key event: replaced shortcuts no longer open the popup", "old and new default are the same in this run");
+      else {
+        const old = {};
+        for (const k of replaced) { old[k] = {}; for (const [l, id] of Object.entries(LAYOUTS)) old[k][l] = await pressNative(evalIn, top, k, id).catch((e) => ({ error: String(e?.message ?? e) })); }
+        record("U-S3", `real key event: ${replaced.join(" and ")} no longer open${replaced.length > 1 ? "" : "s"} the popup`,
+          Object.values(old).every((byLayout) => Object.values(byLayout).every((p) => p && !p.error && !p.popup)), { pressed: old });
+      }
+    }
+  }
 
   // U-8 (#25): restore or replace from an encrypted backup and the previous vault state, on the
   // permanently installed (in signed mode: signed) updated version. Synthetic data only.
@@ -327,7 +372,8 @@ try {
 }
 evidence.results = results;
 mkdirSync(OUT, { recursive: true });
-writeFileSync(join(OUT, "update-results.json"), JSON.stringify(evidence, null, 2));
+evidence.customShortcut = CUSTOM ?? null;
+writeFileSync(join(OUT, CUSTOM ? "update-results-custom-shortcut.json" : "update-results.json"), JSON.stringify(evidence, null, 2));
 const n = (v) => results.filter((r) => r.verdict === v).length;
 console.log(`${n("PASS")}/${results.length} passed, ${n("NOT_TESTED")} not tested, ${n("FAIL")} failed`);
 process.exitCode = n("FAIL") ? 1 : 0;
