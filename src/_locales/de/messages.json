@@ -797,8 +797,5 @@
   },
   "lockedHint": {
     "message": "Der Tresor ist gesperrt oder noch nicht eingerichtet. Entsperre ihn oben mit deinem Master-Passwort oder lege dort eines fest."
-  },
-  "lockSettingsTitle": {
-    "message": "Automatische Sperre"
   }
 }

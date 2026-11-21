@@ -797,8 +797,5 @@
   },
   "lockedHint": {
     "message": "The vault is locked or not set up yet. Unlock it above with your master password, or set one there."
-  },
-  "lockSettingsTitle": {
-    "message": "Automatic lock"
   }
 }

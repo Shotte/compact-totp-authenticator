@@ -24,9 +24,9 @@ Requirements: Firefox 140 or newer (desktop; current release or ESR).
    be recovered (see §5).
 
 The settings page has three tabs: **2FA entries** (the list, add, edit, delete, reorder),
-**Appearance** (preview, theme, colors, font size, row height, popup sorting) and
-**General** (master password, automatic lock, import, export, restore, previous vault
-state). While the vault is locked, the setup or unlock form appears above the tabs.
+**Appearance** (preview, theme, colors, font size, row height) and **General** (behaviour:
+popup sorting, automatic lock and idle lock; master password; import, export, restore and
+previous vault state). While the vault is locked, the setup or unlock form appears above the tabs.
 
 ## 2. Daily use
 

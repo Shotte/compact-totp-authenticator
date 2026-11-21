@@ -1977,6 +1977,18 @@ try {
       same(afterReload, ["general"]) && same(afterSave, ["general"]) && save.stored === 9 && save.kind === "ok" && !!save.text &&
       same(afterError, ["general"]) && err3.area === "importStatus" && err3.visible, { afterReload, save, afterSave, error: err3, afterError });
 
+    // T-6 (review): popup sorting lives in General → Behaviour; a change is saved and reported there
+    await clickAt(opt, "#tab-general");
+    const t6 = await evalJson(opt, `async () => { const sel = document.querySelector("select[name=sort]");
+      const where = { panel: sel.closest("[role=tabpanel]")?.id, section: sel.closest("section")?.id, inAppearance: !!document.querySelector("#panel-appearance select[name=sort]") };
+      sel.value = "revalpha"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 300));
+      const after = { stored: (await browser.storage.local.get("settings")).settings?.sort, status: document.getElementById("behaviorStatus").textContent,
+        selected: document.querySelector("[role=tab][aria-selected=true]").id };
+      sel.value = "manual"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 200));
+      return { ...where, ...after }; }`);
+    record("T-6", "popup sorting is in General → Behaviour (not in Appearance); a change is saved and confirmed in that section; the tab does not switch",
+      t6.panel === "panel-general" && t6.section === "lockSettings" && !t6.inAppearance && t6.stored === "revalpha" && !!t6.status && t6.selected === "tab-general", t6);
+
     // T-4: unsaved input survives a tab switch; password fields are cleared when their tab is left
     await clickAt(opt, "#tab-entries");
     await evalJson(opt, `async () => { const f = document.getElementById("accountForm").elements; f.name.value = "Entwurf ungespeichert"; f.url.value = "example.org"; }`);

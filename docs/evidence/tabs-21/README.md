@@ -10,8 +10,10 @@ code was touched.
 | Tab | Content |
 |---|---|
 | **2FA-Einträge / 2FA entries** (default) | entries table (reorder, edit, delete), add/edit form |
-| **Darstellung / Appearance** | live preview, theme, custom colors with the contrast warning, font size, row height with effective heights, popup sorting with its note, reset to defaults |
-| **Allgemein / General** | sections "Master-Passwort ändern", "Automatische Sperre", "Import", "Export und Sicherung", "Aus verschlüsselter Sicherung wiederherstellen" (with the previous vault state) |
+| **Darstellung / Appearance** | live preview, theme, custom colors with the contrast warning, font size, row height with effective heights, reset to defaults |
+| **Allgemein / General** | sections "Verhalten" (popup sorting with its note, automatic lock, idle lock), "Master-Passwort ändern", "Import", "Export und Sicherung", "Aus verschlüsselter Sicherung wiederherstellen" (with the previous vault state) |
+
+The popup sorting was moved from Appearance to General → Verhalten after the review (CTA-UI-TABS-100). Its implementation and storage are unchanged.
 
 **Design decision for the review.** The setup, unlock and damaged-vault recovery forms stay
 **above the tabs** while the vault is locked, instead of inside "General". Unlocking is the
@@ -36,7 +38,7 @@ work while locked.
   a region in a hidden part falls back to the top.
 - Leaving a tab clears its password fields. Unsaved non-secret input (for example a half-typed
   entry) is kept. No sensitive field is duplicated.
-- The lock settings live in General but belong to the settings form (`form="settingsForm"`).
+- The behaviour settings (sorting, automatic lock, idle lock) live in General but belong to the settings form (`form="settingsForm"`).
   Their events are handled on the document.
 - The tabs use the theme tokens and follow automatic, light and dark.
 
@@ -57,6 +59,7 @@ work while locked.
 | T-2 keyboard: arrows, Home, End, wrapping, Tab into the panel, visible focus | Locally: selection and focus movement PASS. The focus ring is NOT_TESTED locally because the operator worked in another window, so the test window was not active; the test reports that honestly. CI (headless): see the PR checks |
 | T-3 tab kept after reload, saved setting and error; messages in the originating section | PASS (local) |
 | T-4 unsaved input kept, passwords cleared on leaving a tab | PASS (local) |
+| T-6 popup sorting in General → Verhalten, saved and confirmed there, no tab switch | PASS (local) |
 | T-5 1024, 1280 and 1920 px × 100/150/200 % zoom, all tabs: no horizontal overflow | PASS (local, 27 combinations) |
 | Screenshots (de, synthetic entries) | [`tabs-entries-de.png`](tabs-entries-de.png), [`tabs-appearance-de.png`](tabs-appearance-de.png), [`tabs-general-de.png`](tabs-general-de.png) |
-| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 104/108 PASS, 2 MANUAL, 2 NOT_TESTED (T-2 focus ring, C3-4 system idle: both because the operator was working at the computer), 0 FAIL |
+| Local browser run, Firefox 160.0.1, Windows ([`browser-results-local.json`](browser-results-local.json)) | 105/109 PASS, 2 MANUAL, 2 NOT_TESTED (T-2 focus ring, C3-4 system idle: both because the operator was working at the computer), 0 FAIL |

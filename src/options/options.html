@@ -144,14 +144,6 @@
           </fieldset>
           <p id="rowNote" class="note" hidden></p>
 
-          <label><span data-i18n="sortOrder"></span>
-            <select name="sort">
-              <option value="manual" data-i18n="sortManual"></option>
-              <option value="alpha" data-i18n="sortAlpha"></option>
-              <option value="revalpha" data-i18n="sortRevalpha"></option>
-            </select></label>
-          <p class="note" data-i18n="sortNote"></p>
-
           <button id="resetAppearance" type="button" data-i18n="resetAppearance"></button>
           <p id="appearanceStatus" class="status" role="status"></p>
         </section>
@@ -159,6 +151,22 @@
     </div>
 
     <div role="tabpanel" id="panel-general" aria-labelledby="tab-general" tabindex="0" hidden>
+      <section id="lockSettings">
+        <h2 data-i18n="behavior"></h2>
+        <label><span data-i18n="sortOrder"></span>
+          <select form="settingsForm" name="sort">
+            <option value="manual" data-i18n="sortManual"></option>
+            <option value="alpha" data-i18n="sortAlpha"></option>
+            <option value="revalpha" data-i18n="sortRevalpha"></option>
+          </select></label>
+        <p class="note" data-i18n="sortNote"></p>
+        <label><span data-i18n="autoLock"></span><input form="settingsForm" name="autoLockMinutes" type="number" min="1" max="240"></label>
+        <label class="check"><input form="settingsForm" name="idleLock" type="checkbox"><span data-i18n="idleLock"></span></label>
+        <label><span data-i18n="idleLockMinutes"></span><input form="settingsForm" name="idleLockMinutes" type="number" min="1" max="60"></label>
+        <p class="note" data-i18n="idleLockNote"></p>
+        <p id="behaviorStatus" class="status" role="status"></p>
+      </section>
+
       <p class="note locked-only" data-i18n="lockedHint" hidden></p>
       <div class="needs-vault" hidden>
         <section>
@@ -180,16 +188,6 @@
           <p id="passwordStatus" class="status" role="status"></p>
         </section>
       </div>
-
-      <section id="lockSettings">
-        <h2 data-i18n="lockSettingsTitle"></h2>
-        <label><span data-i18n="autoLock"></span><input form="settingsForm" name="autoLockMinutes" type="number" min="1" max="240"></label>
-        <label class="check"><input form="settingsForm" name="idleLock" type="checkbox"><span data-i18n="idleLock"></span></label>
-        <label><span data-i18n="idleLockMinutes"></span><input form="settingsForm" name="idleLockMinutes" type="number" min="1" max="60"></label>
-        <p class="note" data-i18n="idleLockNote"></p>
-        <p id="behaviorStatus" class="status" role="status"></p>
-        <p id="behaviorStatus" class="status" role="status"></p>
-      </section>
 
       <div class="needs-vault" hidden>
         <section>
