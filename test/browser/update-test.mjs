@@ -28,7 +28,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual as same } from "node:util";
 import { launchFirefox, sleep } from "./bidi.mjs";
-import { exportRoundTripAccounts } from "../helpers/fixtures.mjs";
+import { exportRoundTripAccounts, syntheticSecret } from "../helpers/fixtures.mjs";
 import { totp } from "../../src/lib/totp.js";
 import { decodeBase32 } from "../../src/lib/base32.js";
 import { DEFAULT_SETTINGS } from "../../src/lib/settings.js";
@@ -281,6 +281,38 @@ try {
     restarted?.version === NEW_VERSION && restarted.isActive && st?.initialized && st.unlocked === false && lockedCodes.error === "locked" &&
       sessionArea.length === 0 && unlock2.ok && same(listRestart, listBefore) && same(settingsRestart, SETTINGS),
     { addon: restarted, status: st, sessionKeys: sessionArea, unlock: unlock2.ok });
+
+  // U-8 (#25): restore or replace from an encrypted backup and the previous vault state, on the
+  // permanently installed (in signed mode: signed) updated version. Synthetic data only.
+  {
+    const EXP = "update test export password ✓";
+    const names = async () => (await msg("listAccounts")).result.accounts.map((a) => a.name);
+    const exported = (await msg("exportVault", { kind: "encrypted", password: PW, exportPassword: EXP, confirm: EXP })).result;
+    const atExport = await names();
+    let rev = (await msg("listAccounts")).result.revision;
+    rev = (await msg("addAccount", { revision: rev, account: { name: "Neu nach Export", secret: syntheticSecret(990) } })).result?.revision;
+    const p = (await msg("replacePreview", { text: exported.text, password: EXP })).result;
+    const r = await msg("replaceApply", { revision: p.revision, fileHash: p.fileHash, text: exported.text, password: EXP, masterPassword: PW, confirmed: true });
+    const afterReplace = await names();
+    const prev1 = (await msg("previousStatus")).result;
+    const pwChange = await msg("changePassword", { current: PW, next: "a different test passphrase ✓", confirm: "a different test passphrase ✓" });
+    await msg("lock");
+    const exportPwOpens = (await msg("unlock", { password: EXP })).ok;
+    const masterOpens = (await msg("unlock", { password: PW })).ok;
+    const back = await msg("restorePrevious", { masterPassword: PW, confirmed: true });
+    const afterRestore = await names();
+    const prev2 = (await msg("previousStatus")).result;
+    const discard = await msg("discardPrevious", { masterPassword: PW, confirmed: true });
+    const prev3 = (await msg("previousStatus")).result;
+    record("U-8", "replace from an encrypted backup on the updated permanent install: preview names the local-only entry, replacement restores the export state, previous vault kept and restorable, password change refused while it exists, discard works, the export password never opens the vault",
+      p.onlyCurrent?.names?.includes("Neu nach Export") && r.ok && r.result.keptPrevious && same(afterReplace, atExport) &&
+        prev1?.exists && prev1.count === atExport.length + 1 && pwChange.reason === "previous-exists" && !exportPwOpens && masterOpens &&
+        back.ok && afterRestore.includes("Neu nach Export") && afterRestore.length === atExport.length + 1 &&
+        prev2?.exists && prev2.count === atExport.length && discard.ok && prev3?.exists === false,
+      { preview: { backupCount: p.backupCount, currentCount: p.currentCount, onlyCurrent: p.onlyCurrent }, replaced: r.result ?? r,
+        previousAfterReplace: prev1, passwordChange: pwChange.reason, exportPasswordOpens: exportPwOpens, masterOpens,
+        afterRestore: afterRestore.length, previousAfterRestore: prev2, discarded: discard.ok, previousAfterDiscard: prev3 });
+  }
 } catch (e) {
   if (e.notTested) for (const id of ["U-1", "U-2", "U-3", "U-4", "U-5", "U-6", "U-7"]) notTested(id, "update test", e.notTested);
   else { console.error(e); record("U-error", "update test aborted", false, { error: String(e?.stack ?? e) }); }

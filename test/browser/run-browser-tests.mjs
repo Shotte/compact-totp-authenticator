@@ -158,23 +158,29 @@ try {
     const r = await msg(opt, "setup", { password, confirm: password });
     if (!r.ok) throw new Error("setup failed: " + JSON.stringify(r));
     let revision = 1, retries = 0;
-    const list = syntheticAccounts(n);
-    for (let i = 0; i < list.length; i++) {
-      const a = list[i];
+    for (const a of syntheticAccounts(n)) {
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
       if (!res.ok) {
-        // Setup helper: after a delivery error, storage decides whether this write happened.
-        await sleep(500);
-        const now = (await msg(opt, "listAccounts")).result;
-        const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
-        // Storage unchanged after a delivery error: provably not processed, so sending it again is
-        // safe (seen on Windows CI, #31). Anything else stops with the diagnostics.
-        if (res.error === "delivery" && now && now.revision === revision && retries++ < 3) {
-          console.log(`seeding (#31): addAccount at revision ${revision} not delivered (storage unchanged), sent again`);
-          i--; continue;
+        // Setup helper (#31). A delivery error does not tell whether the write happened, and an
+        // unchanged storage read alone does not prove that a delayed delivery cannot still land.
+        // What makes a resend safe is the revision precondition of addAccount (compare-and-set):
+        // of the original and the resend, at most one can be stored at revision + 1. So: let a
+        // delayed delivery settle, read storage, resend only with the same revision, and let
+        // storage decide every outcome; anything unexpected stops with the diagnostics.
+        const stored = async () => (await msg(opt, "listAccounts")).result;
+        const isThis = (now) => now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        await sleep(2000);
+        let now = await stored();
+        if (!isThis(now) && res.error === "delivery" && now?.revision === revision && retries++ < 3) {
+          const again = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
+            algorithm: a.algorithm, digits: a.digits, period: a.period } });
+          console.log(`seeding (#31): delivery error at revision ${revision}; resent with the same revision → ${again.ok ? "stored" : again.error}`);
+          if (again.ok) { revision = again.result.revision; continue; }
+          await sleep(2000);
+          now = await stored(); // a conflict here means the delayed original landed first
         }
-        if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
+        if (!isThis(now)) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
         revision = now.revision;
         continue;
       }

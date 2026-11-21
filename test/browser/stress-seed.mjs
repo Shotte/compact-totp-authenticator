@@ -73,13 +73,13 @@ try {
       const a = accounts[i];
       const res = await send({ cmd: "addAccount", revision, account: { name: a.name, secret: a.secret, url: a.url, algorithm: a.algorithm, digits: a.digits, period: a.period } });
       if (res.ok) { revision = res.result.revision; continue; }
-      await sleep(500);
+      await sleep(2000); // let a delayed delivery settle; the resend below relies on the revision check, not on this read
       const now = await stored();
       const applied = now?.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
       const untouched = now?.revision === revision;
       const kind = res.error === "delivery"
         ? (applied ? "delivered despite a delivery error" : untouched ? "not delivered" : "UNEXPLAINED")
-        : res.error === "conflict" ? (applied ? "conflict, but this write is stored (duplicate)" : "COMPETING WRITE OR PRODUCT REVISION ERROR") : `OTHER: ${res.error}`;
+        : res.error === "conflict" ? (applied ? "delayed delivery landed first; the resend was refused by the revision check (safe)" : "COMPETING WRITE OR PRODUCT REVISION ERROR") : `OTHER: ${res.error}`;
       anomalies.push({ i, sentRevision: revision, answer: res.error, reason: res.reason ?? null, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null, kind });
       if (applied) revision = now.revision;
       else if (untouched && res.error === "delivery") i--; // provably not applied: send again
@@ -93,7 +93,7 @@ try {
 } finally {
   await ff.close().catch(() => {});
 }
-const bad = rounds.flatMap((r) => r.anomalies).filter((a) => /COMPETING|UNEXPLAINED|OTHER|duplicate/.test(a.kind));
+const bad = rounds.flatMap((r) => r.anomalies).filter((a) => /COMPETING|UNEXPLAINED|OTHER/.test(a.kind));
 const result = { startedAt: new Date().toISOString(), firefox: FIREFOX, platform: process.platform, rounds,
   verdict: bad.length ? "INVESTIGATE" : rounds.every((r) => r.complete) ? "PASS" : "INCOMPLETE" };
 mkdirSync(OUT, { recursive: true });
