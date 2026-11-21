@@ -157,8 +157,10 @@ try {
     await wipeVault();
     const r = await msg(opt, "setup", { password, confirm: password });
     if (!r.ok) throw new Error("setup failed: " + JSON.stringify(r));
-    let revision = 1;
-    for (const a of syntheticAccounts(n)) {
+    let revision = 1, retries = 0;
+    const list = syntheticAccounts(n);
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
       if (!res.ok) {
@@ -166,6 +168,12 @@ try {
         await sleep(500);
         const now = (await msg(opt, "listAccounts")).result;
         const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        // Storage unchanged after a delivery error: provably not processed, so sending it again is
+        // safe (seen on Windows CI, #31). Anything else stops with the diagnostics.
+        if (res.error === "delivery" && now && now.revision === revision && retries++ < 3) {
+          console.log(`seeding (#31): addAccount at revision ${revision} not delivered (storage unchanged), sent again`);
+          i--; continue;
+        }
         if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
         revision = now.revision;
         continue;
