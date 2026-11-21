@@ -39,7 +39,7 @@ Result file: [`update-results.json`](update-results.json).
 The vault written by 0.9.1 is read unchanged by 0.9.2. The pending-import binding is new
 in 0.9.2 and lives in `storage.session` only, so the update needs no migration.
 
-**Not tested here:** upgrading through about:addons → "Install Add-on From File" over an
-installed 0.9.0 or 0.9.1. It uses the same AddonManager upgrade path as U-2 with a local
-file instead of a download. The operator's install in the `CTA-Test` profile covers it:
-MANUAL_REVIEW.
+**Manual upgrade:** upgrading the operator's `CTA-Test` profile from 0.9.0 to 0.9.2 through
+about:addons → "Install Add-on From File" was confirmed by the operator in the second
+acceptance session (operator feedback 02): **PASS (operator)**. The automatic lock after 1
+minute and A–Z / Z–A sorting in the real popup were confirmed in the same session.
