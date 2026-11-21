@@ -49,7 +49,9 @@ async function evalJson(ctx, src) {
 }
 const msg = (ctx, cmd, args = {}) => evalJson(ctx, `async () => browser.runtime.sendMessage(${JSON.stringify({ cmd, ...args })})`);
 async function clickAt(ctx, selector) {
-  await evalJson(ctx, `async () => { document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: "center" });
+  // Options tabs (#21): like a user, first select the tab that holds the target.
+  await evalJson(ctx, `async () => { const SEL = ${JSON.stringify(selector)}; const el = document.querySelector(SEL); const panel = el?.closest("[role=tabpanel]"); if (panel?.hidden) document.getElementById(panel.getAttribute("aria-labelledby")).click();
+    document.querySelector(SEL).scrollIntoView({ block: "center" });
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); }`);
   const r = await call("script.evaluate", { target: { context: ctx }, awaitPromise: false,
     expression: `document.querySelector(${JSON.stringify(selector)})`, resultOwnership: "root" });

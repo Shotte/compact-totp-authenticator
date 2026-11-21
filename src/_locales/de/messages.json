@@ -782,5 +782,20 @@
   },
   "changePreviousNeeded": {
     "message": "Bitte bestätige zuerst, dass der vorherige Tresorstand gelöscht werden darf. Das Passwort wurde nicht geändert."
+  },
+  "tabsLabel": {
+    "message": "Bereiche der Einstellungen"
+  },
+  "tabEntries": {
+    "message": "2FA-Einträge"
+  },
+  "tabAppearance": {
+    "message": "Darstellung"
+  },
+  "tabGeneral": {
+    "message": "Allgemein"
+  },
+  "lockedHint": {
+    "message": "Der Tresor ist gesperrt oder noch nicht eingerichtet. Entsperre ihn oben mit deinem Master-Passwort oder lege dort eines fest."
   }
 }

@@ -782,5 +782,20 @@
   },
   "changePreviousNeeded": {
     "message": "Please confirm first that the previous vault state may be deleted. The password was not changed."
+  },
+  "tabsLabel": {
+    "message": "Settings sections"
+  },
+  "tabEntries": {
+    "message": "2FA entries"
+  },
+  "tabAppearance": {
+    "message": "Appearance"
+  },
+  "tabGeneral": {
+    "message": "General"
+  },
+  "lockedHint": {
+    "message": "The vault is locked or not set up yet. Unlock it above with your master password, or set one there."
   }
 }

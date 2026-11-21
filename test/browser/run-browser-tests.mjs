@@ -119,7 +119,14 @@ async function node(ctx, selector) {
     expression: `document.querySelector(${JSON.stringify(selector)})`, resultOwnership: "root" });
   return { sharedId: r.result.sharedId };
 }
+async function showTabOf(ctx, selector) { // options tabs (#21): select the tab that holds the element
+  await evalJson(ctx, `async () => { const p = document.querySelector(${JSON.stringify(selector)})?.closest("[role=tabpanel]");
+    if (p?.hidden) document.getElementById(p.getAttribute("aria-labelledby")).click(); }`);
+}
 async function clickAt(ctx, selector) { // trusted input → transient user activation
+  // Options tabs (#21): like a user, first select the tab that holds the target.
+  await evalJson(ctx, `async () => { const SEL = ${JSON.stringify(selector)}; const el = document.querySelector(SEL); const panel = el?.closest("[role=tabpanel]"); if (panel?.hidden) document.getElementById(panel.getAttribute("aria-labelledby")).click();
+    document.querySelector(SEL)?.scrollIntoView({ block: "center" }); }`);
   const el = await node(ctx, selector);
   await call("input.performActions", { context: ctx, actions: [{ type: "pointer", id: "mouse",
     parameters: { pointerType: "mouse" }, actions: [
@@ -150,8 +157,10 @@ try {
     await wipeVault();
     const r = await msg(opt, "setup", { password, confirm: password });
     if (!r.ok) throw new Error("setup failed: " + JSON.stringify(r));
-    let revision = 1;
-    for (const a of syntheticAccounts(n)) {
+    let revision = 1, retries = 0;
+    const list = syntheticAccounts(n);
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
       const res = await msg(opt, "addAccount", { revision, account: { name: a.name, secret: a.secret, url: a.url,
         algorithm: a.algorithm, digits: a.digits, period: a.period } });
       if (!res.ok) {
@@ -159,6 +168,12 @@ try {
         await sleep(500);
         const now = (await msg(opt, "listAccounts")).result;
         const applied = now && now.revision === revision + 1 && now.accounts.at(-1)?.name === a.name;
+        // Storage unchanged after a delivery error: provably not processed, so sending it again is
+        // safe (seen on Windows CI, #31). Anything else stops with the diagnostics.
+        if (res.error === "delivery" && now && now.revision === revision && retries++ < 3) {
+          console.log(`seeding (#31): addAccount at revision ${revision} not delivered (storage unchanged), sent again`);
+          i--; continue;
+        }
         if (!applied) throw new Error("addAccount failed: " + JSON.stringify({ res, expectedRevision: revision, stored: now ? { revision: now.revision, count: now.accounts.length, last: now.accounts.at(-1)?.name } : null }));
         revision = now.revision;
         continue;
@@ -353,6 +368,7 @@ try {
     for (const [scheme, v] of CHROME_OK ? [["dark", 0], ["light", 1]] : []) {
       await setScheme(v);
       await sleep(300);
+      await showTabOf(opt, "#appearance");
       const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
         s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
       const shot = await call("browsingContext.captureScreenshot", { context: opt,
@@ -383,6 +399,7 @@ try {
           ![page.button, page.input].includes(rgb(CUSTOM.bg));
         cases.push({ theme, scheme: scheme ? "light" : "dark", ok: pageOwn && page.preview === rgb(CUSTOM.bg) && page.previewText === rgb(CUSTOM.fg) && popupBg === rgb(CUSTOM.bg), page, popupBg });
         if (theme !== "auto" || scheme === 0) {
+          await showTabOf(opt, "#appearance");
           const box = await evalJson(opt, `async () => { const s = document.getElementById("appearance");
             s.scrollIntoView(); const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
           const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
@@ -398,6 +415,7 @@ try {
         await evalJson(opt, `async () => browser.storage.local.set({ settings: { fontSize: ${fontSize}, rowHeight: 22 } })`);
         await open(opt, "options/options.html");
         await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        await showTabOf(opt, "#appearance");
         return evalJson(opt, `async () => ({ choices: Object.fromEntries([...document.querySelectorAll("input[name=rowHeight]")].map((i) =>
           [i.value, i.parentElement.querySelector(".eff").textContent.trim()])), note: document.getElementById("rowNote").textContent,
           noteShown: !document.getElementById("rowNote").hidden, previewRow: getComputedStyle(document.querySelector("#appearancePreview .row")).height })`);
@@ -1580,6 +1598,7 @@ try {
         blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x";
           f.elements.exportPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = f.elements.exportPassword.value = ""; return !v; })() })`);
       { // evidence screenshot: the destructive warning (synthetic names only)
+        await showTabOf(opt, "#restoreStatus");
         const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
           const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
         const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
@@ -1813,6 +1832,7 @@ try {
         skipped6.items.some((x) => /Duplikat|duplicate/i.test(x)) && skipped6.items.filter((x) => /ungültig|invalid/i.test(x)).length === 4 &&
         skipped6.top === "" && skipped6.filled === 1, { message: m1, skipped: skipped6 });
       { // evidence screenshot: import section with its own status and the opened skipped list
+        await showTabOf(opt, "#importStatus");
         const box = await evalJson(opt, `async () => { document.getElementById("importSkipped").open = true;
           const s = document.getElementById("importStatus").closest("section"); s.scrollIntoView();
           const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
@@ -1893,6 +1913,141 @@ try {
     }
   }
 
+  }
+
+  // T: options tabs (#21). Synthetic entries only.
+  {
+    await resetVault(6);
+    const tabState = () => evalJson(opt, `async () => Object.fromEntries(["entries", "appearance", "general"].map((t) => {
+      const tab = document.getElementById("tab-" + t), panel = document.getElementById("panel-" + t);
+      return [t, { selected: tab.getAttribute("aria-selected"), tabindex: tab.tabIndex, panelHidden: panel.hidden,
+        controls: tab.getAttribute("aria-controls"), labelledby: panel.getAttribute("aria-labelledby"), role: [tab.getAttribute("role"), panel.getAttribute("role")].join("/") }];
+    }))`);
+    const selected = (st) => Object.entries(st).filter(([, v]) => v.selected === "true").map(([k]) => k);
+
+    // T-1: default tab and ARIA semantics
+    await call("browsingContext.navigate", { context: opt, url: BASE + "options/options.html", wait: "complete" });
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const t1 = await tabState();
+    const t1hash = await evalJson(opt, `async () => ({ hash: location.hash, list: document.getElementById("tabs").getAttribute("role"),
+      label: document.getElementById("tabs").getAttribute("aria-label"), rows: document.querySelectorAll("#accounts tbody tr").length })`);
+    record("T-1", "options tabs: opens on \"2FA-Einträge\"; tablist/tab/tabpanel roles, aria-selected, aria-controls, aria-labelledby, roving tabindex; only the selected panel visible",
+      same(selected(t1), ["entries"]) && t1.entries.tabindex === 0 && t1.appearance.tabindex === -1 && t1.general.tabindex === -1 &&
+      !t1.entries.panelHidden && t1.appearance.panelHidden && t1.general.panelHidden && t1hash.list === "tablist" && !!t1hash.label &&
+      Object.entries(t1).every(([k, v]) => v.role === "tab/tabpanel" && v.controls === "panel-" + k && v.labelledby === "tab-" + k) &&
+      t1hash.hash === "#entries" && t1hash.rows === 6, { tabs: t1, page: t1hash });
+
+    // T-2: keyboard operation (trusted keys) with visible focus
+    const press = (...vals) => call("input.performActions", { context: opt, actions: [{ type: "key", id: "kbt",
+      actions: vals.flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }]) }] });
+    const focusInfo = () => evalJson(opt, `async () => ({ id: document.activeElement.id, visible: document.activeElement.matches(":focus-visible") })`);
+    // :focus-visible is only reported while the window is active: bring the test window to the
+    // front; if the operator works in another window meanwhile, the focus ring is not evaluable.
+    await call("browsingContext.activate", { context: opt }).catch(() => {});
+    await evalJson(opt, `async () => { document.getElementById("tab-entries").click(); document.getElementById("lockBtn").focus(); }`);
+    await press("\uE004"); // Tab: from the header's lock button to the selected tab
+    const reached = await focusInfo();
+    const seq = [];
+    for (const [label, key] of [["right", "\uE014"], ["right", "\uE014"], ["right (wraps)", "\uE014"], ["left (wraps)", "\uE012"], ["home", "\uE011"], ["end", "\uE010"]]) {
+      await press(key);
+      await sleep(80);
+      seq.push({ key: label, selected: selected(await tabState()), focus: await focusInfo() });
+    }
+    await press("\uE004"); // Tab moves from the tab into the selected panel
+    const intoPanel = await evalJson(opt, `async () => document.activeElement.id`);
+    const want = [["appearance"], ["general"], ["entries"], ["general"], ["entries"], ["general"]];
+    const windowActive = await evalJson(opt, `async () => document.hasFocus()`);
+    const behaviour = reached.id === "tab-entries" && seq.every((x, i) => same(x.selected, want[i]) && x.focus.id === "tab-" + want[i][0]) && intoPanel === "panel-general";
+    if (!windowActive && behaviour) notTested("T-2", "options tabs by keyboard: arrow keys, Home and End select and focus tabs (wrapping), focus visible; Tab moves into the panel",
+      "selection and focus movement PASS; the focus ring is not evaluable because the test window was not the active window (operator working in parallel)");
+    else record("T-2", "options tabs by keyboard: arrow keys, Home and End select and focus tabs (wrapping), focus visible; Tab moves into the panel",
+      reached.id === "tab-entries" && reached.visible &&
+      seq.every((x, i) => same(x.selected, want[i]) && x.focus.id === "tab-" + want[i][0] && x.focus.visible) && intoPanel === "panel-general",
+      { reached, sequence: seq, afterTab: intoPanel });
+
+    // T-3: the selected tab survives a reload, a save and an error; messages stay in the tab and section
+    await clickAt(opt, "#tab-general");
+    await call("browsingContext.reload", { context: opt, wait: "complete" });
+    await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+    const afterReload = selected(await tabState());
+    await evalJson(opt, `async () => { const el = document.querySelector("[name=autoLockMinutes]"); el.value = "9";
+      el.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 300)); }`);
+    const save = await evalJson(opt, `async () => ({ text: document.getElementById("behaviorStatus").textContent, kind: document.getElementById("behaviorStatus").dataset.kind,
+      stored: (await browser.storage.local.get("settings")).settings?.autoLockMinutes })`);
+    const afterSave = selected(await tabState());
+    await evalJson(opt, `async () => { const input = document.getElementById("importFile"); const dt = new DataTransfer();
+      dt.items.add(new File(["{not json"], "kaputt.json", { type: "application/json" })); input.files = dt.files; input.dispatchEvent(new Event("change")); }`);
+    await waitFor(opt, `document.getElementById("importStatus").dataset.kind === "error"`, 15000);
+    const err3 = await evalJson(opt, `async () => ({ area: [...document.querySelectorAll(".status")].find((e) => e.textContent)?.id, visible: !document.getElementById("panel-general").hidden })`);
+    const afterError = selected(await tabState());
+    await evalJson(opt, `async () => { const el = document.querySelector("[name=autoLockMinutes]"); el.value = "15"; el.dispatchEvent(new Event("change", { bubbles: true })); }`);
+    record("T-3", "options tabs: the selected tab stays after a reload, a saved setting and an error; the messages appear in the section of the action, inside the visible tab",
+      same(afterReload, ["general"]) && same(afterSave, ["general"]) && save.stored === 9 && save.kind === "ok" && !!save.text &&
+      same(afterError, ["general"]) && err3.area === "importStatus" && err3.visible, { afterReload, save, afterSave, error: err3, afterError });
+
+    // T-6 (review): popup sorting lives in General → Behaviour; a change is saved and reported there
+    await clickAt(opt, "#tab-general");
+    const t6 = await evalJson(opt, `async () => { const sel = document.querySelector("select[name=sort]");
+      const where = { panel: sel.closest("[role=tabpanel]")?.id, section: sel.closest("section")?.id, inAppearance: !!document.querySelector("#panel-appearance select[name=sort]") };
+      sel.value = "revalpha"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 300));
+      const after = { stored: (await browser.storage.local.get("settings")).settings?.sort, status: document.getElementById("behaviorStatus").textContent,
+        selected: document.querySelector("[role=tab][aria-selected=true]").id };
+      sel.value = "manual"; sel.dispatchEvent(new Event("change", { bubbles: true })); await new Promise((r) => setTimeout(r, 200));
+      return { ...where, ...after }; }`);
+    record("T-6", "popup sorting is in General → Behaviour (not in Appearance); a change is saved and confirmed in that section; the tab does not switch",
+      t6.panel === "panel-general" && t6.section === "lockSettings" && !t6.inAppearance && t6.stored === "revalpha" && !!t6.status && t6.selected === "tab-general", t6);
+
+    // T-4: unsaved input survives a tab switch; password fields are cleared when their tab is left
+    await clickAt(opt, "#tab-entries");
+    await evalJson(opt, `async () => { const f = document.getElementById("accountForm").elements; f.name.value = "Entwurf ungespeichert"; f.url.value = "example.org"; }`);
+    await evalJson(opt, `async () => { document.getElementById("changeForm").elements.current.value = "typed but not sent";
+      document.getElementById("exportForm").elements.password.value = "typed but not sent"; }`);
+    await clickAt(opt, "#tab-appearance");
+    await clickAt(opt, "#tab-entries");
+    const draft = await evalJson(opt, `async () => { const f = document.getElementById("accountForm").elements; return { name: f.name.value, url: f.url.value }; }`);
+    await clickAt(opt, "#tab-general");
+    await evalJson(opt, `async () => { document.getElementById("changeForm").elements.current.value = "typed in general"; }`);
+    await clickAt(opt, "#tab-entries");
+    const pw = await evalJson(opt, `async () => [...document.querySelectorAll("#panel-general input[type=password]")].map((i) => i.value).filter(Boolean).length`);
+    await evalJson(opt, `async () => document.getElementById("accountForm").reset()`);
+    record("T-4", "options tabs: unsaved, non-secret input is kept across tab switches; password fields of a tab are empty after leaving it",
+      draft.name === "Entwurf ungespeichert" && draft.url === "example.org" && pw === 0, { draft, passwordsLeftInGeneral: pw });
+
+    // T-5: desktop sizes and zoom levels without horizontal overflow; screenshots of all tabs (de).
+    // The viewport is set on a fresh tab before it loads the page (like the popup tab); an
+    // extension page that is already loaded does not accept setViewport.
+    const sizes = [];
+    const sized = async (w, h, hash) => {
+      const ctx = (await call("browsingContext.create", { type: "tab" })).context;
+      await call("browsingContext.setViewport", { context: ctx, viewport: { width: w, height: h } });
+      await call("browsingContext.navigate", { context: ctx, url: BASE + "options/options.html#" + hash, wait: "complete" });
+      await waitFor(ctx, "document.body.dataset.state === 'unlocked'");
+      return ctx;
+    };
+    for (const [w, h] of [[1024, 768], [1280, 800], [1920, 1080]]) {
+      const ctx = await sized(w, h, "entries");
+      for (const zoom of [1, 1.5, 2]) {
+        for (const t of ["entries", "appearance", "general"]) {
+          const m = await evalJson(ctx, `async () => { document.documentElement.style.zoom = "${zoom}"; document.getElementById("tab-${t}").click();
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            const tabs = document.getElementById("tabs").getBoundingClientRect();
+            return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, tabsVisible: tabs.width > 0 && tabs.height > 0 }; }`);
+          sizes.push({ w, zoom, tab: t, ...m });
+        }
+      }
+      await call("browsingContext.close", { context: ctx });
+    }
+    for (const t of ["entries", "appearance", "general"]) {
+      const ctx = await sized(1280, 800, t);
+      await sleep(200);
+      const box = await evalJson(ctx, `async () => { const m = document.querySelector("main").getBoundingClientRect();
+        return { x: m.x + scrollX, y: m.y + scrollY, w: m.width, h: Math.min(m.height, 4000) }; }`);
+      const shot = await call("browsingContext.captureScreenshot", { context: ctx, origin: "document", clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+      writeFileSync(join(OUT, `tabs-${t}-de.png`), Buffer.from(shot.data, "base64"));
+      await call("browsingContext.close", { context: ctx });
+    }
+    record("T-5", "options tabs at 1024, 1280 and 1920 px width and 100/150/200 % zoom: no horizontal overflow, tab bar visible; screenshots of all three tabs",
+      sizes.every((x) => x.overflow <= 0 && x.tabsVisible), { checked: sizes.length, worst: sizes.reduce((a, b) => (b.overflow > a.overflow ? b : a)) });
   }
 
   // C6.3/C6.5: release checks that can run without a person (issues #2–#6 stay open; these
