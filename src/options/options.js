@@ -11,9 +11,11 @@ let editingId = null;
 // Contextual status (operator feedback 01): every section has its own live region and the
 // message appears where the user acts. Only one region holds text at a time, so a message is
 // announced once. A region inside a hidden view (e.g. after a lock) falls back to the
-// general vault status at the top.
+// first status of its section (e.g. step 2 of a replacement that was just closed, F3-3),
+// otherwise to the general vault status at the top.
 function say(text, kind = "ok", where = "message") {
   let target = $(where);
+  if (target?.closest("[hidden]")) target = target.closest("section")?.querySelector(".status");
   if (!target || target.closest("[hidden]")) target = $("message");
   for (const el of document.querySelectorAll(".status")) {
     if (el !== target) { el.textContent = ""; delete el.dataset.kind; }
@@ -21,7 +23,14 @@ function say(text, kind = "ok", where = "message") {
   target.textContent = text;
   target.dataset.kind = kind;
 }
-const areaOf = (el) => el.closest("section")?.querySelector(".status")?.id ?? "message";
+// A step with its own buttons names its status region (data-status), else the section's first.
+const areaOf = (el) => el.closest("[data-status]")?.dataset.status ?? el.closest("section")?.querySelector(".status")?.id ?? "message";
+// Bring a newly shown part into view and move the focus there (F3-3). Instant on purpose: it
+// follows the user's own click, and Firefox stalls smooth scrolling in a covered window.
+function reveal(focusEl, viewEl = focusEl) {
+  focusEl.focus({ preventScroll: true });
+  viewEl.scrollIntoView({ block: viewEl === focusEl ? "start" : "center" });
+}
 
 // Options tabs (#21): WAI-ARIA tabs pattern with automatic activation (arrow keys, Home,
 // End). The selected tab lives in the location hash, so re-rendering, saving, importing or an
@@ -146,10 +155,12 @@ function cell(cls, text) {
   td.textContent = text;
   return td;
 }
-function button(key, name, onClick, disabled = false) {
+// icon: a compact symbol instead of the word (F3-1); name and tooltip keep the word.
+function button(key, name, onClick, disabled = false, icon = "") {
   const b = document.createElement("button");
   b.type = "button";
-  b.textContent = t(key);
+  b.textContent = icon || t(key);
+  if (icon) { b.className = "move"; b.title = t(key); } // not .icon: rows.css styles the popup copy icon
   b.setAttribute("aria-label", `${t(key)}: ${name}`);
   b.disabled = disabled;
   b.addEventListener("click", onClick);
@@ -161,8 +172,8 @@ function renderAccounts() {
     const tr = document.createElement("tr");
     const actions = cell("actions", "");
     actions.append(
-      button("moveUp", a.name, () => move(a, i - 1), i === 0),
-      button("moveDown", a.name, () => move(a, i + 1), i === state.accounts.length - 1),
+      button("moveUp", a.name, () => move(a, i - 1), i === 0, "↑"),
+      button("moveDown", a.name, () => move(a, i + 1), i === state.accounts.length - 1, "↓"),
       button("edit", a.name, () => edit(a)),
       button("delete", a.name, () => remove(a)));
     tr.append(cell("name", a.name), cell("site", a.url), cell("type", `${a.algorithm} · ${a.digits} · ${a.period}s`), actions);
@@ -528,6 +539,7 @@ async function previewReplace({ file, password }, where) {
   }
   $("replacePreview").hidden = false;
   say(t("replaceChecked"), "ok", where);
+  reveal($("replaceStep2")); // the next fields are below the fold otherwise (F3-3)
 }
 
 const when = (ms) => new Date(ms).toLocaleString(browser.i18n.getUILanguage());
@@ -542,7 +554,9 @@ async function applyReplace({ confirmed, exportPassword: password, masterPasswor
   const done = populated ? t("replaceDone", [String(r.replaced), String(r.previous)]) : t("restoreExportDone", [String(r.replaced)]);
   if (r.locked) { await showLocked(); say(`${done} ${t("errLocked")}`); return; }
   await refresh(false);
-  say(done, "ok", where);
+  // Step 2 is closed now: the result appears below step 1, stale instructions are gone (F3-3).
+  say(done, "ok", "restoreStatus");
+  reveal($("restoreTitle"), $("restoreStatus"));
 }
 
 async function showPrevious() {
@@ -623,6 +637,7 @@ async function init() {
     clearReplace();
     await call("replaceCancel").catch(() => {});
     say(t("replaceCancelled"), "ok", "restoreStatus");
+    reveal($("restoreTitle"), $("restoreStatus"));
   });
   $("exportForm").addEventListener("change", updateExportForm);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });

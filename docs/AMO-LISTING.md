@@ -35,7 +35,7 @@ eine Zeile pro Konto, Name links, Code rechts. Ein Klick kopiert den Code.
 - Verschlüsselter Export und Wiederherstellung; Import aus dem eingestellten Add-on
   „Authenticator“ (totp.json).
 - Hell, dunkel oder automatisch, eigene Farben mit Kontrastprüfung, Schriftgröße 12–20 px.
-- Bedienung mit Tastatur (Alt+Shift+A öffnet das Popup).
+- Bedienung mit Tastatur (Strg+Umschalt+2 öffnet das Popup).
 
 Wichtig: Wenn du das Master-Passwort vergisst, lassen sich deine Konten nur aus einem zuvor
 erstellten Export wiederherstellen.
@@ -57,7 +57,7 @@ row per account, name on the left, code on the right. One click copies the code.
 - Encrypted export and restore; import from the discontinued "Authenticator" add-on
   (totp.json).
 - Light, dark or automatic theme, custom colors with contrast check, font size 12–20 px.
-- Keyboard operation (Alt+Shift+A opens the popup).
+- Keyboard operation (Ctrl+Shift+2 opens the popup).
 
 Important: if you forget the master password, your accounts can only be restored from an
 export you made before.

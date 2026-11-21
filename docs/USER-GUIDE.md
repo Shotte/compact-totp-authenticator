@@ -17,8 +17,10 @@ Requirements: Firefox 140 or newer (desktop; current release or ESR).
    - access the current tab only when you click the toolbar button, used to highlight the
      matching account.
 3. The CTA button appears in the toolbar. If it is not visible, open the puzzle-piece menu
-   and pin it. Keyboard shortcut: Alt+Shift+A. You can change it under about:addons → gear
-   → "Manage Extension Shortcuts".
+   and pin it. Keyboard shortcut: Ctrl+Shift+2 (Command+Shift+2 on macOS; until 0.9.3 it was
+   Alt+Shift+A, which opens the View menu in German Firefox). You can change it under
+   about:addons → gear → "Manage Extension Shortcuts". Firefox refuses its own shortcuts there,
+   but it does not check menu access keys: avoid Alt+letter on Windows and Linux.
 4. On first use, open the settings page from the popup and create a master password: at
    least 12 characters, entered twice. **Remember it:** without it, your accounts cannot
    be recovered (see §5).
@@ -70,8 +72,10 @@ without one.
   [MIGRATION.md](MIGRATION.md).
 - **CTA unencrypted export:** same import, with every parameter kept.
 - **Restore an encrypted export** (new computer, new profile): set up CTA with a master
-  password, then Settings → General → "Restore from an encrypted backup". Choose the file and enter the
-  export password, then confirm with the export password again and your master password. If
+  password, then Settings → General → "Restore: replace the vault with an encrypted backup".
+  Unlike the import, this replaces all current entries. Step 1: choose the file, enter the
+  export password and check the backup (nothing changes yet). Step 2 opens below: enter the
+  export password again (it was discarded after the check) and your master password. If
   the vault already holds entries, CTA first shows what would change and replaces them only
   after your explicit confirmation; the previous vault state is kept as an encrypted copy that
   you can restore or discard in the same section.
