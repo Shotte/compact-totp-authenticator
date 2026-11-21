@@ -179,7 +179,7 @@
             <label><span data-i18n="confirmPassword"></span>
               <input name="confirm" type="password" required minlength="12" maxlength="1024" autocomplete="new-password"></label>
             <p class="note" data-i18n="changePasswordNote"></p>
-            <div id="changePrevious" class="warning" hidden>
+            <div id="changePrevious" class="notice" hidden>
               <p id="changePreviousText"></p>
               <label class="check"><input name="discardPrevious" type="checkbox"><span data-i18n="changePreviousConfirm"></span></label>
             </div>
@@ -239,10 +239,11 @@
           <p id="exportStatus" class="status" role="status"></p>
         </section>
 
-        <section>
-          <h2 data-i18n="restoreExportTitle"></h2>
+        <section id="restoreSection">
+          <h2 id="restoreTitle" data-i18n="restoreExportTitle" tabindex="-1"></h2>
           <p class="note" data-i18n="restoreExportNote"></p>
           <!-- Step 1: the backup is opened with its export password and compared (#25). -->
+          <h3 data-i18n="replaceStep1"></h3>
           <form id="restoreExportForm" class="auth" autocomplete="off">
             <label><span data-i18n="exportFile"></span>
               <input name="file" type="file" accept=".json,application/json" required></label>
@@ -250,16 +251,21 @@
               <input name="password" type="password" required maxlength="1024" autocomplete="off"></label>
             <div class="actions"><button type="submit" data-i18n="replaceCheck"></button></div>
           </form>
-          <!-- Step 2: preview, warning for a populated vault, confirmation, master password. -->
-          <div id="replacePreview" hidden>
+          <!-- Result of step 1 and of the whole replacement: right below the form (F3-3). -->
+          <p id="restoreStatus" class="status" role="status"></p>
+          <!-- Step 2: preview, warning for a populated vault, confirmation, master password.
+               Its messages stay next to its buttons (data-status). -->
+          <div id="replacePreview" data-status="replaceStatus" hidden>
+            <h3 id="replaceStep2" data-i18n="replaceStep2" tabindex="-1"></h3>
             <p id="replaceSummary"></p>
-            <div id="replaceWarning" class="warning" role="alert" hidden>
+            <div id="replaceWarning" class="warning" hidden>
               <p id="replaceWarningText"></p>
               <p id="replaceLoseIntro"></p>
               <ul id="replaceLoseList"></ul>
               <p data-i18n="replaceKeepsCopy"></p>
               <p id="replaceOverwritesCopy" hidden></p>
             </div>
+            <p class="note" data-i18n="replaceWhyAgain"></p>
             <form id="replaceForm" class="auth" autocomplete="off">
               <label class="check" id="replaceConfirmLabel" hidden><input name="confirmed" type="checkbox"><span id="replaceConfirmText"></span></label>
               <label><span data-i18n="exportPasswordAgain"></span>
@@ -269,9 +275,11 @@
               <div class="actions"><button id="replaceButton" type="submit" class="primary"></button>
                 <button id="replaceCancel" type="button" data-i18n="cancel"></button></div>
             </form>
+            <p id="replaceStatus" class="status" role="status"></p>
           </div>
           <!-- The kept copy of the vault before the last replacement. -->
-          <div id="previousBox" hidden>
+          <div id="previousBox" data-status="previousStatus" hidden>
+            <h3 data-i18n="previousTitle"></h3>
             <p id="previousText"></p>
             <form id="previousForm" class="auth" autocomplete="off">
               <label class="check"><input name="confirmed" type="checkbox"><span data-i18n="previousConfirm"></span></label>
@@ -280,8 +288,8 @@
               <div class="actions"><button type="submit" name="action" value="restore" data-i18n="previousRestore"></button>
                 <button type="submit" name="action" value="discard" data-i18n="previousDiscard"></button></div>
             </form>
+            <p id="previousStatus" class="status" role="status"></p>
           </div>
-          <p id="restoreStatus" class="status" role="status"></p>
         </section>
       </div>
     </div>

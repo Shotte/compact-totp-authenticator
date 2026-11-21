@@ -157,7 +157,7 @@
     "message": "Permission not granted; the idle lock stays off."
   },
   "importTitle": {
-    "message": "Import (original extension totp.json or CTA unencrypted export)"
+    "message": "Import: add entries (original extension totp.json or CTA unencrypted export)"
   },
   "importPreviewNote": {
     "message": "Choose a file to see a preview. Nothing is saved until you confirm with your master password. Existing 2FA entries are never changed; duplicates are skipped; entries with the same name are kept."
@@ -479,10 +479,10 @@
     }
   },
   "restoreExportTitle": {
-    "message": "Restore from an encrypted backup"
+    "message": "Restore: replace the vault with an encrypted backup"
   },
   "restoreExportNote": {
-    "message": "Choose an encrypted CTA backup and enter its export password. CTA checks the backup and shows you first what will change. If your vault is empty, the entries are restored. If it already holds entries, the backup replaces them only after your explicit confirmation; the previous vault is kept as an encrypted copy. Your master password stays the same in every case."
+    "message": "Unlike the import, this adds nothing: your current 2FA entries are completely replaced by the backup. CTA first checks the backup and shows what would change; nothing changes until you confirm in step 2. If your vault already holds entries, its previous state is kept as an encrypted copy. Your master password stays the same in every case."
   },
   "exportFile": {
     "message": "Backup file"
@@ -631,11 +631,20 @@
   "replaceCheck": {
     "message": "Check backup"
   },
+  "replaceStep1": {
+    "message": "Step 1: Check the backup – changes nothing yet"
+  },
+  "replaceStep2": {
+    "message": "Step 2: Confirm the replacement"
+  },
+  "replaceWhyAgain": {
+    "message": "Why again? The check only read the backup; your vault is unchanged. The export password was discarded afterwards and is needed again to decrypt the file. Your master password authorizes changing the vault now."
+  },
   "replaceChecking": {
     "message": "Checking the backup …"
   },
   "replaceChecked": {
-    "message": "Backup checked. The export password was discarded: enter it again to confirm, together with your master password."
+    "message": "Backup checked; nothing changed yet. Continue with step 2."
   },
   "replaceSummary": {
     "message": "The backup is valid and holds $COUNT$ 2FA entries.",
@@ -696,7 +705,7 @@
     "message": "Working …"
   },
   "replaceDone": {
-    "message": "Vault replaced: $NEW$ 2FA entries from the backup. Your previous $OLD$ entries are kept as an encrypted copy.",
+    "message": "Vault replaced: it now holds the $NEW$ 2FA entries of the backup. Your previous state with $OLD$ entries is kept encrypted and can be brought back below under \"Previous vault state\".",
     "placeholders": {
       "new": {
         "content": "$1"
@@ -735,6 +744,9 @@
       }
     }
   },
+  "previousTitle": {
+    "message": "Previous vault state"
+  },
   "previousConfirm": {
     "message": "I understand: restoring replaces my current entries (they become the previous vault state); discarding deletes the previous vault state for good."
   },
@@ -770,7 +782,7 @@
     }
   },
   "changePreviousText": {
-    "message": "Warning: the previous vault state from $WHEN$ is encrypted with your current master password. Changing the password deletes it, because the new password could not open it. Restore it first or export your entries if you still need it.",
+    "message": "Only relevant if you change the master password: the previous vault state from $WHEN$ is encrypted with your current master password and would be deleted by the change. If you still need it, restore it first under \"Restore\" or export your entries.",
     "placeholders": {
       "when": {
         "content": "$1"

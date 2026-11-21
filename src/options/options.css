@@ -1,5 +1,5 @@
 body { margin: 0; font: 14px/1.45 system-ui, sans-serif; }
-main { max-width: 760px; margin: 0 auto; padding: 16px; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; container-type: inline-size; }
 header { display: flex; align-items: center; gap: 12px; }
 h1 { flex: 1; font-size: 20px; margin: 8px 0; }
 h2 { font-size: 16px; margin: 24px 0 8px; }
@@ -11,6 +11,9 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .status[data-kind="ok"] { color: var(--ok); }
 .status[data-kind="progress"] { color: var(--muted); }
 .warning { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--err); border-radius: 6px; background: var(--hover); }
+/* A conditional hint (e.g. what a future password change would delete): not an error. */
+.notice { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--hover); }
+h3 { font-size: 14px; margin: 16px 0 6px; }
 .auth { max-width: 560px; }
 .auth input[type="password"] { width: 100%; box-sizing: border-box; }
 
@@ -28,9 +31,12 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--line); }
 td.name, td.site { overflow-wrap: anywhere; white-space: normal; } /* not the popup .name rule from rows.css */
 td.type { font-family: monospace; white-space: nowrap; color: var(--muted); }
-/* The action buttons wrap instead of widening the table (zoom up to 200 %, #21 T-5). */
-td.actions { text-align: right; flex-wrap: wrap; justify-content: flex-end; } /* .actions is a flex row (form buttons); let it wrap here */
-td.actions button { padding: 4px 10px; margin: 2px 0 2px 4px; }
+/* Row actions stay on one line, right-aligned in every row (F3-1: no two-line rows with a
+   website); long names and URLs wrap instead. Only very narrow widths may wrap the buttons. */
+td.actions { display: table-cell; width: 1%; white-space: nowrap; text-align: right; } /* not the flex .actions of forms */
+td.actions button { padding: 4px 8px; margin: 2px 0 2px 4px; }
+td.actions button.move { min-width: 2.2em; padding: 4px 6px; }
+td.site { color: var(--muted); }
 
 #accountForm label, #settingsForm section > label, .colors label, .auth label:not(.check) {
   display: grid; grid-template-columns: 12em 1fr; align-items: center; gap: 8px; margin: 6px 0;
@@ -44,8 +50,11 @@ details { margin: 6px 0; }
 @media (max-width: 520px) {
   #accountForm label, #settingsForm section > label, .colors label, .auth label:not(.check) { grid-template-columns: 1fr; gap: 2px; }
   form small { grid-column: 1; }
-  #accounts th:nth-child(3), #accounts td.type { display: none; }
 }
+/* By the real width of the content (zoom included): the type column gives way first, so the
+   actions keep one line; only a very narrow page lets them wrap (F3-1). */
+@container (max-width: 560px) { #accounts th:nth-child(3), #accounts td.type { display: none; } }
+@container (max-width: 380px) { td.actions { white-space: normal; } }
 
 /* Appearance section (layout proposed by the operator) */
 .caption { margin: 0 0 6px; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }

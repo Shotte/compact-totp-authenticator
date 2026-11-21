@@ -24,6 +24,6 @@
   "options_ui": { "page": "options/options.html", "open_in_tab": true },
   "icons": { "48": "icons/icon.svg", "96": "icons/icon.svg" },
   "commands": {
-    "_execute_action": { "suggested_key": { "default": "Alt+Shift+A" } }
+    "_execute_action": { "suggested_key": { "default": "Ctrl+Shift+2" } }
   }
 }

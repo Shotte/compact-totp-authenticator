@@ -157,7 +157,7 @@
     "message": "Berechtigung nicht erteilt; die Leerlaufsperre bleibt aus."
   },
   "importTitle": {
-    "message": "Import (totp.json der Originalerweiterung oder unverschlüsselter CTA-Export)"
+    "message": "Import: Einträge hinzufügen (totp.json der Originalerweiterung oder unverschlüsselter CTA-Export)"
   },
   "importPreviewNote": {
     "message": "Datei wählen, um eine Vorschau zu sehen. Gespeichert wird erst nach Bestätigung mit deinem Master-Passwort. Vorhandene 2FA-Einträge werden nie geändert; Duplikate werden übersprungen; Einträge mit gleichem Namen bleiben erhalten."
@@ -479,10 +479,10 @@
     }
   },
   "restoreExportTitle": {
-    "message": "Aus verschlüsselter Sicherung wiederherstellen"
+    "message": "Wiederherstellen: Tresor durch eine verschlüsselte Sicherung ersetzen"
   },
   "restoreExportNote": {
-    "message": "Wähle eine verschlüsselte CTA-Sicherung und gib ihr Export-Passwort ein. CTA prüft die Sicherung und zeigt dir vorher, was sich ändert. Ist dein Tresor leer, werden die Einträge wiederhergestellt. Enthält er schon Einträge, ersetzt die Sicherung sie erst nach deiner ausdrücklichen Bestätigung; der bisherige Tresor bleibt als verschlüsselte Kopie erhalten. Dein Master-Passwort bleibt in jedem Fall dasselbe."
+    "message": "Anders als der Import ergänzt das nichts: Deine aktuellen 2FA-Einträge werden vollständig durch die Sicherung ersetzt. CTA prüft die Sicherung zuerst und zeigt, was sich ändern würde; geändert wird erst nach deiner Bestätigung in Schritt 2. Enthält dein Tresor schon Einträge, bleibt der bisherige Stand als verschlüsselte Kopie erhalten. Dein Master-Passwort bleibt in jedem Fall dasselbe."
   },
   "exportFile": {
     "message": "Sicherungsdatei"
@@ -631,11 +631,20 @@
   "replaceCheck": {
     "message": "Sicherung prüfen"
   },
+  "replaceStep1": {
+    "message": "Schritt 1: Sicherung prüfen – ändert noch nichts"
+  },
+  "replaceStep2": {
+    "message": "Schritt 2: Ersetzen bestätigen"
+  },
+  "replaceWhyAgain": {
+    "message": "Warum noch einmal? Die Prüfung hat die Sicherung nur gelesen, dein Tresor ist unverändert. Das Export-Passwort wurde danach verworfen und wird zum Entschlüsseln erneut gebraucht. Mit deinem Master-Passwort erlaubst du, dass der Tresor jetzt geändert wird."
+  },
   "replaceChecking": {
     "message": "Sicherung wird geprüft …"
   },
   "replaceChecked": {
-    "message": "Sicherung geprüft. Das Export-Passwort wurde verworfen: Gib es zum Bestätigen erneut ein, zusammen mit deinem Master-Passwort."
+    "message": "Sicherung geprüft, noch nichts geändert. Weiter mit Schritt 2."
   },
   "replaceSummary": {
     "message": "Die Sicherung ist gültig und enthält $COUNT$ 2FA-Einträge.",
@@ -696,7 +705,7 @@
     "message": "Wird ausgeführt …"
   },
   "replaceDone": {
-    "message": "Tresor ersetzt: $NEW$ 2FA-Einträge aus der Sicherung. Deine bisherigen $OLD$ Einträge sind als verschlüsselte Kopie aufbewahrt.",
+    "message": "Tresor ersetzt: Er enthält jetzt die $NEW$ 2FA-Einträge der Sicherung. Dein bisheriger Stand mit $OLD$ Einträgen ist verschlüsselt aufbewahrt und lässt sich unten unter „Vorheriger Tresorstand“ zurückholen.",
     "placeholders": {
       "new": {
         "content": "$1"
@@ -735,6 +744,9 @@
       }
     }
   },
+  "previousTitle": {
+    "message": "Vorheriger Tresorstand"
+  },
   "previousConfirm": {
     "message": "Ich verstehe: Wiederherstellen ersetzt meine aktuellen Einträge (sie werden dann zum vorherigen Tresorstand); Verwerfen löscht den vorherigen Tresorstand endgültig."
   },
@@ -770,7 +782,7 @@
     }
   },
   "changePreviousText": {
-    "message": "Achtung: Der vorherige Tresorstand vom $WHEN$ ist mit deinem jetzigen Master-Passwort verschlüsselt. Beim Ändern des Passworts wird er gelöscht, weil das neue Passwort ihn nicht öffnen könnte. Stelle ihn vorher wieder her oder exportiere deine Einträge, wenn du ihn noch brauchst.",
+    "message": "Nur wichtig, wenn du das Master-Passwort änderst: Der vorherige Tresorstand vom $WHEN$ ist mit deinem jetzigen Master-Passwort verschlüsselt und würde beim Ändern gelöscht. Brauchst du ihn noch, stelle ihn vorher unter „Wiederherstellen“ wieder her oder exportiere deine Einträge.",
     "placeholders": {
       "when": {
         "content": "$1"

@@ -1,0 +1,607 @@
+{
+  "startedAt": "2026-11-21T20:18:52.769Z",
+  "platform": "win32",
+  "nativeKeys": true,
+  "browser": "160.0.1",
+  "locale": "de",
+  "menuAccessKeys": [
+    {
+      "label": "Datei",
+      "accesskey": "D"
+    },
+    {
+      "label": "Bearbeiten",
+      "accesskey": "B"
+    },
+    {
+      "label": "Ansicht",
+      "accesskey": "A"
+    },
+    {
+      "label": "Chronik",
+      "accesskey": "C"
+    },
+    {
+      "label": "Lesezeichen",
+      "accesskey": "L"
+    },
+    {
+      "label": "Profile",
+      "accesskey": "P"
+    },
+    {
+      "label": "Extras",
+      "accesskey": "x"
+    },
+    {
+      "label": "Hilfe",
+      "accesskey": "H"
+    }
+  ],
+  "results": [
+    {
+      "shortcut": "Alt+Shift+A",
+      "assigned": "Alt+Shift+A",
+      "firefoxKeys": [],
+      "menuAccessKeys": [
+        "Ansicht"
+      ],
+      "altGr": false,
+      "free": false,
+      "pressed": {
+        "de": {
+          "popup": false,
+          "menus": [
+            "Ansicht"
+          ],
+          "panels": [],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": false,
+          "menus": [
+            "Ansicht"
+          ],
+          "panels": [],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "conflict"
+    },
+    {
+      "shortcut": "Ctrl+Shift+F",
+      "assigned": "Ctrl+Shift+F",
+      "firefoxKeys": [
+        "key_openAddons"
+      ],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": false,
+      "pressed": {
+        "de": {
+          "popup": false,
+          "menus": [],
+          "panels": [],
+          "newTabs": 1,
+          "newWindows": 0,
+          "selectedTab": "about:addons"
+        },
+        "us": {
+          "popup": false,
+          "menus": [],
+          "panels": [],
+          "newTabs": 1,
+          "newWindows": 0,
+          "selectedTab": "about:addons"
+        }
+      },
+      "verdict": "conflict"
+    },
+    {
+      "shortcut": "Ctrl+Alt+A",
+      "assigned": "Ctrl+Alt+A",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": true,
+      "free": false,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "conflict"
+    },
+    {
+      "shortcut": "Alt+Shift+Z",
+      "assigned": "Alt+Shift+Z",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Alt+Shift+1",
+      "assigned": "Alt+Shift+1",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Alt+Shift+2",
+      "assigned": "Alt+Shift+2",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+A",
+      "assigned": "Ctrl+Shift+A",
+      "firefoxKeys": [
+        "key_searchTabs"
+      ],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": false,
+      "pressed": {
+        "de": {
+          "popup": false,
+          "menus": [],
+          "panels": [],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": false,
+          "menus": [],
+          "panels": [],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "conflict"
+    },
+    {
+      "shortcut": "Ctrl+Shift+L",
+      "assigned": "Ctrl+Shift+L",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+U",
+      "assigned": "Ctrl+Shift+U",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+Y",
+      "assigned": "Ctrl+Shift+Y",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+1",
+      "assigned": "Ctrl+Shift+1",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+2",
+      "assigned": "Ctrl+Shift+2",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+8",
+      "assigned": "Ctrl+Shift+8",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+9",
+      "assigned": "Ctrl+Shift+9",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+Comma",
+      "assigned": "Ctrl+Shift+Comma",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Shift+Period",
+      "assigned": "Ctrl+Shift+Period",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Period",
+      "assigned": "Ctrl+Period",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    },
+    {
+      "shortcut": "Ctrl+Comma",
+      "assigned": "Ctrl+Comma",
+      "firefoxKeys": [],
+      "menuAccessKeys": [],
+      "altGr": false,
+      "free": true,
+      "pressed": {
+        "de": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        },
+        "us": {
+          "popup": true,
+          "menus": [],
+          "panels": [
+            "customizationui-widget-panel"
+          ],
+          "newTabs": 0,
+          "newWindows": 0,
+          "selectedTab": "moz-extension://6f1c2a7e-0b5d-4c3e-9a8f-"
+        }
+      },
+      "verdict": "works"
+    }
+  ],
+  "shortcutManagerMessages": [
+    "shortcuts-invalid = Ungültige Kombination",
+    "shortcuts-system = { -brand-short-name }-Tastenkombinationen können nicht überschrieben werden.",
+    "shortcuts-duplicate = Doppelt verwendete Tastenkombination",
+    "shortcuts-duplicate-warning-message2 =",
+    "shortcuts-exists = Bereits durch { $addon } belegt"
+  ],
+  "finishedAt": "2026-11-21T20:19:39.427Z"
+}

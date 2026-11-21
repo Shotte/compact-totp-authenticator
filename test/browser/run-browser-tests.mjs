@@ -9,6 +9,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchFirefox, sleep } from "./bidi.mjs";
 import { startOsInput } from "./os-input.mjs";
+import { readBindings, conflicts, pressNative, LAYOUTS, opensPopupOnly } from "./shortcuts.mjs";
 import { syntheticAccounts, syntheticSecret, exportRoundTripAccounts } from "../helpers/fixtures.mjs";
 import { parseExport, openExport, sealExport, accountsFromPortable } from "../../src/lib/export.js";
 import { deriveKey, newKdf } from "../../src/lib/kdf.js";
@@ -26,6 +27,7 @@ const HEADLESS = process.env.MOZ_HEADLESS === "1";
 // --os-input: real Windows mouse input for the toolbar popup (moves the cursor briefly).
 const OS_INPUT = process.argv.includes("--os-input") && process.platform === "win32";
 const EXT_ID = "{f587432b-b553-483e-b08d-4feac6378113}";
+const SHORTCUT = JSON.parse(readFileSync(join(root, "src/manifest.json"), "utf8")).commands._execute_action.suggested_key.default;
 const UUID = "6f1c2a7e-0b5d-4c3e-9a8f-1d2e3f4a5b6c"; // fixed test-profile UUID
 const BASE = `moz-extension://${UUID}/`;
 const IDLE_MS = 3000;
@@ -1581,7 +1583,7 @@ try {
       const want = { wrongMaster: await text("restoreWrongMaster"),
         wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
       record("F2-2", "restore errors: wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
-        wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+        wrongMaster.area === "replaceStatus" && wrongMaster.text === want.wrongMaster && // step 2: next to its buttons (F3-3)
         wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
         lockedView === "locked" && sortNote, { wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
     }
@@ -1596,6 +1598,14 @@ try {
       await open(opt, "options/options.html");
       await waitFor(opt, "document.body.dataset.state === 'unlocked'");
       const check = await checkBackup(uniName, EXP);
+      // the page scrolls step 2 into view (instantly); allow a moment for layout
+      await waitFor(opt, `(() => { const r = document.getElementById("replaceStep2").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 3000);
+      // F3-3: step 2 is brought into view with the focus on its heading; exactly one status
+      // message (no role=alert next to it); the reason for the second entry is explained.
+      const step2 = await evalJson(opt, `async () => { const h = document.getElementById("replaceStep2"), r = h.getBoundingClientRect();
+        return { focus: document.activeElement?.id ?? null, inView: r.top >= 0 && r.bottom <= innerHeight, top: Math.round(r.top), viewport: innerHeight, scrollY: Math.round(scrollY),
+          filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id),
+          alerts: document.querySelectorAll("[role=alert]").length, why: !!document.querySelector("#replacePreview [data-i18n=replaceWhyAgain]")?.textContent }; }`);
       const preview = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
         warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
         lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
@@ -1612,6 +1622,11 @@ try {
       }
       const noConfirm = await msg(opt, "replaceApply", { revision: (await msg(opt, "listAccounts")).result.revision, fileHash: "0".repeat(64), text: exportText, password: EXP, masterPassword: PW2 });
       const replaced = await restoreVia(uniName, EXP);
+      await waitFor(opt, `(() => { const r = document.getElementById("restoreStatus").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 3000);
+      const done = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus"), r = s.getBoundingClientRect(), c = document.getElementById("changePrevious");
+        return { focus: document.activeElement?.id ?? null, inView: r.top >= 0 && r.bottom <= innerHeight, text: s.textContent,
+          filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id),
+          previewHidden: document.getElementById("replacePreview").hidden, passwordHint: { shown: !c.hidden, className: c.className } }; }`);
       const afterNames = (await pagePlain(PW2)).map((a) => a.name);
       const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
       const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
@@ -1627,6 +1642,11 @@ try {
         preview.confirmShown && preview.blockedWithoutConfirm && preview.exportPasswordEmpty && changeWarn && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
         same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
         { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
+      record("F3-3", "replacement flow: after the check step 2 is scrolled into view with the focus on its heading; one status at a time, no role=alert; the second entry is explained; success shown below step 1 with both counts, step 2 closed, focus on the section heading; the password-change hint is a neutral notice; restoring the previous state reports next to its buttons",
+        step2.focus === "replaceStep2" && step2.inView && same(step2.filled, ["restoreStatus"]) && step2.alerts === 0 && step2.why &&
+        done.focus === "restoreTitle" && done.inView && same(done.filled, ["restoreStatus"]) && done.previewHidden &&
+        done.text.includes(String(expected.length)) && done.text.includes("2") && done.passwordHint.shown && done.passwordHint.className === "notice" &&
+        back.area === "previousStatus", { step2, done, back });
 
       // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a
       // replacement. The background page and the options page share the extension process and
@@ -2054,6 +2074,44 @@ try {
     }
     record("T-5", "options tabs at 1024, 1280 and 1920 px width and 100/150/200 % zoom: no horizontal overflow, tab bar visible; screenshots of all three tabs",
       sizes.every((x) => x.overflow <= 0 && x.tabsVisible), { checked: sizes.length, worst: sizes.reduce((a, b) => (b.overflow > a.overflow ? b : a)) });
+
+    // F3-1 (acceptance 0.9.3): with websites, long URLs and long names the four row actions
+    // stay on one line and right-aligned in every row (1024-1920 px at 100-200 % zoom and a
+    // 480 px window); below 400 px they may wrap; never a horizontal scroll bar. The compact
+    // move buttons keep their accessible names.
+    await resetVault(0);
+    let rev = (await msg(opt, "listAccounts")).result.revision;
+    for (const [i, a] of [["Kurz", "example.com"],
+      ["Ein sehr langer Kontoname zur Prüfung der Zeilenumbrüche in der Liste", "https://anmeldung.sehr-lange-subdomain.beispiel-unternehmen-mit-langem-namen.example/pfad/zur/anmeldung?weiter=ja"],
+      ["Ohne Website", ""], ["Mittel", "accounts.example.org"]].entries()) {
+      const r = await msg(opt, "addAccount", { revision: rev, account: { name: a[0], url: a[1], secret: syntheticSecret(930 + i) } });
+      if (!r.ok) throw new Error("F3-1 seed: " + JSON.stringify(r));
+      rev = r.result.revision;
+    }
+    const layout = [];
+    const measure = (ctx, zoom) => evalJson(ctx, `async () => { document.documentElement.style.zoom = "${zoom}";
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const rows = [...document.querySelectorAll("#accounts td.actions")].map((td) => { const b = [...td.querySelectorAll("button")].map((x) => x.getBoundingClientRect());
+        return { buttons: b.length, oneLine: b.every((r) => Math.abs(r.top - b[0].top) < 2), right: Math.round(b.at(-1).right) }; });
+      return { overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, rows: rows.length,
+        oneLine: rows.every((r) => r.oneLine && r.buttons === 4), aligned: new Set(rows.map((r) => r.right)).size === 1,
+        names: [...document.querySelectorAll("#accounts tr:first-child td.actions button")].map((b) => b.getAttribute("aria-label")) }; }`);
+    for (const [w, h, zooms, wrapAllowed] of [[1024, 768, [1, 1.5, 2], false], [1280, 800, [1, 1.5, 2], false], [1920, 1080, [1, 2], false], [480, 800, [1], false], [360, 740, [1], true]]) {
+      const ctx = await sized(w, h, "entries");
+      for (const zoom of zooms) layout.push({ w, zoom, wrapAllowed, ...(await measure(ctx, zoom)) });
+      if (w === 1280) {
+        await evalJson(ctx, `async () => { document.documentElement.style.zoom = "1"; }`);
+        const box = await evalJson(ctx, `async () => { const m = document.getElementById("accounts").getBoundingClientRect(); return { x: m.x + scrollX, y: m.y + scrollY, w: m.width, h: m.height }; }`);
+        const shot = await call("browsingContext.captureScreenshot", { context: ctx, origin: "document", clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+        writeFileSync(join(OUT, "f31-accounts-de.png"), Buffer.from(shot.data, "base64"));
+      }
+      await call("browsingContext.close", { context: ctx });
+    }
+    const names = layout[0].names;
+    const [up, down] = await evalJson(opt, `async () => ["moveUp", "moveDown"].map((k) => browser.i18n.getMessage(k))`); // UI language of the run (de locally, en in CI)
+    record("F3-1", "account rows with websites, long URLs and long names: the four actions stay on one line and right-aligned in every row at 1024/1280/1920 px and 100-200 % zoom and at 480 px; no horizontal overflow (360 px may wrap); move buttons are named per entry",
+      layout.every((l) => l.overflow <= 0 && l.rows === 4 && (l.wrapAllowed || (l.oneLine && l.aligned))) &&
+      names[0] === `${up}: Kurz` && names[1] === `${down}: Kurz`, { layout, names });
   }
 
   // C6.3/C6.5: release checks that can run without a person (issues #2–#6 stay open; these
@@ -2062,24 +2120,28 @@ try {
     const WIDGET = `${EXT_ID.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}-browser-action`;
     if (!CHROME_OK) {
       notTested("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6)", NO_CHROME);
-      notTested("C6-2", "Alt+Shift+A registered for the popup and not used by a built-in Firefox shortcut (issue #6)", NO_CHROME);
+      notTested("C6-2", `default shortcut ${SHORTCUT} registered for the popup and free in Firefox (issue #6, F3-2)`, NO_CHROME);
     } else {
       // CustomizableUI is a global of every browser window (its module path differs between versions).
       const placement = await evalJson(chromeTop, `async () => ${SVC}.wm.getMostRecentWindow("navigator:browser")
         .CustomizableUI.getPlacementOfWidget(${JSON.stringify(WIDGET)})`).catch((e) => ({ error: String(e) }));
       record("C6-1", "toolbar button placed in the navigation toolbar by default (issue #6, supporting evidence)",
         placement?.area === "nav-bar", { widget: WIDGET, placement });
-      const keys = await evalJson(chromeTop, `async () => {
-        const w = ${SVC}.wm.getMostRecentWindow("navigator:browser");
-        return [...w.document.querySelectorAll("key")].filter((k) => (k.getAttribute("key") || "").toUpperCase() === "A")
-          .map((k) => ({ id: k.id, keyset: k.parentElement?.id ?? "", modifiers: (k.getAttribute("modifiers") || "").split(/[ ,]+/).filter(Boolean).sort().join(","), disabled: k.hasAttribute("disabled") })); }`);
+      // F3-2: 0.9.3's Alt+Shift+A opened the "Ansicht" menu in German Firefox (menu access key),
+      // which the old check of <key> elements alone did not see. Now: no Firefox key, no menu
+      // access key of this UI language, no AltGr; on a visible Windows desktop the key is also
+      // pressed natively (German and US layout) and must open the popup and nothing else.
+      const bindings = await readBindings(evalJson, chromeTop);
       const cmds = await evalJson(opt, "async () => browser.commands.getAll()");
       const ours = cmds.find((c) => c.name === "_execute_action");
-      const altShift = keys.filter((k) => k.modifiers === "alt,shift");
-      // Keys of extensions live in their own keyset (ext-keyset-id-…); everything else is Firefox's.
-      const builtIn = altShift.filter((k) => !k.keyset.startsWith("ext-keyset-id-") && !k.id.startsWith("ext-key-id-"));
-      record("C6-2", "Alt+Shift+A registered for the popup; no built-in Firefox shortcut in the browser window uses it (issue #6, supporting evidence; other add-ons and OS shortcuts need the manual check)",
-        ours?.shortcut === "Alt+Shift+A" && altShift.length >= 1 && builtIn.length === 0, { command: ours, altShiftAKeys: altShift, builtInConflicts: builtIn });
+      const clash = conflicts(bindings, SHORTCUT);
+      const pressed = {};
+      if (process.platform === "win32" && !HEADLESS) {
+        for (const [name, id] of Object.entries(LAYOUTS)) pressed[name] = await pressNative(evalJson, chromeTop, SHORTCUT, id).catch((e) => ({ error: e.message }));
+      }
+      const pressedOk = Object.values(pressed).every(opensPopupOnly);
+      record("C6-2", `default shortcut ${SHORTCUT} registered for the popup; no Firefox shortcut, menu access key (UI language ${bindings.locale}) or AltGr uses it${Object.keys(pressed).length ? "; pressed natively with German and US layout it opens the popup and nothing else" : ""} (issue #6, F3-2; other add-ons and OS shortcuts need the manual check)`,
+        ours?.shortcut === SHORTCUT && clash.free && pressedOk, { command: ours, ...clash, menus: bindings.menus, pressed });
     }
     // Final sweep after every flow of this run (setup, imports, exports, restores, password
     // changes, crashes): no synthetic secret or test password in persistent or session storage.
