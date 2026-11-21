@@ -1,0 +1,299 @@
+{
+  "startedAt": "2026-11-21T23:22:08.939Z",
+  "kind": "signed update via the AddonManager update path (signature checks on)",
+  "browser": {
+    "version": "160.0.1",
+    "platform": "windows"
+  },
+  "tlsPreflight": {
+    "ok": true,
+    "status": 200
+  },
+  "packages": [
+    {
+      "version": "0.9.3",
+      "error": 0
+    },
+    {
+      "version": "0.9.4",
+      "error": 0
+    }
+  ],
+  "mode": "signed",
+  "versions": {
+    "old": "0.9.3",
+    "new": "0.9.4"
+  },
+  "results": [
+    {
+      "id": "U-1",
+      "name": "0.9.3 installed permanently (not a temporary add-on), signed, active",
+      "verdict": "PASS",
+      "details": {
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.9.3",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 2,
+          "scope": 1,
+          "uuid": "14593482-3321-46ee-8c49-13407ec966a1"
+        }
+      }
+    },
+    {
+      "id": "U-2",
+      "name": "update found through update_url and installed by AddonManager (updates.json fetched, XPI downloaded, hash checked)",
+      "verdict": "PASS",
+      "details": {
+        "update": {
+          "found": true,
+          "version": "0.9.4",
+          "state": 10,
+          "error": 0
+        },
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.9.4",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 2,
+          "scope": 1,
+          "uuid": "14593482-3321-46ee-8c49-13407ec966a1"
+        },
+        "updateRequests": 1,
+        "xpiRequests": 1
+      }
+    },
+    {
+      "id": "U-3",
+      "name": "extension ID and moz-extension UUID unchanged; still a permanent install",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.9.3",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 2,
+          "scope": 1,
+          "uuid": "14593482-3321-46ee-8c49-13407ec966a1"
+        },
+        "after": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.9.4",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 2,
+          "scope": 1,
+          "uuid": "14593482-3321-46ee-8c49-13407ec966a1"
+        }
+      }
+    },
+    {
+      "id": "U-4",
+      "name": "storage.local unchanged by the update: encrypted vault, backup and settings byte-identical, nothing reinitialized",
+      "verdict": "PASS",
+      "details": {
+        "keysBefore": [
+          "settings",
+          "vault",
+          "vault_backup"
+        ],
+        "keysAfter": [
+          "settings",
+          "vault",
+          "vault_backup"
+        ],
+        "vaultRevision": 20
+      }
+    },
+    {
+      "id": "U-5",
+      "name": "after the update: initialized, a wrong password is refused, the master password unlocks; accounts, order and revision unchanged",
+      "verdict": "PASS",
+      "details": {
+        "status": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795303333400
+        },
+        "wrongPassword": "invalid",
+        "unlock": true,
+        "accounts": 18
+      }
+    },
+    {
+      "id": "U-6",
+      "name": "TOTP codes after the update equal RFC 6238 codes computed outside Firefox; all secrets and parameters intact",
+      "verdict": "PASS",
+      "details": {
+        "ok": true,
+        "count": 18,
+        "mismatches": []
+      }
+    },
+    {
+      "id": "U-7",
+      "name": "browser restart after the update: the new version still installed and active, session locked with no key in storage.session, master password unlocks, data and settings intact",
+      "verdict": "PASS",
+      "details": {
+        "addon": {
+          "id": "{f587432b-b553-483e-b08d-4feac6378113}",
+          "version": "0.9.4",
+          "isActive": true,
+          "temporary": false,
+          "signedState": 2,
+          "scope": 1,
+          "uuid": "14593482-3321-46ee-8c49-13407ec966a1"
+        },
+        "status": {
+          "initialized": true,
+          "unlocked": false,
+          "startedAt": 1795303337625
+        },
+        "sessionKeys": [],
+        "unlock": true
+      }
+    },
+    {
+      "id": "U-S1",
+      "name": "API level: the unchanged default Alt+Shift+A of 0.9.3 becomes the new default Ctrl+Shift+2 after the update and stays after the restart",
+      "verdict": "PASS",
+      "details": {
+        "before": {
+          "default": "Alt+Shift+A",
+          "active": "Alt+Shift+A"
+        },
+        "afterUpdate": {
+          "default": "Ctrl+Shift+2",
+          "active": "Ctrl+Shift+2"
+        },
+        "afterRestart": {
+          "default": "Ctrl+Shift+2",
+          "active": "Ctrl+Shift+2"
+        }
+      }
+    },
+    {
+      "id": "U-S2",
+      "name": "real key event (German and US layout): Ctrl+Shift+2 opens the toolbar popup and nothing else",
+      "verdict": "PASS",
+      "details": {
+        "shortcut": "Ctrl+Shift+2",
+        "pressed": {
+          "de": {
+            "popup": true,
+            "menus": [],
+            "panels": [
+              "customizationui-widget-panel"
+            ],
+            "newTabs": 0,
+            "newWindows": 0,
+            "selectedTab": "moz-extension://14593482-3321-46ee-8c49-"
+          },
+          "us": {
+            "popup": true,
+            "menus": [],
+            "panels": [
+              "customizationui-widget-panel"
+            ],
+            "newTabs": 0,
+            "newWindows": 0,
+            "selectedTab": "moz-extension://14593482-3321-46ee-8c49-"
+          }
+        }
+      }
+    },
+    {
+      "id": "U-S3",
+      "name": "real key event: Alt+Shift+A no longer opens the popup",
+      "verdict": "PASS",
+      "details": {
+        "pressed": {
+          "Alt+Shift+A": {
+            "de": {
+              "popup": false,
+              "menus": [
+                "Ansicht"
+              ],
+              "panels": [],
+              "newTabs": 0,
+              "newWindows": 0,
+              "selectedTab": "moz-extension://14593482-3321-46ee-8c49-"
+            },
+            "us": {
+              "popup": false,
+              "menus": [
+                "Ansicht"
+              ],
+              "panels": [],
+              "newTabs": 0,
+              "newWindows": 0,
+              "selectedTab": "moz-extension://14593482-3321-46ee-8c49-"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "U-8",
+      "name": "replace from an encrypted backup on the updated permanent install: preview names the local-only entry, replacement restores the export state, previous vault kept and restorable, password change refused while it exists, discard works, the export password never opens the vault",
+      "verdict": "PASS",
+      "details": {
+        "preview": {
+          "backupCount": 18,
+          "currentCount": 19,
+          "onlyCurrent": {
+            "count": 1,
+            "names": [
+              "Neu nach Export"
+            ]
+          }
+        },
+        "replaced": {
+          "revision": 22,
+          "locked": false,
+          "replaced": 18,
+          "previous": 19,
+          "keptPrevious": true
+        },
+        "previousAfterReplace": {
+          "exists": true,
+          "replacedAt": 1795303344340,
+          "count": 19
+        },
+        "passwordChange": "previous-exists",
+        "exportPasswordOpens": false,
+        "masterOpens": true,
+        "afterRestore": 19,
+        "previousAfterRestore": {
+          "exists": true,
+          "replacedAt": 1795303344525,
+          "count": 18
+        },
+        "discarded": true,
+        "previousAfterDiscard": {
+          "exists": false
+        }
+      }
+    },
+    {
+      "id": "U-signed",
+      "name": "signed extension update 0.9.3 → 0.9.4 with signature checks on: U-1…U-7 all PASS",
+      "verdict": "PASS",
+      "details": {
+        "checks": [
+          "U-1:PASS",
+          "U-2:PASS",
+          "U-3:PASS",
+          "U-4:PASS",
+          "U-5:PASS",
+          "U-6:PASS",
+          "U-7:PASS"
+        ]
+      }
+    }
+  ],
+  "customShortcut": null
+}
