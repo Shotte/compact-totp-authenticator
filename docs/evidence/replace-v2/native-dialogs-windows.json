@@ -1,0 +1,148 @@
+{
+  "at": "2026-11-22T01:21:47.774Z",
+  "firefox": "160.0.1",
+  "platform": "windows",
+  "note": "Paths reduced to file names; synthetic data only.",
+  "results": [
+    {
+      "id": "N1",
+      "name": "native Save dialog appears, saving completes, the saved file decrypts to identical accounts",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Bitte geben Sie den Dateinamen an, unter dem die Datei gespeichert werden soll…",
+          "ok": "&Speichern",
+          "cancel": "Abbrechen",
+          "closed": true
+        },
+        "savedFile": "CTA Sicherung – Ünïcödé ✓.json",
+        "firefoxDownload": {
+          "file": "CTA Sicherung – Ünïcödé ✓.json",
+          "succeeded": true,
+          "canceled": false,
+          "error": null
+        },
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok",
+          "area": "exportStatus"
+        }
+      }
+    },
+    {
+      "id": "N2",
+      "name": "native Save dialog cancelled: no file written, no completed download",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Bitte geben Sie den Dateinamen an, unter dem die Datei gespeichert werden soll…",
+          "cancel": "Abbrechen",
+          "closed": true
+        },
+        "filesBefore": 1,
+        "filesAfter": 1,
+        "newFirefoxDownloads": [],
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok",
+          "area": "exportStatus"
+        }
+      }
+    },
+    {
+      "id": "N3",
+      "name": "download failure (target folder not writable): Firefox reports the failure, no file, nothing written elsewhere",
+      "verdict": "PASS",
+      "details": {
+        "aclDenyApplied": true,
+        "firefoxDownloads": [
+          {
+            "file": "cta-export-2026-11-22.json",
+            "succeeded": false,
+            "canceled": false,
+            "error": "target failed"
+          }
+        ],
+        "filesInTarget": 0,
+        "strayFilesInUserDownloads": 0,
+        "pageMessage": {
+          "text": "Verschlüsselter Export erstellt (18 2FA-Einträge) und an Firefox zum Speichern übergeben. Prüfe in den Firefox-Downloads, ob die Datei gespeichert wurde; wenn du den Speichern-Dialog abgebrochen hast, wurde keine Datei gespeichert.",
+          "kind": "ok",
+          "area": "exportStatus"
+        }
+      }
+    },
+    {
+      "id": "N4",
+      "name": "native Open dialog (Unicode name) with the complete replacement (#25 V2): one check with both passwords, preview with local-only entries, one confirmation dialog (focus on Cancel); entries equal the backup; previous vault state (2 entries) kept",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Datei hochladen",
+          "ok": "Ö&ffnen",
+          "closed": true
+        },
+        "pickedFile": "CTA Sicherung – Ünïcödé ✓.json",
+        "preview": {
+          "shown": true,
+          "summary": "Aktuell 2 Einträge · Sicherung 18 Einträge · in beiden 0.",
+          "lose": [
+            "Lokal N4 Eins",
+            "Lokal N4 Zwei"
+          ],
+          "passwordsEmpty": true,
+          "dialog": {
+            "open": true,
+            "focus": "replaceDialogCancel"
+          }
+        },
+        "pageMessage": {
+          "text": "Tresor ersetzt: Er enthält jetzt die 18 2FA-Einträge der Sicherung. Dein bisheriger Stand mit 2 Einträgen ist verschlüsselt aufbewahrt und lässt sich unten unter „Vorheriger Tresorstand“ zurückholen.",
+          "kind": "ok",
+          "area": "restoreStatus"
+        },
+        "restoredAccounts": 18,
+        "previousVault": {
+          "exists": true,
+          "replacedAt": 1795310498393,
+          "count": 2
+        },
+        "previousBox": "Vorheriger Tresorstand vom 22.11.2026, 02:21:38 mit 2 2FA-Einträgen – verschlüsselt aufbewahrt, entsperrbar mit deinem Master-Passwort."
+      }
+    },
+    {
+      "id": "N5",
+      "name": "native Open dialog for the legacy import (issue #5): synthetic totp.json picked, preview shown with a generated name, import with the master password appends the 6 importable entries",
+      "verdict": "PASS",
+      "details": {
+        "dialog": {
+          "title": "Datei hochladen",
+          "ok": "Ö&ffnen",
+          "closed": true
+        },
+        "previewShown": true,
+        "rowStatuses": [
+          "new",
+          "new",
+          "new",
+          "duplicate",
+          "name-conflict",
+          "new",
+          "invalid",
+          "invalid",
+          "invalid",
+          "invalid",
+          "needs-name"
+        ],
+        "generatedName": "Ohne Namen 1",
+        "pageMessage": {
+          "text": "6 2FA-Einträge importiert, 5 übersprungen (Gründe in der Liste darunter). Lösche die unverschlüsselte Datei jetzt: Sie enthält deine geheimen Schlüssel im Klartext.",
+          "kind": "ok",
+          "area": "importStatus"
+        },
+        "accountsBefore": 18,
+        "accountsAfter": 24
+      }
+    }
+  ]
+}
