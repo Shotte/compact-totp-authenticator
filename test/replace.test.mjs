@@ -368,3 +368,65 @@ test("no password, token, secret or entry name in plain text in storage.session,
   for (const a of [...BACKUP, ...CURRENT]) assert.ok(!plain.includes(a.secret), a.name);
   assert.ok(!plain.includes(PW) && !plain.includes(EXP));
 });
+
+// #25 V2 §7: the previous-vault actions keep their service rules (fresh master password and
+// confirmed: true in the same request); the options page asks for the password once and
+// confirms in a dialog.
+test("previous vault: an expired session refuses restore and discard; nothing written", async () => {
+  const env = await checked();
+  ok(await apply(env));
+  const before = snap(env.local);
+  env.clk.advance(16 * 60_000);
+  assert.match(err(await env.call("restorePrevious", { masterPassword: PW, confirmed: true })), /^locked/);
+  ok(await env.call("unlock", { password: PW }));
+  env.clk.advance(16 * 60_000);
+  assert.match(err(await env.call("discardPrevious", { masterPassword: PW, confirmed: true })), /^locked/);
+  assert.equal(snap(env.local), before);
+});
+
+test("previous vault: wrong master password refuses discard; the copy stays", async () => {
+  const env = await checked();
+  ok(await apply(env));
+  assert.equal(err(await env.call("discardPrevious", { masterPassword: "wrong master password!!", confirmed: true })), "invalid:current-password");
+  assert.equal(ok(await env.call("previousStatus")).exists, true);
+});
+
+test("previous vault: a change in another tab during the restore is never overwritten", async () => {
+  const env = await checked();
+  ok(await apply(env));
+  const other = env.make();
+  const get = env.local.get.bind(env.local);
+  let armed = true;
+  env.local.get = async (k) => {
+    if (armed && [k].flat().includes("vault_previous")) { // between the authorization and the swap
+      armed = false;
+      const rev = ok(await other.handle({ cmd: "listAccounts" })).revision;
+      ok(await other.handle({ cmd: "addAccount", revision: rev, account: acct("Other tab", 60) }));
+    }
+    return get(k);
+  };
+  assert.equal(err(await env.call("restorePrevious", { masterPassword: PW, confirmed: true })), "conflict");
+  env.local.get = get;
+  assert.deepEqual(await names(env), [...NEWN, "Other tab"]);
+  assert.equal(ok(await env.call("previousStatus")).count, 3, "the kept copy is untouched");
+});
+
+test("previous vault: restore terminated at every write boundary: one of the two states, never mixed; nothing lost", async () => {
+  for (let crashAt = 1; crashAt <= 6; crashAt++) {
+    const env = await checked();
+    ok(await apply(env));
+    const set = env.local.set.bind(env.local), remove = env.local.remove.bind(env.local);
+    let writes = 0, dead = false;
+    const die = () => { dead = true; throw new Error("terminated"); };
+    env.local.set = async (o) => { if (dead || ++writes >= crashAt) die(); return set(o); };
+    env.local.remove = async (k) => { if (dead) die(); return remove(k); };
+    await env.call("restorePrevious", { masterPassword: PW, confirmed: true }).catch(() => {});
+    env.local.set = set; env.local.remove = remove;
+    env.session = fakeArea(); env.svc = env.make();
+    const r = ok(await env.call("unlock", { password: PW }));
+    if (r.recoverable) ok(await env.call("restore", { password: PW, confirmed: true }));
+    const now = await names(env), kept = ok(await env.call("previousStatus"));
+    assert.ok([OLDN, NEWN].some((x) => JSON.stringify(x) === JSON.stringify(now)), `crash at write ${crashAt}: ${now}`);
+    assert.equal(kept.exists && kept.count, 3, `crash at write ${crashAt}: the other state is still kept`);
+  }
+});

@@ -702,14 +702,11 @@
   "previousTitle": {
     "message": "Vorheriger Tresorstand"
   },
-  "previousConfirm": {
-    "message": "Ich verstehe: Wiederherstellen ersetzt meine aktuellen Einträge (sie werden dann zum vorherigen Tresorstand); Verwerfen löscht den vorherigen Tresorstand endgültig."
-  },
   "previousRestore": {
     "message": "Vorherigen Tresor wiederherstellen"
   },
   "previousDiscard": {
-    "message": "Vorherigen Tresor verwerfen"
+    "message": "Vorherigen Tresorstand löschen"
   },
   "previousRestored": {
     "message": "Vorheriger Tresor wiederhergestellt: $COUNT$ 2FA-Einträge. Der ersetzte Stand ist jetzt der vorherige Tresorstand.",
@@ -823,5 +820,42 @@
   },
   "replaceTooLarge": {
     "message": "Die Sicherung ist zu groß für eine Wiederherstellung. Es wurde nichts geändert."
+  },
+  "previousRestoreTitle": {
+    "message": "Vorherigen Tresorstand zurückholen?"
+  },
+  "previousRestoreText": {
+    "message": "Dein aktueller Stand ($CURRENT$ Einträge) und der vorherige Tresorstand vom $WHEN$ ($COUNT$ Einträge) werden getauscht. Es geht nichts verloren: Dein aktueller Stand wird danach als vorheriger Tresorstand aufbewahrt.",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "when": {
+        "content": "$2"
+      },
+      "count": {
+        "content": "$3"
+      }
+    }
+  },
+  "previousRestoreConfirm": {
+    "message": "Tauschen"
+  },
+  "previousDiscardTitle": {
+    "message": "Vorherigen Tresorstand endgültig löschen?"
+  },
+  "previousDiscardText": {
+    "message": "Die verschlüsselte Kopie vom $WHEN$ mit $COUNT$ Einträgen wird gelöscht. Das lässt sich nicht rückgängig machen. Deine aktuellen Einträge bleiben unverändert.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "previousDiscardConfirm": {
+    "message": "Endgültig löschen"
   }
 }
