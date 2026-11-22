@@ -681,7 +681,8 @@ async function runPrevious(action) {
     if (r.locked) { await showLocked(); say(`${t("previousRestored", [String(r.replaced)])} ${t("errLocked")}`); return; }
     await refresh(false);
     say(t("previousRestored", [String(r.replaced)]), "ok", "previousStatus");
-    $("previousStatus").scrollIntoView({ block: "center" });
+    fields.forEach((x) => { x.disabled = false; });
+    reveal($("previousRestoreButton"), $("previousStatus")); // back to the opening button; the message in view
   } catch (e) {
     if (e.code === "locked") { await showLocked(); say(t("lockedDuringAction"), "error"); return; }
     fields.forEach((x) => { x.disabled = false; });

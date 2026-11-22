@@ -14,7 +14,9 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 /* A conditional hint (e.g. what a future password change would delete): not an error. */
 .notice { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--hover); }
 h3 { font-size: 14px; margin: 16px 0 6px; }
-button.danger { border-color: var(--err); color: var(--err); }
+/* Destructive actions: filled, so they stand apart; text contrast = --err against --bg (5.4:1 light, 5.1:1 dark). */
+button.danger, button.danger:hover:not(:disabled) { border-color: var(--err); background: var(--err); color: var(--bg); }
+button.danger:hover:not(:disabled) { text-decoration: underline; }
 /* #25 V2: the one confirmation of a replacement (native modal dialog). */
 dialog { max-width: min(30rem, calc(100vw - 48px)); padding: 16px 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
 dialog::backdrop { background: rgb(0 0 0 / .45); }
@@ -22,6 +24,8 @@ dialog h3 { margin-top: 0; }
 #replacePreview ul { margin: 4px 0 10px; padding-left: 20px; }
 .auth { max-width: 560px; }
 .auth input[type="password"] { width: 100%; box-sizing: border-box; }
+/* File pickers shrink with narrow windows and high zoom instead of widening the page. */
+input[type="file"] { max-width: 100%; min-width: 0; box-sizing: border-box; overflow: hidden; }
 
 button, input, select {
   font: inherit; color: inherit; background: var(--bg);
@@ -49,7 +53,7 @@ td.site { color: var(--muted); }
 }
 form small { grid-column: 2; margin: 0; }
 details { margin: 6px 0; }
-.actions { display: flex; gap: 8px; margin-top: 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .status-invalid { color: var(--err); }
 .status-duplicate, .status-name-conflict { color: var(--muted); }
 

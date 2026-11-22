@@ -295,7 +295,10 @@ No new permission is needed.
 
 ## 7. Follow-up proposal: "Restore previous vault" and "Discard previous vault" (operator decision 4)
 
-**Not implemented.** This needs its own approval and a separate PR.
+**Approved and implemented in PR #38.** Evidence: [evidence/previous-dialogs/](evidence/previous-dialogs/README.md).
+Deviations: the dialog texts give the date and both counts; after a successful restore the
+focus returns to the restore button (the message is in view); the discard button in the box
+is also styled as destructive.
 
 Today both actions share one form: a checkbox ("I understand: restoring replaces …;
 discarding deletes … for good"), the master password, and two submit buttons. That repeats

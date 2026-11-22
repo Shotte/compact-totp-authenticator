@@ -819,9 +819,11 @@ reported only when storage still holds the old revision.
 
 **Kept copy: exactly one previous vault state** (architecture review, condition B).
 - `vault_previous` stays until the user restores it (`restorePrevious`) or discards it
-  (`discardPrevious`). Both need the fresh master password and an explicit confirmation.
-  The UI calls it "previous vault state" and offers "Restore previous vault" and "Discard
-  previous vault".
+  (`discardPrevious`). Both need the fresh master password and an explicit confirmation,
+  checked by the service in the request that writes (no pending state, no token).
+  The UI (#25 V2 §7) asks for the master password once and then shows one modal dialog per
+  action (focus on Cancel); only its confirm button sends `confirmed: true`. The checkbox
+  is gone. A double confirmation sends one request.
 - Restoring is itself a replacement: the replaced contents become the kept copy, so nothing
   is lost.
 - **Never discarded silently.** It is dropped only in two cases:
