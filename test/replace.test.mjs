@@ -148,6 +148,18 @@ test("expiry: valid until 180 s, refused from then on, never valid again (also i
   assert.equal(snap(env.local), unchanged);
 });
 
+test("expiry is checked again right before the write: expiring during the replacement writes nothing", async () => {
+  const env = await checked();
+  const before = snap(env.local);
+  const get = env.local.get.bind(env.local);
+  let armed = true;
+  env.local.get = async (k) => { if (armed && [k].flat().includes("vault")) { armed = false; env.clk.advance(REPLACE_TTL_MS); } return get(k); };
+  assert.equal(err(await apply(env)), "invalid:replace-expired");
+  env.local.get = get;
+  assert.equal(snap(env.local), before);
+  assert.deepEqual(await pendingState(env), { pending: false, key: false });
+});
+
 test("expiry cleanup alarm: removes the expired pending data and its key; validity never depends on it", async () => {
   const env = await checked();
   assert.equal(env.alarms.alarms.get("replace-expiry").when, env.p.expiresAt);

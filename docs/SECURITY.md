@@ -872,9 +872,9 @@ The old command `importExport` (restore into an empty vault only, C4) stays unch
 compatibility; the options page uses the new flow for both cases.
 
 Tests:
-- `test/replace.test.mjs` (21 tests): empty and populated vault; wrong, missing or both wrong
+- `test/replace.test.mjs` (22 tests): empty and populated vault; wrong, missing or both wrong
   passwords; damaged, malformed and oversized backups (2 MB); expiry at 180 s, never valid
-  again (also with the clock set back); the expiry alarm only cleans up; lock, auto-lock,
+  again (also with the clock set back), checked again right before the write; the expiry alarm only cleans up; lock, auto-lock,
   idle lock, password change and a new unlock invalidate it; leftover pending data stays
   unusable after a lock even without cleanup; wrong, missing and replayed tokens; cancel and
   a new check; concurrent modification; two replace requests at once; an event-page restart

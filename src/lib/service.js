@@ -534,6 +534,8 @@ export function createService({ session, local, alarms, now = Date.now,
         await recheck(ctx);
         const current = await readVault(ctx); // another writer may have changed the vault
         if (current.revision !== pending.revision) throw new ConflictError();
+        const t = now(); // once more right before the write: the work above takes time
+        if (!(pending.createdAt <= t && t < pending.expiresAt)) throw new acc.InputError("replace-expired");
         return replaceContents({ ctx, key: ctx.s.key, payload: { accounts: current.accounts } }, next, pending.revision);
       });
     },
