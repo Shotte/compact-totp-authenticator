@@ -1545,6 +1545,15 @@ try {
     };
     const pendingState = () => evalJson(opt, `async () => { const s = await browser.storage.session.get(["session", "pendingReplace"]);
       return { pending: !!s.pendingReplace, key: !!s.session?.replaceKey }; }`);
+    // #25 V2 §7: master password once in the box, then the dialog; returns the page message.
+    const previousVia = async (action, masterPassword, { confirm = true } = {}) => {
+      await evalJson(opt, `async () => { document.getElementById("previousForm").elements.masterPassword.value = ${JSON.stringify(masterPassword)}; }`);
+      await clickAt(opt, action === "discard" ? "#previousDiscardButton" : "#previousRestoreButton");
+      await waitFor(opt, `document.getElementById("previousDialog").open`, 3000);
+      if (!confirm) return null;
+      await clickAt(opt, "#previousDialogConfirm");
+      return settle();
+    };
     const restoreVia = async (name, password, masterPassword = PW2) => {
       const step1 = await checkBackup(name, password, masterPassword);
       if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
@@ -1660,10 +1669,7 @@ try {
       const pendingAfter = await pendingState();
       const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
       const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
-      await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
-        f.masterPassword.value = ${JSON.stringify(PW2)}; document.querySelector("#previousForm button[value=restore]").scrollIntoView({ block: "center" }); }`);
-      await clickAt(opt, "#previousForm button[value=restore]");
-      const back = await settle();
+      const back = await previousVia("restore", PW2);
       const backNames = (await pagePlain(PW2)).map((a) => a.name);
       await msg(opt, "lock");
       const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
@@ -1746,6 +1752,64 @@ try {
           out.cancel.before.pending && gone(out.cancel.after) && out.file.before.pending && gone(out.file.after) && out.file.previewHidden &&
           out.leave.before.pending && gone(out.leave.after) && out.expiry.before.pending && gone(out.expiry.after) && out.expiry.message.text === out.expiry.want &&
           out.concurrent.stale.text === out.concurrent.want && out.concurrent.staleNames.includes("Anderer Tab") && out.concurrent.staleNames.includes("Lokal Zeta"),
+          out);
+      }
+
+      // P-1 (#25 V2 §7): restore and discard the previous vault state: master password once,
+      // one dialog each (alertdialog, labelled and described, focus on Cancel, Tab cycles to
+      // the confirm button, Escape returns the focus to the opening button), no checkbox; a
+      // wrong password is reported next to the buttons with the field cleared and focused;
+      // a double confirmation runs once; discard is labelled as irreversible and destructive.
+      {
+        const local4 = [{ name: "Lokal Eta", secret: syntheticSecret(940) }];
+        await vaultWith(local4, PW2);
+        await msg(opt, "replacePreview", { text: exportText, password: EXP, masterPassword: PW2 }).then(async (r) => msg(opt, "replaceApply", { token: r.result.token }));
+        await open(opt, "options/options.html");
+        await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        const names = async () => (await pagePlain(PW2)).map((a) => a.name);
+        const dlg = () => evalJson(opt, `async () => { const d = document.getElementById("previousDialog");
+          return { open: d.open, modal: d.matches(":modal"), role: d.getAttribute("role"), focus: document.activeElement?.id ?? null,
+            title: document.getElementById(d.getAttribute("aria-labelledby"))?.textContent ?? "", text: document.getElementById(d.getAttribute("aria-describedby"))?.textContent ?? "",
+            confirm: document.getElementById("previousDialogConfirm").textContent, confirmClass: document.getElementById("previousDialogConfirm").className,
+            checkboxes: document.querySelectorAll("#previousBox input[type=checkbox], #previousDialog input").length }; }`);
+        const key = (k) => call("input.performActions", { context: opt, actions: [{ type: "key", id: "kb-p1", actions: [{ type: "keyDown", value: k }, { type: "keyUp", value: k }] }] });
+        const tr = (k, a = []) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)}, ${JSON.stringify(a)})`);
+        const out = {};
+        // restore dialog: semantics, keyboard, Escape
+        await previousVia("restore", PW2, { confirm: false });
+        out.restoreDialog = await dlg();
+        await key("\uE004"); // Tab: to the confirm button
+        out.tabFocus = await evalJson(opt, `async () => document.activeElement?.id ?? null`);
+        await key("\uE00C"); // Escape
+        await waitFor(opt, `!document.getElementById("previousDialog").open`, 3000);
+        out.afterEscape = { focus: await evalJson(opt, `async () => document.activeElement?.id ?? null`), names: await names() };
+        // wrong password: reported next to the buttons, field cleared and focused, nothing changed
+        out.wrong = await previousVia("restore", WRONG_PW);
+        out.wrongState = await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements, r = document.getElementById("previousStatus").getBoundingClientRect();
+          return { focus: document.activeElement?.name ?? null, empty: f.masterPassword.value === "", invalid: f.masterPassword.getAttribute("aria-invalid"), inView: r.top >= 0 && r.bottom <= innerHeight }; }`);
+        out.wrongNames = await names();
+        // restore with a double confirmation: runs once (swap, not swap back)
+        await previousVia("restore", PW2, { confirm: false });
+        await evalJson(opt, `async () => { const b = document.getElementById("previousDialogConfirm"); b.click(); b.click(); }`);
+        out.restored = await settle();
+        out.restoredNames = await names();
+        out.restoredFilled = await evalJson(opt, `async () => [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id)`);
+        // discard dialog: irreversible, destructive label; confirm deletes; the box closes
+        await previousVia("discard", PW2, { confirm: false });
+        out.discardDialog = await dlg();
+        await clickAt(opt, "#previousDialogConfirm");
+        out.discarded = await settle();
+        out.afterDiscard = { box: await evalJson(opt, `async () => document.getElementById("previousBox").hidden`), kept: (await msg(opt, "previousStatus")).result };
+        const want = { wrong: await tr("restoreWrongMaster"), discardConfirm: await tr("previousDiscardConfirm"), discarded: await tr("previousDiscarded") };
+        const allNames = expected.map((a) => a.name);
+        record("P-1", "previous vault state (#25 V2 §7): master password once, one modal dialog per action (alertdialog, labelled and described, focus on Cancel, Tab reaches the confirm button, Escape returns the focus); no checkbox; a wrong password is reported next to the buttons, field cleared, focused and in view; a double confirmation runs once; restore exchanges the states; discard is labelled irreversible and destructive and deletes the copy",
+          out.restoreDialog.open && out.restoreDialog.modal && out.restoreDialog.role === "alertdialog" && out.restoreDialog.focus === "previousDialogCancel" &&
+          out.restoreDialog.title.length > 0 && /18/.test(out.restoreDialog.text) && /1/.test(out.restoreDialog.text) && out.restoreDialog.checkboxes === 0 &&
+          out.tabFocus === "previousDialogConfirm" && out.afterEscape.focus === "previousRestoreButton" && same(out.afterEscape.names, allNames) &&
+          out.wrong.text === want.wrong && out.wrong.area === "previousStatus" && out.wrongState.focus === "masterPassword" && out.wrongState.empty && out.wrongState.invalid === "true" && out.wrongState.inView &&
+          same(out.wrongNames, allNames) && out.restored.kind === "ok" && same(out.restoredNames, ["Lokal Eta"]) && same(out.restoredFilled, ["previousStatus"]) &&
+          out.discardDialog.focus === "previousDialogCancel" && out.discardDialog.confirm === want.discardConfirm && out.discardDialog.confirmClass === "danger" &&
+          out.discarded.text === want.discarded && out.afterDiscard.box && out.afterDiscard.kept?.exists === false,
           out);
       }
 

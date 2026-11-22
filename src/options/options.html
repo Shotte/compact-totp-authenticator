@@ -279,15 +279,21 @@
           <div id="previousBox" data-status="previousStatus" hidden>
             <h3 data-i18n="previousTitle"></h3>
             <p id="previousText"></p>
+            <!-- #25 V2 §7: master password once, then one dialog per action (no checkbox). -->
             <form id="previousForm" class="auth" autocomplete="off">
-              <label class="check"><input name="confirmed" type="checkbox"><span data-i18n="previousConfirm"></span></label>
               <label><span data-i18n="currentPassword"></span>
-                <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password"></label>
-              <div class="actions"><button type="submit" name="action" value="restore" data-i18n="previousRestore"></button>
-                <button type="submit" name="action" value="discard" data-i18n="previousDiscard"></button></div>
+                <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password" aria-describedby="previousStatus"></label>
+              <div class="actions"><button id="previousRestoreButton" type="submit" name="action" value="restore" data-i18n="previousRestore"></button>
+                <button id="previousDiscardButton" type="submit" name="action" value="discard" class="danger" data-i18n="previousDiscard"></button></div>
             </form>
             <p id="previousStatus" class="status" role="status"></p>
           </div>
+          <dialog id="previousDialog" role="alertdialog" aria-labelledby="previousDialogTitle" aria-describedby="previousDialogText">
+            <h3 id="previousDialogTitle"></h3>
+            <p id="previousDialogText"></p>
+            <div class="actions"><button id="previousDialogCancel" type="button" data-i18n="cancel" autofocus></button>
+              <button id="previousDialogConfirm" type="button"></button></div>
+          </dialog>
         </section>
       </div>
     </div>

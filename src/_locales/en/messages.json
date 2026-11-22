@@ -702,14 +702,11 @@
   "previousTitle": {
     "message": "Previous vault state"
   },
-  "previousConfirm": {
-    "message": "I understand: restoring replaces my current entries (they become the previous vault state); discarding deletes the previous vault state for good."
-  },
   "previousRestore": {
     "message": "Restore previous vault"
   },
   "previousDiscard": {
-    "message": "Discard previous vault"
+    "message": "Delete previous vault state"
   },
   "previousRestored": {
     "message": "Previous vault restored: $COUNT$ 2FA entries. The replaced state is now the previous vault state.",
@@ -823,5 +820,42 @@
   },
   "replaceTooLarge": {
     "message": "The backup is too large to restore. Nothing was changed."
+  },
+  "previousRestoreTitle": {
+    "message": "Bring back the previous vault state?"
+  },
+  "previousRestoreText": {
+    "message": "Your current state ($CURRENT$ entries) and the previous vault state from $WHEN$ ($COUNT$ entries) are exchanged. Nothing is lost: your current state is kept as the previous vault state afterwards.",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "when": {
+        "content": "$2"
+      },
+      "count": {
+        "content": "$3"
+      }
+    }
+  },
+  "previousRestoreConfirm": {
+    "message": "Exchange"
+  },
+  "previousDiscardTitle": {
+    "message": "Delete the previous vault state permanently?"
+  },
+  "previousDiscardText": {
+    "message": "The encrypted copy from $WHEN$ with $COUNT$ entries will be deleted. This cannot be undone. Your current entries stay unchanged.",
+    "placeholders": {
+      "when": {
+        "content": "$1"
+      },
+      "count": {
+        "content": "$2"
+      }
+    }
+  },
+  "previousDiscardConfirm": {
+    "message": "Delete permanently"
   }
 }

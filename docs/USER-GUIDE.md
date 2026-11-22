@@ -78,7 +78,9 @@ without one.
   The preview shows what would change. "Replace vault now" asks once for confirmation; an
   empty vault is restored directly. The check stays valid for at most 3 minutes and ends
   with any lock. The previous vault state is kept as an encrypted copy that you can restore
-  or discard in the same section.
+  or discard in the same section: enter your master password once and click "Restore
+  previous vault" (swaps the two states, nothing is lost) or "Delete previous vault state"
+  (irreversible). One dialog asks for confirmation; Cancel is preselected.
 
 ## 5. Updates and recovery
 

@@ -628,9 +628,12 @@ async function applyReplace() {
   reveal($("restoreTitle"), $("restoreStatus"));
 }
 
+let previousInfo = null; // what the box shows: time and count of the kept copy
 async function showPrevious() {
   let p = { exists: false };
   try { p = await call("previousStatus"); } catch { /* locked: the box stays hidden */ }
+  previousInfo = p.exists ? p : null;
+  if (!p.exists && $("previousDialog").open) $("previousDialog").close();
   $("previousBox").hidden = !p.exists;
   $("changePrevious").hidden = !p.exists; // a password change would drop it: say so first
   $("changeForm").elements.discardPrevious.required = p.exists;
@@ -640,17 +643,60 @@ async function showPrevious() {
   }
 }
 
-async function submitPrevious({ action, confirmed, masterPassword }, where) {
-  if (action === "discard") {
-    await call("discardPrevious", { masterPassword, confirmed });
-    await showPrevious();
-    say(t("previousDiscarded"), "ok", where);
-    return;
+// Restore or discard the kept copy (#25 V2 §7): the master password is typed once in the box;
+// the button opens one dialog (focus on Cancel); only its confirm button sends the request,
+// with confirmed: true. The service still verifies the password and the confirmation.
+let previousAction = null;
+function askPrevious(ev) {
+  ev.preventDefault();
+  if (previousAction || !previousInfo) return; // a request is running, or nothing is kept
+  const action = ev.submitter?.value === "discard" ? "discard" : "restore";
+  const vars = [when(previousInfo.replacedAt), previousInfo.count === null ? "?" : String(previousInfo.count)];
+  $("previousDialogTitle").textContent = t(action === "discard" ? "previousDiscardTitle" : "previousRestoreTitle");
+  $("previousDialogText").textContent = action === "discard" ? t("previousDiscardText", vars)
+    : t("previousRestoreText", [String(state.accounts.length), ...vars]);
+  $("previousDialogConfirm").textContent = t(action === "discard" ? "previousDiscardConfirm" : "previousRestoreConfirm");
+  $("previousDialogConfirm").className = action === "discard" ? "danger" : "primary";
+  $("previousDialog").dataset.action = action;
+  $("previousDialog").showModal(); // focus starts on Cancel (autofocus)
+}
+
+async function runPrevious(action) {
+  const f = $("previousForm").elements, fields = [...f];
+  previousAction = action;
+  fields.forEach((x) => { x.disabled = true; x.removeAttribute("aria-invalid"); });
+  say(t("replacing"), "progress", "previousStatus");
+  try {
+    const args = { masterPassword: f.masterPassword.value, confirmed: true };
+    if (action === "discard") {
+      await call("discardPrevious", args);
+      f.masterPassword.value = "";
+      await showPrevious(); // the box closes: the message falls back to the section's status
+      say(t("previousDiscarded"), "ok", "previousStatus");
+      reveal($("restoreTitle"), $("restoreStatus"));
+      return;
+    }
+    const r = await call("restorePrevious", args);
+    f.masterPassword.value = "";
+    if (r.locked) { await showLocked(); say(`${t("previousRestored", [String(r.replaced)])} ${t("errLocked")}`); return; }
+    await refresh(false);
+    say(t("previousRestored", [String(r.replaced)]), "ok", "previousStatus");
+    fields.forEach((x) => { x.disabled = false; });
+    reveal($("previousRestoreButton"), $("previousStatus")); // back to the opening button; the message in view
+  } catch (e) {
+    if (e.code === "locked") { await showLocked(); say(t("lockedDuringAction"), "error"); return; }
+    fields.forEach((x) => { x.disabled = false; });
+    const key = { "current-password": "restoreWrongMaster", "replace-failed": "replaceFailed", conflict: "replaceConflict",
+      "no-previous": "previousGone" }[e.reason ?? e.code];
+    say(key ? t(key) : errorText(e), "error", "previousStatus");
+    if (e.reason === "current-password") { f.masterPassword.value = ""; f.masterPassword.setAttribute("aria-invalid", "true"); }
+    f.masterPassword.focus({ preventScroll: true });
+    $("previousStatus").scrollIntoView({ block: "center" });
+    if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
+  } finally {
+    fields.forEach((x) => { x.disabled = false; });
+    previousAction = null;
   }
-  const r = await call("restorePrevious", { masterPassword, confirmed });
-  if (r.locked) { await showLocked(); say(`${t("previousRestored", [String(r.replaced)])} ${t("errLocked")}`); return; }
-  await refresh(false);
-  say(t("previousRestored", [String(r.replaced)]), "ok", where);
 }
 
 async function init() {
@@ -693,8 +739,16 @@ async function init() {
     say(t("passwordChanged"));
   }, { errors: { "previous-exists": "changePreviousNeeded" } });
   passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
-  passwordForm("previousForm", submitPrevious, { progress: "replacing", errors: { "current-password": "restoreWrongMaster",
-    "replace-confirmation": "replaceNeedConfirm", "replace-failed": "replaceFailed", conflict: "replaceConflict", "no-previous": "previousGone" } });
+  $("previousForm").addEventListener("submit", askPrevious);
+  $("previousForm").addEventListener("input", (ev) => ev.target.removeAttribute("aria-invalid"));
+  $("previousDialogConfirm").addEventListener("click", () => { $("previousDialog").close("confirm"); });
+  $("previousDialogCancel").addEventListener("click", () => { $("previousDialog").close(); });
+  $("previousDialog").addEventListener("close", () => {
+    const d = $("previousDialog"), action = d.dataset.action;
+    if (d.returnValue === "confirm") { d.returnValue = ""; runPrevious(action); return; }
+    // Cancel or Escape: back to the button that opened the dialog
+    if (!$("previousBox").hidden) $(action === "discard" ? "previousDiscardButton" : "previousRestoreButton").focus();
+  });
   $("restoreExportForm").addEventListener("submit", checkReplace);
   // A changed file or password after the check makes the preview stale (another check needed).
   $("restoreExportForm").addEventListener("input", (ev) => {
