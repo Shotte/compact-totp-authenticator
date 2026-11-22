@@ -430,3 +430,22 @@ test("previous vault: restore terminated at every write boundary: one of the two
     assert.equal(kept.exists && kept.count, 3, `crash at write ${crashAt}: the other state is still kept`);
   }
 });
+
+// 0.9.5 acceptance report: a backup written by the signed 0.9.4 build (fixture, unchanged
+// bytes; 30 entries of acceptance-30-synthetic.json, export password below) is read by the
+// current code after a wrong export password and a wrong master password, in the operator's
+// order; the correct pair still opens it. The file must not need a new selection.
+test("a backup written by signed 0.9.4 opens after wrong-password attempts (0.9.5 acceptance)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const text = readFileSync(new URL("./fixtures/backup-0.9.4-signed-synthetic.json", import.meta.url), "utf8");
+  const EXP94 = "Exportpasswort-2026!";
+  const env = await vault(PW, CURRENT);
+  const at = (password, masterPassword) => env.call("replacePreview", { text, password, masterPassword });
+  assert.equal(err(await at("Falsches-Export-1", PW)), "invalid:import-decrypt");
+  assert.equal(err(await at(EXP94, "wrong master password")), "invalid:current-password");
+  const p = ok(await at(EXP94, PW));
+  assert.equal(p.backupCount, 30);
+  assert.equal(p.currentCount, 3);
+  assert.equal(err(await at("Falsches-Export-1", PW)), "invalid:import-decrypt"); // again wrong …
+  assert.equal(ok(await at(EXP94, PW)).backupCount, 30); // … and right again, same text
+});
