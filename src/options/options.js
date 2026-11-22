@@ -499,62 +499,131 @@ async function submitExport({ kind, password, exportPassword, confirm, useMaster
   say(t(kind === "encrypted" ? "exportDone" : "exportPlainDone", [String(r.count)]), "ok", where);
 }
 
-// Restore or replace from an encrypted backup (#25). Step 1 opens the backup and shows what
-// would change; afterwards the page keeps only the File reference (until the apply, a cancel
-// or a lock). The export password is discarded after the check and entered again for the
-// replacement (architecture review, condition A); no backup contents are kept.
+// Restore or replace from an encrypted backup (#25 V2, docs/PLAN-25-REPLACE-V2.md). One check
+// sends the file text and both passwords once; the password fields are cleared on the answer.
+// The page keeps only the single-use token (this variable, never the DOM or storage) until the
+// replacement, a cancel, a lock, the expiry or leaving the page; the backup contents stay in
+// the background, sealed.
 let replacePlan = null;
+let replaceTimer = 0;
+const listItems = (el, names, total) => {
+  el.replaceChildren(...names.map((n) => { const li = document.createElement("li"); li.textContent = n; return li; }));
+  if (total > names.length) { const li = document.createElement("li"); li.textContent = t("replaceMore", [String(total - names.length)]); el.append(li); }
+};
 
-function clearReplace() {
+// Forgets the checked replacement in the page; tellService also drops it in the background.
+function clearReplace(tellService = false) {
+  if (tellService && replacePlan) call("replaceCancel").catch(() => {});
   replacePlan = null;
+  clearTimeout(replaceTimer);
+  if ($("replaceDialog").open) $("replaceDialog").close();
   $("replacePreview").hidden = true;
-  $("replaceForm").reset();
-  $("replaceLoseList").replaceChildren();
+  for (const id of ["replaceLoseList", "replaceGainList"]) $(id).replaceChildren();
 }
 
-async function previewReplace({ file, password }, where) {
-  clearReplace();
-  $("restoreExportForm").elements.file.value = "";
+// An error of the check: shown in view, the field at fault cleared and focused, the file kept.
+function checkFailed(e) {
+  const f = $("restoreExportForm").elements;
+  const field = e.reason === "current-password" ? f.masterPassword
+    : ["import-decrypt", "password"].includes(e.reason) ? f.password : null;
+  const key = { "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed", "import-too-many": "replaceTooMany",
+    "replace-too-large": "replaceTooLarge", malformed: "replaceInvalidFile" }[e.reason ?? e.code];
+  say(key ? t(key) : errorText(e), "error", "restoreStatus");
+  for (const x of f) x.disabled = false; // a disabled field cannot take the focus
+  if (field) { field.value = ""; field.setAttribute("aria-invalid", "true"); }
+  (field ?? f.file).focus({ preventScroll: true });
+  // finding 1: never at or below the edge of the visible area
+  const r = $("restoreStatus").getBoundingClientRect();
+  if (r.top < 40 || r.bottom > innerHeight - 40) $("restoreStatus").scrollIntoView({ block: "center" });
+}
+
+async function checkReplace(ev) {
+  ev.preventDefault();
+  const form = $("restoreExportForm"), f = form.elements, file = f.file.files[0];
+  clearReplace(); // the new check itself drops an older pending replacement in the background
   if (!file) return;
-  const p = await call("replacePreview", { text: await file.text(), password });
-  const populated = p.currentCount > 0;
-  replacePlan = { file, revision: p.revision, fileHash: p.fileHash, populated };
-  $("replaceSummary").textContent = t("replaceSummary", [String(p.backupCount)]);
-  $("replaceWarning").hidden = !populated;
-  $("replaceConfirmLabel").hidden = !populated;
-  $("replaceForm").elements.confirmed.required = populated;
-  $("replaceButton").textContent = t(populated ? "replaceButton" : "restoreExportButton");
-  if (populated) {
-    $("replaceWarningText").textContent = t("replaceWarning", [String(p.currentCount), String(p.backupCount), String(p.inBoth)]);
-    $("replaceLoseIntro").textContent = p.onlyCurrent.count ? t("replaceLoseIntro", [String(p.onlyCurrent.count)]) : t("replaceLoseNone");
-    $("replaceLoseList").replaceChildren(...p.onlyCurrent.names.map((n) => { const li = document.createElement("li"); li.textContent = n; return li; }));
-    if (p.onlyCurrent.count > p.onlyCurrent.names.length) {
-      const li = document.createElement("li");
-      li.textContent = t("replaceMore", [String(p.onlyCurrent.count - p.onlyCurrent.names.length)]);
-      $("replaceLoseList").append(li);
-    }
-    $("replaceConfirmText").textContent = t("replaceConfirm", [String(p.currentCount)]);
-    $("replaceOverwritesCopy").hidden = !p.keptCopy.exists; // exactly one kept copy (review B)
-    if (p.keptCopy.exists) $("replaceOverwritesCopy").textContent = t("replaceOverwritesCopy", [when(p.keptCopy.replacedAt)]);
+  const fields = [...f];
+  fields.forEach((x) => { x.disabled = true; x.removeAttribute("aria-invalid"); });
+  say(t("replaceChecking"), "progress", "restoreStatus");
+  try {
+    let text;
+    try { text = await file.text(); } catch { say(t("importReread"), "error", "restoreStatus"); return; }
+    const p = await call("replacePreview", { text, password: f.password.value, masterPassword: f.masterPassword.value });
+    f.password.value = ""; f.masterPassword.value = ""; // validated: never kept in the page
+    showReplacePreview(p);
+  } catch (e) {
+    if (e.code === "locked") { await showLocked(); say(t("lockedDuringAction"), "error"); return; }
+    checkFailed(e);
+  } finally {
+    fields.forEach((x) => { x.disabled = false; });
   }
+}
+
+function showReplacePreview(p) {
+  const populated = p.currentCount > 0;
+  replacePlan = { token: p.token, expiresAt: p.expiresAt, populated, currentCount: p.currentCount, backupCount: p.backupCount };
+  $("replaceSummary").textContent = populated
+    ? t("replaceCounts", [String(p.currentCount), String(p.backupCount), String(p.inBoth)])
+    : t("restorePreviewEmpty", [String(p.backupCount)]);
+  $("replaceLoseIntro").hidden = $("replaceLoseList").hidden = !populated;
+  if (populated) {
+    $("replaceLoseIntro").textContent = p.onlyCurrent.count ? t("replaceLoseIntro", [String(p.onlyCurrent.count)]) : t("replaceLoseNone");
+    listItems($("replaceLoseList"), p.onlyCurrent.names, p.onlyCurrent.count);
+  }
+  $("replaceGainIntro").hidden = $("replaceGainList").hidden = !(populated && p.onlyBackup.count);
+  if (populated && p.onlyBackup.count) {
+    $("replaceGainIntro").textContent = t("replaceGainIntro", [String(p.onlyBackup.count)]);
+    listItems($("replaceGainList"), p.onlyBackup.names, p.onlyBackup.count);
+  }
+  $("replaceKeepNote").hidden = !populated;
+  $("replaceKeepNote").textContent = t("replaceKeepsCopy");
+  $("replaceOverwritesCopy").hidden = !(populated && p.keptCopy.exists); // exactly one kept copy (review B)
+  if (populated && p.keptCopy.exists) $("replaceOverwritesCopy").textContent = t("replaceOverwritesCopy", [when(p.keptCopy.replacedAt)]);
+  $("replaceButton").textContent = t(populated ? "replaceNow" : "restoreExportButton");
   $("replacePreview").hidden = false;
-  say(t("replaceChecked"), "ok", where);
-  reveal($("replaceStep2")); // the next fields are below the fold otherwise (F3-3)
+  for (const el of document.querySelectorAll(".status")) { el.textContent = ""; delete el.dataset.kind; } // the preview is the answer
+  replaceTimer = setTimeout(replaceExpired, Math.max(0, p.expiresAt - Date.now()));
+  reveal($("replacePreviewTitle"));
+}
+
+function replaceExpired() {
+  if (!replacePlan) return;
+  clearReplace(true);
+  say(t("replaceExpired"), "error", "restoreStatus");
+  reveal($("restoreTitle"), $("restoreStatus"));
 }
 
 const when = (ms) => new Date(ms).toLocaleString(browser.i18n.getUILanguage());
 
-async function applyReplace({ confirmed, exportPassword: password, masterPassword }, where) {
+// "Replace vault now": the one confirmation for a populated vault; an empty vault loses
+// nothing and is restored directly.
+function askReplace() {
   if (!replacePlan) return;
-  const { file, revision, fileHash, populated } = replacePlan;
-  let text;
-  try { text = await file.text(); } catch { clearReplace(); say(t("importReread"), "error", where); return; }
-  const r = await call("replaceApply", { revision, fileHash, text, password, masterPassword, confirmed });
-  clearReplace();
+  if (Date.now() >= replacePlan.expiresAt) { replaceExpired(); return; }
+  if (!replacePlan.populated) { applyReplace(); return; }
+  $("replaceDialogText").textContent = t("replaceDialogText", [String(replacePlan.currentCount), String(replacePlan.backupCount)]);
+  $("replaceDialog").showModal(); // focus starts on Cancel (autofocus)
+}
+
+async function applyReplace() {
+  if (!replacePlan) return;
+  if (Date.now() >= replacePlan.expiresAt) { replaceExpired(); return; }
+  const { token, populated } = replacePlan;
+  clearReplace(); // the token is single use: gone from the page now
+  say(t("replacing"), "progress", "restoreStatus");
+  let r;
+  try { r = await call("replaceApply", { token }); }
+  catch (e) {
+    if (e.code === "locked") { await showLocked(); say(t("lockedDuringAction"), "error"); return; }
+    const key = { "replace-expired": "replaceExpired", "replace-failed": "replaceFailed", conflict: "replaceConflict" }[e.reason ?? e.code];
+    say(key ? t(key) : errorText(e), "error", "restoreStatus");
+    if (e.code === "unknown") await refresh(false).catch(() => {}); // show what storage holds
+    reveal($("restoreTitle"), $("restoreStatus"));
+    return;
+  }
   const done = populated ? t("replaceDone", [String(r.replaced), String(r.previous)]) : t("restoreExportDone", [String(r.replaced)]);
   if (r.locked) { await showLocked(); say(`${done} ${t("errLocked")}`); return; }
   await refresh(false);
-  // Step 2 is closed now: the result appears below step 1, stale instructions are gone (F3-3).
   say(done, "ok", "restoreStatus");
   reveal($("restoreTitle"), $("restoreStatus"));
 }
@@ -624,21 +693,27 @@ async function init() {
     say(t("passwordChanged"));
   }, { errors: { "previous-exists": "changePreviousNeeded" } });
   passwordForm("exportForm", submitExport, { progress: "exporting", after: updateExportForm });
-  const replaceErrors = { "current-password": "restoreWrongMaster", "import-decrypt": "restoreDecryptFailed",
-    "replace-confirmation": "replaceNeedConfirm", "replace-failed": "replaceFailed", "import-too-many": "replaceTooMany",
-    conflict: "replaceConflict", malformed: "replaceInvalidFile", "no-previous": "previousGone" };
-  passwordForm("restoreExportForm", previewReplace, { progress: "replaceChecking", errors: replaceErrors });
-  passwordForm("replaceForm", applyReplace, { progress: "replacing", errors: { ...replaceErrors, onError: (e) => {
-    if (e.code !== "invalid") clearReplace(); // conflict or unknown: a new check is needed
-    if (e.code === "unknown") refresh(false).catch(() => {});
-  } } });
-  passwordForm("previousForm", submitPrevious, { progress: "replacing", errors: replaceErrors });
-  $("replaceCancel").addEventListener("click", async () => {
-    clearReplace();
-    await call("replaceCancel").catch(() => {});
+  passwordForm("previousForm", submitPrevious, { progress: "replacing", errors: { "current-password": "restoreWrongMaster",
+    "replace-confirmation": "replaceNeedConfirm", "replace-failed": "replaceFailed", conflict: "replaceConflict", "no-previous": "previousGone" } });
+  $("restoreExportForm").addEventListener("submit", checkReplace);
+  // A changed file or password after the check makes the preview stale (another check needed).
+  $("restoreExportForm").addEventListener("input", (ev) => {
+    ev.target.removeAttribute("aria-invalid");
+    if (replacePlan) clearReplace(true);
+  });
+  $("replaceButton").addEventListener("click", askReplace);
+  $("replaceDialogConfirm").addEventListener("click", () => { $("replaceDialog").close("replace"); });
+  $("replaceDialogCancel").addEventListener("click", () => { $("replaceDialog").close(); });
+  $("replaceDialog").addEventListener("close", () => {
+    if ($("replaceDialog").returnValue === "replace") { $("replaceDialog").returnValue = ""; applyReplace(); }
+    else if (replacePlan) $("replaceButton").focus(); // Cancel or Escape: back where the user was
+  });
+  $("replaceCancel").addEventListener("click", () => {
+    clearReplace(true);
     say(t("replaceCancelled"), "ok", "restoreStatus");
     reveal($("restoreTitle"), $("restoreStatus"));
   });
+  window.addEventListener("pagehide", () => clearReplace(true)); // best effort; the token dies with the page anyway
   $("exportForm").addEventListener("change", updateExportForm);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(false); });
   await refresh();

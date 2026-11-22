@@ -336,8 +336,10 @@ try {
     const atExport = await names();
     let rev = (await msg("listAccounts")).result.revision;
     rev = (await msg("addAccount", { revision: rev, account: { name: "Neu nach Export", secret: syntheticSecret(990) } })).result?.revision;
-    const p = (await msg("replacePreview", { text: exported.text, password: EXP })).result;
-    const r = await msg("replaceApply", { revision: p.revision, fileHash: p.fileHash, text: exported.text, password: EXP, masterPassword: PW, confirmed: true });
+    // #25 V2 API when the new version has it (token), else the 0.9.x API (re-authentication)
+    const p = (await msg("replacePreview", { text: exported.text, password: EXP, masterPassword: PW })).result;
+    const r = p.token ? await msg("replaceApply", { token: p.token })
+      : await msg("replaceApply", { revision: p.revision, fileHash: p.fileHash, text: exported.text, password: EXP, masterPassword: PW, confirmed: true });
     const afterReplace = await names();
     const prev1 = (await msg("previousStatus")).result;
     const pwChange = await msg("changePassword", { current: PW, next: "a different test passphrase ✓", confirm: "a different test passphrase ✓" });

@@ -14,6 +14,12 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 /* A conditional hint (e.g. what a future password change would delete): not an error. */
 .notice { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--hover); }
 h3 { font-size: 14px; margin: 16px 0 6px; }
+button.danger { border-color: var(--err); color: var(--err); }
+/* #25 V2: the one confirmation of a replacement (native modal dialog). */
+dialog { max-width: min(30rem, calc(100vw - 48px)); padding: 16px 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+dialog::backdrop { background: rgb(0 0 0 / .45); }
+dialog h3 { margin-top: 0; }
+#replacePreview ul { margin: 4px 0 10px; padding-left: 20px; }
 .auth { max-width: 560px; }
 .auth input[type="password"] { width: 100%; box-sizing: border-box; }
 

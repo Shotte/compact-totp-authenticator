@@ -156,11 +156,11 @@ try {
       : denied !== 0 ? "NOT_TESTED" : "FAIL",
     { aclDenyApplied: denied === 0, firefoxDownloads: dl3, filesInTarget: files(RO).length, strayFilesInUserDownloads: strayInUserDownloads.length, pageMessage: m3 });
 
-  // N4 (#25): native Open dialog with the complete replacement workflow. The vault already
+  // N4 (#25 V2): native Open dialog with the complete replacement workflow. The vault already
   // holds two synthetic entries; the saved backup replaces them: choose the file in the real
-  // Windows dialog, check the backup, read the preview (destructive warning, local-only
-  // entries), fresh authorization (export password again, master password), explicit
-  // confirmation. Then the entries equal the backup and the previous vault state is kept.
+  // Windows dialog, enter the export password and the master password once, check, read the
+  // preview (local-only entries), "Replace vault now", confirm in the one dialog. Then the
+  // entries equal the backup and the previous vault state is kept.
   await evalJson(opt, `async () => { await browser.storage.local.remove(["vault", "vault_backup", "vault_next", "vault_previous"]); await browser.storage.session.clear(); }`);
   await msg(opt, "setup", { password: PW2, confirm: PW2 });
   const localN4 = [{ name: "Lokal N4 Eins", secret: syntheticSecret(940) }, { name: "Lokal N4 Zwei", secret: syntheticSecret(941) }];
@@ -173,29 +173,29 @@ try {
   await sleep(800);
   const picked = await evalJson(opt, `async () => document.querySelector("#restoreExportForm input[type=file]").files[0]?.name ?? null`);
   await evalJson(opt, `async () => { const f = document.getElementById("restoreExportForm").elements;
-    f.password.value = ${JSON.stringify(EXP)};
+    f.password.value = ${JSON.stringify(EXP)}; f.masterPassword.value = ${JSON.stringify(PW2)};
     document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
-  await clickAt(opt, "#restoreExportForm button"); // step 1: check the backup
+  await clickAt(opt, "#restoreExportForm button"); // check: file, export password, master password
   await sleep(2500);
   const preview4 = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
     summary: document.getElementById("replaceSummary").textContent,
-    warning: !document.getElementById("replaceWarning").hidden,
     lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
-    confirmRequired: document.getElementById("replaceForm").elements.confirmed.required,
-    exportPasswordEmpty: document.getElementById("replaceForm").elements.exportPassword.value === "" })`);
-  await evalJson(opt, `async () => { const g = document.getElementById("replaceForm").elements; g.confirmed.checked = true;
-    g.exportPassword.value = ${JSON.stringify(EXP)}; g.masterPassword.value = ${JSON.stringify(PW2)};
-    document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
-  await clickAt(opt, "#replaceButton"); // step 2: fresh authorization and confirmation
+    passwordsEmpty: document.getElementById("restoreExportForm").elements.password.value === ""
+      && document.getElementById("restoreExportForm").elements.masterPassword.value === "" })`);
+  await evalJson(opt, `async () => document.getElementById("replaceButton").scrollIntoView({ block: "center" })`);
+  await clickAt(opt, "#replaceButton"); // "Replace vault now"
+  await sleep(500);
+  preview4.dialog = await evalJson(opt, `async () => ({ open: document.getElementById("replaceDialog").open, focus: document.activeElement?.id ?? null })`);
+  await clickAt(opt, "#replaceDialogConfirm"); // the one confirmation
   await sleep(3000);
   const m4 = await pageMessage();
   const back = await msg(opt, "exportVault", { kind: "plain", password: PW2, confirmed: true });
   const restored = back.ok ? JSON.parse(back.result.text).accounts : null;
   const previous4 = (await msg(opt, "previousStatus")).result;
   const previousBox4 = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
-  record("N4", "native Open dialog (Unicode name) with the complete replacement: check, preview with warning and local-only entries, export password again, master password, confirmation; entries equal the backup; previous vault state (2 entries) kept",
-    pick.found && picked === savedName && preview4.shown && preview4.warning && same(preview4.lose, localN4.map((a) => a.name)) &&
-      preview4.confirmRequired && preview4.exportPasswordEmpty && m4.kind === "ok" && m4.area === "restoreStatus" && same(restored, expected) &&
+  record("N4", "native Open dialog (Unicode name) with the complete replacement (#25 V2): one check with both passwords, preview with local-only entries, one confirmation dialog (focus on Cancel); entries equal the backup; previous vault state (2 entries) kept",
+    pick.found && picked === savedName && preview4.shown && same(preview4.lose, localN4.map((a) => a.name)) &&
+      preview4.passwordsEmpty && preview4.dialog.open && preview4.dialog.focus === "replaceDialogCancel" && m4.kind === "ok" && m4.area === "restoreStatus" && same(restored, expected) &&
       previous4?.exists && previous4.count === 2 && !!previousBox4 ? "PASS" : "FAIL",
     { dialog: { title: pick.title, ok: pick.okButton, closed: pick.closed, error: pick.error }, pickedFile: picked, preview: preview4,
       pageMessage: m4, restoredAccounts: restored?.length, previousVault: previous4, previousBox: previousBox4 });

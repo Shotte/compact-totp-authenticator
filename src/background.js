@@ -14,6 +14,7 @@ browser.runtime.onStartup.addListener(() => browser.storage.session.clear());
 
 browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "autolock") service.onAlarm();
+  if (alarm.name === "replace-expiry") service.onReplaceExpiry(); // cleanup only (#25 V2)
 });
 
 // C3.1: a shorter auto-lock time applies to the running session at once.
