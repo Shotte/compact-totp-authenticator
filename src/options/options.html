@@ -242,41 +242,39 @@
         <section id="restoreSection">
           <h2 id="restoreTitle" data-i18n="restoreExportTitle" tabindex="-1"></h2>
           <p class="note" data-i18n="restoreExportNote"></p>
-          <!-- Step 1: the backup is opened with its export password and compared (#25). -->
-          <h3 data-i18n="replaceStep1"></h3>
+          <!-- #25 V2: one check with the file, the export password and the master password. -->
           <form id="restoreExportForm" class="auth" autocomplete="off">
             <label><span data-i18n="exportFile"></span>
               <input name="file" type="file" accept=".json,application/json" required></label>
             <label><span data-i18n="exportPassword"></span>
-              <input name="password" type="password" required maxlength="1024" autocomplete="off"></label>
-            <div class="actions"><button type="submit" data-i18n="replaceCheck"></button></div>
+              <input name="password" type="password" required maxlength="1024" autocomplete="off" aria-describedby="restoreStatus"></label>
+            <label><span data-i18n="currentPassword"></span>
+              <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password" aria-describedby="restoreStatus"></label>
+            <div class="actions"><button type="submit" class="primary" data-i18n="replaceCheck"></button></div>
+            <p class="note" data-i18n="replaceCheckNote"></p>
           </form>
-          <!-- Result of step 1 and of the whole replacement: right below the form (F3-3). -->
+          <!-- The one status of this operation: errors of the check and the final result. -->
           <p id="restoreStatus" class="status" role="status"></p>
-          <!-- Step 2: preview, warning for a populated vault, confirmation, master password.
-               Its messages stay next to its buttons (data-status). -->
-          <div id="replacePreview" data-status="replaceStatus" hidden>
-            <h3 id="replaceStep2" data-i18n="replaceStep2" tabindex="-1"></h3>
+          <!-- Preview: what the replacement changes; the token stays in the page script only. -->
+          <div id="replacePreview" data-status="restoreStatus" hidden>
+            <h3 id="replacePreviewTitle" data-i18n="replacePreviewTitle" tabindex="-1"></h3>
             <p id="replaceSummary"></p>
-            <div id="replaceWarning" class="warning" hidden>
-              <p id="replaceWarningText"></p>
-              <p id="replaceLoseIntro"></p>
-              <ul id="replaceLoseList"></ul>
-              <p data-i18n="replaceKeepsCopy"></p>
-              <p id="replaceOverwritesCopy" hidden></p>
-            </div>
-            <p class="note" data-i18n="replaceWhyAgain"></p>
-            <form id="replaceForm" class="auth" autocomplete="off">
-              <label class="check" id="replaceConfirmLabel" hidden><input name="confirmed" type="checkbox"><span id="replaceConfirmText"></span></label>
-              <label><span data-i18n="exportPasswordAgain"></span>
-                <input name="exportPassword" type="password" required maxlength="1024" autocomplete="off"></label>
-              <label><span data-i18n="currentPassword"></span>
-                <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password"></label>
-              <div class="actions"><button id="replaceButton" type="submit" class="primary"></button>
-                <button id="replaceCancel" type="button" data-i18n="cancel"></button></div>
-            </form>
-            <p id="replaceStatus" class="status" role="status"></p>
+            <p id="replaceLoseIntro"></p>
+            <ul id="replaceLoseList"></ul>
+            <p id="replaceGainIntro"></p>
+            <ul id="replaceGainList"></ul>
+            <p id="replaceKeepNote"></p>
+            <p id="replaceOverwritesCopy" hidden></p>
+            <div class="actions"><button id="replaceButton" type="button" class="primary"></button>
+              <button id="replaceCancel" type="button" data-i18n="cancel"></button></div>
           </div>
+          <!-- The one confirmation of a destructive replacement (operator decision 3). -->
+          <dialog id="replaceDialog" role="alertdialog" aria-labelledby="replaceDialogTitle" aria-describedby="replaceDialogText">
+            <h3 id="replaceDialogTitle" data-i18n="replaceDialogTitle"></h3>
+            <p id="replaceDialogText"></p>
+            <div class="actions"><button id="replaceDialogCancel" type="button" data-i18n="cancel" autofocus></button>
+              <button id="replaceDialogConfirm" type="button" class="danger" data-i18n="replaceDialogConfirm"></button></div>
+          </dialog>
           <!-- The kept copy of the vault before the last replacement. -->
           <div id="previousBox" data-status="previousStatus" hidden>
             <h3 data-i18n="previousTitle"></h3>

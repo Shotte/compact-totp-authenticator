@@ -1531,25 +1531,26 @@ try {
     // WebDriver BiDi input.setFiles is not supported for privileged (extension) pages, so
     // the file is handed to the real file input through DataTransfer, with a Unicode name.
     const uniName = "Sicherung – Ünïcödé ✓ 日本.json";
-    // #25: two steps. 1: file + export password → check; 2: master password (+ confirmation
-    // for a populated vault) → restore or replace.
-    const checkBackup = async (name, password) => {
-      await evalJson(opt, `async () => { const dt = new DataTransfer();
+    // #25 V2: one check (file, export password, master password) → preview → "Replace vault
+    // now" → one confirmation dialog for a populated vault → result.
+    const setBackup = (name, password, masterPassword, block = "center") => evalJson(opt, `async () => { const dt = new DataTransfer();
         dt.items.add(new File([${JSON.stringify(exportText)}], ${JSON.stringify(name)}, { type: "application/json" }));
-        const input = document.querySelector("#restoreExportForm input[type=file]"); input.files = dt.files;
-        document.getElementById("restoreExportForm").elements.password.value = ${JSON.stringify(password)};
-        document.querySelector("#restoreExportForm button").scrollIntoView({ block: "center" }); }`);
+        const f = document.getElementById("restoreExportForm").elements; f.file.files = dt.files;
+        f.password.value = ${JSON.stringify(password)}; f.masterPassword.value = ${JSON.stringify(masterPassword)};
+        document.querySelector("#restoreExportForm button").scrollIntoView({ block: ${JSON.stringify(block)} }); }`);
+    const checkBackup = async (name, password, masterPassword = PW2, block = "center") => {
+      await setBackup(name, password, masterPassword, block);
       await clickAt(opt, "#restoreExportForm button");
       return settle();
     };
-    const restoreVia = async (name, password, masterPassword = PW2, { confirm = true, exportAgain = password } = {}) => {
-      const step1 = await checkBackup(name, password);
+    const pendingState = () => evalJson(opt, `async () => { const s = await browser.storage.session.get(["session", "pendingReplace"]);
+      return { pending: !!s.pendingReplace, key: !!s.session?.replaceKey }; }`);
+    const restoreVia = async (name, password, masterPassword = PW2) => {
+      const step1 = await checkBackup(name, password, masterPassword);
       if (await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`)) return step1;
-      await evalJson(opt, `async () => { const f = document.getElementById("replaceForm").elements;
-        f.masterPassword.value = ${JSON.stringify(masterPassword)}; f.exportPassword.value = ${JSON.stringify(exportAgain)};
-        if (!document.getElementById("replaceConfirmLabel").hidden) f.confirmed.checked = ${confirm};
-        document.getElementById("replaceButton").scrollIntoView({ block: "center" }); }`);
+      await evalJson(opt, `async () => document.getElementById("replaceButton").scrollIntoView({ block: "center" })`);
       await clickAt(opt, "#replaceButton");
+      if (await evalJson(opt, `async () => document.getElementById("replaceDialog").open`)) await clickAt(opt, "#replaceDialogConfirm");
       return settle();
     };
     const before4 = await vaultJson();
@@ -1565,62 +1566,90 @@ try {
       right4.kind === "ok" && same(restored, expected) && rows4 === expected.length,
       { wrongExportPassword: wrong4, wrongMasterPassword: wrongMaster4, exportPasswordAsMaster: exportAsMaster4, vaultUnchangedAfterWrong: unchanged4, restore: right4, restoredAccounts: Array.isArray(restored) ? restored.length : restored, rows: rows4 });
 
-    // F2-2 (feedback 02, finding 2): every restore failure has its own sentence in the restore
-    // section; a session that ended meanwhile switches to the locked view and says so.
+    // F2-2 (feedback 02, finding 2) and #25 V2 (acceptance 0.9.4, findings 1 and 2): every
+    // failure of the check has its own sentence directly under the check button and is brought
+    // into view, even with the form at the very bottom of the window; the field at fault is
+    // cleared and focused, the other password and the chosen file stay. A lock meanwhile shows
+    // the locked view with a clear message.
     {
       const text = (k) => evalJson(opt, `async () => browser.i18n.getMessage(${JSON.stringify(k)})`);
       await vaultWith([], PW2);
       await open(opt, "options/options.html");
       await waitFor(opt, "document.body.dataset.state === 'unlocked'");
-      const wrongMaster = await restoreVia(uniName, EXP, WRONG_PW);
-      const wrongExport = await restoreVia(uniName, WRONG_PW);
+      const fieldState = async () => { await waitFor(opt, `(() => { const r = document.getElementById("restoreStatus").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 2000).catch(() => {});
+        return fieldStateNow(); };
+      const fieldStateNow = () => evalJson(opt, `async () => { const f = document.getElementById("restoreExportForm").elements,
+        r = document.getElementById("restoreStatus").getBoundingClientRect();
+        return { focus: document.activeElement?.name ?? null, file: f.file.files.length, exportPw: f.password.value.length > 0,
+          masterPw: f.masterPassword.value.length > 0, invalid: [...document.querySelectorAll("[aria-invalid=true]")].map((e) => e.name),
+          statusInView: r.top >= 0 && r.bottom <= innerHeight }; }`);
+      const wrongMaster = await checkBackup(uniName, EXP, WRONG_PW, "end");
+      const afterMaster = await fieldState();
+      const wrongExport = await checkBackup(uniName, WRONG_PW, PW2, "end");
+      const afterExport = await fieldState();
       await msg(opt, "lock"); // like the automatic lock while the form is being filled
-      const lockedNow = await restoreVia(uniName, EXP);
+      const lockedNow = await checkBackup(uniName, EXP, PW2);
       const lockedView = await evalJson(opt, `async () => document.body.dataset.state`);
       const sortNote = await evalJson(opt, `async () => !!document.querySelector("[data-i18n=sortNote]")?.textContent`);
       await msg(opt, "unlock", { password: PW2 });
       await msg(opt, "importExport", { text: exportText, password: EXP, masterPassword: PW2 }); // back to the state C4-5 expects
       const want = { wrongMaster: await text("restoreWrongMaster"),
         wrongExport: await text("restoreDecryptFailed"), locked: await text("lockedDuringAction") };
-      record("F2-2", "restore errors: wrong master password, wrong export password or damaged file each have their own message in the restore section; a lock meanwhile shows the locked view with a clear message; sorting note present",
-        wrongMaster.area === "replaceStatus" && wrongMaster.text === want.wrongMaster && // step 2: next to its buttons (F3-3)
-        wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport && lockedNow.area === "message" && lockedNow.text === want.locked &&
-        lockedView === "locked" && sortNote, { wrongMaster, wrongExport, lockedNow, lockedView, sortNote });
+      record("F2-2", "restore check errors: wrong master password and wrong export password each have their own message under the check button, in view with the form at the bottom of the window; only the field at fault is cleared and focused; the file stays chosen; a lock meanwhile shows the locked view with a clear message; sorting note present",
+        wrongMaster.area === "restoreStatus" && wrongMaster.text === want.wrongMaster &&
+        afterMaster.focus === "masterPassword" && !afterMaster.masterPw && afterMaster.exportPw && afterMaster.file === 1 && same(afterMaster.invalid, ["masterPassword"]) && afterMaster.statusInView &&
+        wrongExport.area === "restoreStatus" && wrongExport.text === want.wrongExport &&
+        afterExport.focus === "password" && !afterExport.exportPw && afterExport.masterPw && afterExport.file === 1 && same(afterExport.invalid, ["password"]) && afterExport.statusInView &&
+        lockedNow.area === "message" && lockedNow.text === want.locked && lockedView === "locked" && sortNote,
+        { wrongMaster, afterMaster, wrongExport, afterExport, lockedNow, lockedView, sortNote });
     }
 
-    // R-1 (#25): replacing a populated vault through the UI: preview with counts and the
-    // entries that exist only locally, destructive warning, required confirmation, fresh
-    // master password; the previous vault is kept and can be brought back; the destination
-    // master password stays.
+    // R-1 (#25 V2): replacing a populated vault through the UI: one check with both passwords,
+    // preview with counts, the entries only in the vault and only in the backup, and the
+    // kept-copy note; "Replace vault now" opens one confirmation dialog (no checkbox, no
+    // password); Escape changes nothing; Replace replaces; the previous vault is kept and can be
+    // brought back; the destination master password stays. A forged token is refused.
     {
       const local = [{ name: "Lokal Alpha", secret: syntheticSecret(910) }, { name: "Lokal Beta", secret: syntheticSecret(911) }];
       await vaultWith(local, PW2);
       await open(opt, "options/options.html");
       await waitFor(opt, "document.body.dataset.state === 'unlocked'");
       const check = await checkBackup(uniName, EXP);
-      // the page scrolls step 2 into view (instantly); allow a moment for layout
-      await waitFor(opt, `(() => { const r = document.getElementById("replaceStep2").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 3000);
-      // F3-3: step 2 is brought into view with the focus on its heading; exactly one status
-      // message (no role=alert next to it); the reason for the second entry is explained.
-      const step2 = await evalJson(opt, `async () => { const h = document.getElementById("replaceStep2"), r = h.getBoundingClientRect();
-        return { focus: document.activeElement?.id ?? null, inView: r.top >= 0 && r.bottom <= innerHeight, top: Math.round(r.top), viewport: innerHeight, scrollY: Math.round(scrollY),
+      await waitFor(opt, `(() => { const r = document.getElementById("replacePreviewTitle").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 3000);
+      // F3-3 V2: the preview is the answer: in view, focused, no other message, no password kept
+      const shown = await evalJson(opt, `async () => { const h = document.getElementById("replacePreviewTitle"), r = h.getBoundingClientRect(), f = document.getElementById("restoreExportForm").elements;
+        return { focus: document.activeElement?.id ?? null, inView: r.top >= 0 && r.bottom <= innerHeight,
           filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id),
-          alerts: document.querySelectorAll("[role=alert]").length, why: !!document.querySelector("#replacePreview [data-i18n=replaceWhyAgain]")?.textContent }; }`);
-      const preview = await evalJson(opt, `async () => ({ shown: !document.getElementById("replacePreview").hidden,
-        warning: !document.getElementById("replaceWarning").hidden, text: document.getElementById("replaceWarningText").textContent,
-        lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
-        confirmShown: !document.getElementById("replaceConfirmLabel").hidden,
-        exportPasswordEmpty: document.getElementById("replaceForm").elements.exportPassword.value === "",
-        blockedWithoutConfirm: (() => { const f = document.getElementById("replaceForm"); f.elements.masterPassword.value = "x";
-          f.elements.exportPassword.value = "x"; const v = f.checkValidity(); f.elements.masterPassword.value = f.elements.exportPassword.value = ""; return !v; })() })`);
-      { // evidence screenshot: the destructive warning (synthetic names only)
+          alerts: document.querySelectorAll("[role=alert]").length, passwordsEmpty: f.password.value === "" && f.masterPassword.value === "", file: f.file.files.length,
+          summary: document.getElementById("replaceSummary").textContent,
+          lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
+          gain: [...document.querySelectorAll("#replaceGainList li")].length,
+          keep: !document.getElementById("replaceKeepNote").hidden && document.getElementById("replaceKeepNote").textContent.length > 0,
+          button: document.getElementById("replaceButton").textContent, checkboxes: document.querySelectorAll("#replacePreview input").length }; }`);
+      { // evidence screenshot: the preview (synthetic names only)
         await showTabOf(opt, "#restoreStatus");
-        const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus").closest("section"); s.scrollIntoView();
+        const box = await evalJson(opt, `async () => { const s = document.getElementById("restoreSection"); s.scrollIntoView();
           const r = s.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
         const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
-        writeFileSync(join(OUT, "replace-warning-de.png"), Buffer.from(shot.data, "base64"));
+        writeFileSync(join(OUT, "replace-preview-de.png"), Buffer.from(shot.data, "base64"));
       }
-      const noConfirm = await msg(opt, "replaceApply", { revision: (await msg(opt, "listAccounts")).result.revision, fileHash: "0".repeat(64), text: exportText, password: EXP, masterPassword: PW2 });
+      await evalJson(opt, `async () => document.getElementById("replaceButton").scrollIntoView({ block: "center" })`);
+      await clickAt(opt, "#replaceButton");
+      await waitFor(opt, `document.getElementById("replaceDialog").open`, 3000);
+      const dialog = await evalJson(opt, `async () => { const d = document.getElementById("replaceDialog");
+        return { open: d.open, modal: d.matches(":modal"), role: d.getAttribute("role"), focus: document.activeElement?.id ?? null,
+          labelled: document.getElementById(d.getAttribute("aria-labelledby"))?.textContent ?? "",
+          described: document.getElementById(d.getAttribute("aria-describedby"))?.textContent ?? "", checkboxes: d.querySelectorAll("input").length }; }`);
+      {
+        const shot = await call("browsingContext.captureScreenshot", { context: opt });
+        writeFileSync(join(OUT, "replace-dialog-de.png"), Buffer.from(shot.data, "base64"));
+      }
+      await call("input.performActions", { context: opt, actions: [{ type: "key", id: "kb-esc", actions: [{ type: "keyDown", value: "\uE00C" }, { type: "keyUp", value: "\uE00C" }] }] });
+      await waitFor(opt, `!document.getElementById("replaceDialog").open`, 3000);
+      const escaped = await evalJson(opt, `async () => ({ focus: document.activeElement?.id ?? null, previewShown: !document.getElementById("replacePreview").hidden })`);
+      const unchangedAfterEsc = same((await pagePlain(PW2)).map((a) => a.name), ["Lokal Alpha", "Lokal Beta"]);
+      const forged = await msg(opt, "replaceApply", { token: "0".repeat(32) });
+      const stillLocal = same((await pagePlain(PW2)).map((a) => a.name), ["Lokal Alpha", "Lokal Beta"]);
       const replaced = await restoreVia(uniName, EXP);
       await waitFor(opt, `(() => { const r = document.getElementById("restoreStatus").getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()`, 3000);
       const done = await evalJson(opt, `async () => { const s = document.getElementById("restoreStatus"), r = s.getBoundingClientRect(), c = document.getElementById("changePrevious");
@@ -1628,6 +1657,7 @@ try {
           filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id),
           previewHidden: document.getElementById("replacePreview").hidden, passwordHint: { shown: !c.hidden, className: c.className } }; }`);
       const afterNames = (await pagePlain(PW2)).map((a) => a.name);
+      const pendingAfter = await pendingState();
       const prevShown = await evalJson(opt, `async () => !document.getElementById("previousBox").hidden && document.getElementById("previousText").textContent`);
       const changeWarn = await evalJson(opt, `async () => !document.getElementById("changePrevious").hidden && document.getElementById("changeForm").elements.discardPrevious.required`);
       await evalJson(opt, `async () => { const f = document.getElementById("previousForm").elements; f.confirmed.checked = true;
@@ -1637,16 +1667,87 @@ try {
       const backNames = (await pagePlain(PW2)).map((a) => a.name);
       await msg(opt, "lock");
       const samePw = (await msg(opt, "unlock", { password: PW2 })).ok;
-      record("R-1", "replace a populated vault via the UI: preview with counts and local-only entries, destructive warning, confirmation required, fresh master password; previous vault kept and brought back; destination master password unchanged",
-        check.kind === "ok" && preview.shown && preview.warning && /2/.test(preview.text) && same(preview.lose, ["Lokal Alpha", "Lokal Beta"]) &&
-        preview.confirmShown && preview.blockedWithoutConfirm && preview.exportPasswordEmpty && changeWarn && noConfirm.ok === false && replaced.kind === "ok" && replaced.area === "restoreStatus" &&
-        same(afterNames, expected.map((a) => a.name)) && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
-        { check, preview, noConfirm, replaced, afterNames: afterNames.length, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
-      record("F3-3", "replacement flow: after the check step 2 is scrolled into view with the focus on its heading; one status at a time, no role=alert; the second entry is explained; success shown below step 1 with both counts, step 2 closed, focus on the section heading; the password-change hint is a neutral notice; restoring the previous state reports next to its buttons",
-        step2.focus === "replaceStep2" && step2.inView && same(step2.filled, ["restoreStatus"]) && step2.alerts === 0 && step2.why &&
+      record("R-1", "replace a populated vault via the UI (#25 V2): one check with both passwords; preview with counts, local-only and backup-only entries, kept-copy note; one confirmation dialog without checkbox or password; Escape changes nothing; a forged token is refused; replaced; previous vault kept and brought back; destination master password unchanged",
+        check.kind !== "error" && /2/.test(shown.summary) && same(shown.lose, ["Lokal Alpha", "Lokal Beta"]) && shown.gain === expected.length && shown.keep &&
+        shown.checkboxes === 0 && dialog.checkboxes === 0 && unchangedAfterEsc && forged.ok === false && forged.error === "conflict" && stillLocal &&
+        replaced.kind === "ok" && replaced.area === "restoreStatus" && same(afterNames, expected.map((a) => a.name)) && !pendingAfter.pending && !pendingAfter.key &&
+        changeWarn && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
+        { check, shown, dialog, escaped, forged, replaced, afterNames: afterNames.length, pendingAfter, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
+      record("F3-3", "replacement flow (#25 V2): after the check the preview is in view with the focus on its heading, no other message, no role=alert, both password fields empty, file kept; the dialog is modal (role alertdialog, labelled and described) with the focus on Cancel; Escape returns the focus to \"Replace vault now\"; success: exactly one message below the check, in view, both counts, preview closed, focus on the section heading; the password-change hint is a neutral notice; restoring the previous state reports next to its buttons",
+        shown.focus === "replacePreviewTitle" && shown.inView && same(shown.filled, []) && shown.alerts === 0 && shown.passwordsEmpty && shown.file === 1 &&
+        dialog.open && dialog.modal && dialog.role === "alertdialog" && dialog.focus === "replaceDialogCancel" && dialog.labelled.length > 0 && /2/.test(dialog.described) &&
+        escaped.focus === "replaceButton" && escaped.previewShown &&
         done.focus === "restoreTitle" && done.inView && same(done.filled, ["restoreStatus"]) && done.previewHidden &&
         done.text.includes(String(expected.length)) && done.text.includes("2") && done.passwordHint.shown && done.passwordHint.className === "notice" &&
-        back.area === "previousStatus", { step2, done, back });
+        back.area === "previousStatus", { shown, dialog, escaped, done, back });
+
+      // R-3 (#25 V2) in real Firefox: the pending replacement survives an event page suspension
+      // but not a lock; cancel, another file, leaving the page and the expiry remove it; a
+      // change in another tab after the check is never overwritten.
+      {
+        const local3 = [{ name: "Lokal Zeta", secret: syntheticSecret(930) }];
+        const checkMsg = async () => (await msg(opt, "replacePreview", { text: exportText, password: EXP, masterPassword: PW2 })).result;
+        const out = {};
+        await vaultWith(local3, PW2);
+        // event page suspension between check and replace
+        let p = await checkMsg();
+        const a = await msg(opt, "status");
+        await call("browsingContext.navigate", { context: pop, url: "about:blank", wait: "complete" });
+        await sleep(IDLE_MS * 3);
+        const b = await msg(opt, "status");
+        out.suspension = { restarted: a.result.startedAt !== b.result.startedAt, apply: (await msg(opt, "replaceApply", { token: p.token })).ok };
+        // lock between check and replace
+        await vaultWith(local3, PW2);
+        p = await checkMsg();
+        await msg(opt, "lock");
+        out.lock = { after: await pendingState() };
+        await msg(opt, "unlock", { password: PW2 });
+        out.lock.apply = (await msg(opt, "replaceApply", { token: p.token })).error;
+        // UI: cancel, another file, leaving the page, expiry, change in another tab
+        const uiCheck = async () => { await open(opt, "options/options.html"); await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+          await checkBackup(uniName, EXP); return pendingState(); };
+        await vaultWith(local3, PW2);
+        out.cancel = { before: await uiCheck() };
+        await evalJson(opt, `async () => document.getElementById("replaceCancel").scrollIntoView({ block: "center" })`);
+        await clickAt(opt, "#replaceCancel");
+        await sleep(300);
+        out.cancel.after = await pendingState();
+        out.file = { before: await uiCheck() };
+        await evalJson(opt, `async () => { const dt = new DataTransfer(); dt.items.add(new File(["{}"], "andere.json", { type: "application/json" }));
+          const i = document.querySelector("#restoreExportForm input[type=file]"); i.files = dt.files; i.dispatchEvent(new Event("input", { bubbles: true })); }`);
+        await sleep(300);
+        out.file.after = await pendingState();
+        out.file.previewHidden = await evalJson(opt, `async () => document.getElementById("replacePreview").hidden`);
+        out.leave = { before: await uiCheck() };
+        await call("browsingContext.navigate", { context: opt, url: "about:blank", wait: "complete" });
+        await sleep(500);
+        await open(opt, "options/options.html");
+        await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        out.leave.after = await pendingState();
+        out.expiry = { before: await uiCheck() };
+        await evalJson(opt, `async () => { const real = Date.now; Date.now = () => real() + 181_000; document.getElementById("replaceButton").click(); Date.now = real; }`);
+        await sleep(300);
+        out.expiry.after = await pendingState();
+        out.expiry.message = await pageMessage();
+        out.expiry.want = await evalJson(opt, `async () => browser.i18n.getMessage("replaceExpired")`);
+        await vaultWith(local3, PW2);
+        out.concurrent = { before: await uiCheck() };
+        const rev2 = (await msg(opt, "listAccounts")).result.revision;
+        await msg(opt, "addAccount", { revision: rev2, account: { name: "Anderer Tab", secret: syntheticSecret(931) } });
+        await evalJson(opt, `async () => document.getElementById("replaceButton").scrollIntoView({ block: "center" })`);
+        await clickAt(opt, "#replaceButton");
+        if (await evalJson(opt, `async () => document.getElementById("replaceDialog").open`)) await clickAt(opt, "#replaceDialogConfirm");
+        out.concurrent.stale = await settle();
+        out.concurrent.staleNames = (await pagePlain(PW2)).map((x) => x.name);
+        out.concurrent.want = await evalJson(opt, `async () => browser.i18n.getMessage("replaceConflict")`);
+        const gone = (x) => x && !x.pending && !x.key;
+        record("R-3", "pending replacement in real Firefox (#25 V2): survives an event page suspension; a lock removes it and its key (the old token is refused after unlocking); cancel, choosing another file, leaving the page and the expiry remove it; a change in another tab after the check is never overwritten",
+          out.suspension.restarted && out.suspension.apply && gone(out.lock.after) && out.lock.apply === "conflict" &&
+          out.cancel.before.pending && gone(out.cancel.after) && out.file.before.pending && gone(out.file.after) && out.file.previewHidden &&
+          out.leave.before.pending && gone(out.leave.after) && out.expiry.before.pending && gone(out.expiry.after) && out.expiry.message.text === out.expiry.want &&
+          out.concurrent.stale.text === out.concurrent.want && out.concurrent.staleNames.includes("Anderer Tab") && out.concurrent.staleNames.includes("Lokal Zeta"),
+          out);
+      }
 
       // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a
       // replacement. The background page and the options page share the extension process and
@@ -1666,8 +1767,8 @@ try {
           await vaultWith(local2, PW2);
           await open(opt, "options/options.html");
           await waitFor(opt, "document.body.dataset.state === 'unlocked'");
-          const p = (await msg(opt, "replacePreview", { text: exportText, password: EXP })).result;
-          const args = { cmd: "replaceApply", revision: p.revision, fileHash: p.fileHash, text: exportText, password: EXP, masterPassword: PW2, confirmed: true };
+          const p = (await msg(opt, "replacePreview", { text: exportText, password: EXP, masterPassword: PW2 })).result;
+          const args = { cmd: "replaceApply", token: p.token };
           const pid = CHROME_OK ? await evalJson(chromeTop, `async () => ${SVC}.appinfo.processID`).catch(() => ff.pid) : ff.pid;
           await call("script.evaluate", { target: { context: opt }, awaitPromise: false, expression: `(() => {
             const target = ${JSON.stringify(target)};

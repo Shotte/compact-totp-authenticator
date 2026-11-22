@@ -73,12 +73,12 @@ without one.
 - **CTA unencrypted export:** same import, with every parameter kept.
 - **Restore an encrypted export** (new computer, new profile): set up CTA with a master
   password, then Settings → General → "Restore: replace the vault with an encrypted backup".
-  Unlike the import, this replaces all current entries. Step 1: choose the file, enter the
-  export password and check the backup (nothing changes yet). Step 2 opens below: enter the
-  export password again (it was discarded after the check) and your master password. If
-  the vault already holds entries, CTA first shows what would change and replaces them only
-  after your explicit confirmation; the previous vault state is kept as an encrypted copy that
-  you can restore or discard in the same section.
+  Unlike the import, this replaces all current entries. Choose the file, enter its export
+  password and your master password once, and click "Check backup" (nothing changes yet).
+  The preview shows what would change. "Replace vault now" asks once for confirmation; an
+  empty vault is restored directly. The check stays valid for at most 3 minutes and ends
+  with any lock. The previous vault state is kept as an encrypted copy that you can restore
+  or discard in the same section.
 
 ## 5. Updates and recovery
 

@@ -482,7 +482,7 @@
     "message": "Restore: replace the vault with an encrypted backup"
   },
   "restoreExportNote": {
-    "message": "Unlike the import, this adds nothing: your current 2FA entries are completely replaced by the backup. CTA first checks the backup and shows what would change; nothing changes until you confirm in step 2. If your vault already holds entries, its previous state is kept as an encrypted copy. Your master password stays the same in every case."
+    "message": "Unlike the import, this adds nothing: your current 2FA entries are completely replaced by the backup. You enter the export password and your master password once; CTA checks the backup and shows what would change. Your current state is kept as an encrypted copy, and your master password stays the same."
   },
   "exportFile": {
     "message": "Backup file"
@@ -631,42 +631,8 @@
   "replaceCheck": {
     "message": "Check backup"
   },
-  "replaceStep1": {
-    "message": "Step 1: Check the backup – changes nothing yet"
-  },
-  "replaceStep2": {
-    "message": "Step 2: Confirm the replacement"
-  },
-  "replaceWhyAgain": {
-    "message": "Why again? The check only read the backup; your vault is unchanged. The export password was discarded afterwards and is needed again to decrypt the file. Your master password authorizes changing the vault now."
-  },
   "replaceChecking": {
     "message": "Checking the backup …"
-  },
-  "replaceChecked": {
-    "message": "Backup checked; nothing changed yet. Continue with step 2."
-  },
-  "replaceSummary": {
-    "message": "The backup is valid and holds $COUNT$ 2FA entries.",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
-  },
-  "replaceWarning": {
-    "message": "Warning: your vault holds $CURRENT$ 2FA entries. They will be completely replaced by the $BACKUP$ entries of the backup ($BOTH$ of them are in both).",
-    "placeholders": {
-      "current": {
-        "content": "$1"
-      },
-      "backup": {
-        "content": "$2"
-      },
-      "both": {
-        "content": "$3"
-      }
-    }
   },
   "replaceLoseIntro": {
     "message": "These $COUNT$ entries exist only in your current vault; after the replacement they are only in the kept copy:",
@@ -688,18 +654,7 @@
     }
   },
   "replaceKeepsCopy": {
-    "message": "Before the replacement your current vault is saved and verified as an encrypted copy. You can bring it back here until you discard the copy, replace again or change your master password."
-  },
-  "replaceConfirm": {
-    "message": "I want to replace my $COUNT$ current 2FA entries with the backup.",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
-  },
-  "replaceButton": {
-    "message": "Replace vault"
+    "message": "Before the replacement, your current state is saved and verified as an encrypted copy. You can bring it back afterwards under \"Previous vault state\" until you discard the copy, replace again or change your master password."
   },
   "replacing": {
     "message": "Working …"
@@ -770,9 +725,6 @@
   "previousGone": {
     "message": "There is no previous vault state any more. Nothing was changed."
   },
-  "exportPasswordAgain": {
-    "message": "Export password of the backup (again)"
-  },
   "replaceOverwritesCopy": {
     "message": "There is always exactly one kept previous vault state. The current one from $WHEN$ will be replaced by your present state.",
     "placeholders": {
@@ -809,5 +761,67 @@
   },
   "lockedHint": {
     "message": "The vault is locked or not set up yet. Unlock it above with your master password, or set one there."
+  },
+  "replaceCheckNote": {
+    "message": "Checking changes nothing yet."
+  },
+  "replacePreviewTitle": {
+    "message": "Preview"
+  },
+  "replaceCounts": {
+    "message": "Current $CURRENT$ entries · backup $BACKUP$ entries · in both $BOTH$.",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "backup": {
+        "content": "$2"
+      },
+      "both": {
+        "content": "$3"
+      }
+    }
+  },
+  "restorePreviewEmpty": {
+    "message": "Your vault is empty. The backup holds $COUNT$ 2FA entries.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceGainIntro": {
+    "message": "Only in the backup ($COUNT$):",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "replaceNow": {
+    "message": "Replace vault now"
+  },
+  "replaceDialogTitle": {
+    "message": "Replace the vault now?"
+  },
+  "replaceDialogText": {
+    "message": "Your $CURRENT$ current 2FA entries will be replaced by the $BACKUP$ entries of the backup. The current state is kept as an encrypted copy and can be brought back under \"Previous vault state\".",
+    "placeholders": {
+      "current": {
+        "content": "$1"
+      },
+      "backup": {
+        "content": "$2"
+      }
+    }
+  },
+  "replaceDialogConfirm": {
+    "message": "Replace"
+  },
+  "replaceExpired": {
+    "message": "The check is no longer valid (after 3 minutes, a lock or a change). Nothing was changed. Enter the passwords and check the backup again; the file stays selected."
+  },
+  "replaceTooLarge": {
+    "message": "The backup is too large to restore. Nothing was changed."
   }
 }

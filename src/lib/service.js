@@ -13,6 +13,13 @@ import { createVaultStore, validateVault, isValidKdf, VaultError } from "./vault
 import { deriveKey, newKdf, checkNewPassword, normalizePassword, MAX_PASSWORD_LENGTH } from "./kdf.js";
 import { parseExport, sealExport, openExport, plainExport, legacyExport, accountsFromPortable, sameAccounts,
   MAX_EXPORT_BYTES } from "./export.js";
+import { newAesKey, encryptJson, decryptJson } from "./crypto.js";
+
+// #25 V2: a checked replacement stays valid for at most this long (operator decision 2), and
+// its sealed copy of the backup may not exceed this size in storage.session.
+export const REPLACE_TTL_MS = 180_000;
+export const MAX_STAGED_CHARS = 2 * 1024 * 1024;
+const replaceAad = (p) => `cta-replace-v2|${p.sessionId}|${p.generation}|${p.revision}|${p.tokenHash}|${p.createdAt}|${p.expiresAt}`;
 
 export class LockedError extends Error {
   constructor(reason) { super(`locked:${reason}`); this.code = "locked"; this.reason = reason; }
@@ -48,10 +55,27 @@ export function createService({ session, local, alarms, now = Date.now,
   // and startSession() (new session).
   const dropPending = () => session.remove("pendingImport");
   const loadPending = async () => (await session.get("pendingImport")).pendingImport ?? null;
-  // Same kind of binding for the vault replacement preview (#25): session id, revision and
-  // file hash only. Neither the backup's contents nor any password are kept.
-  const dropReplace = () => session.remove("pendingReplace");
-  const loadReplace = async () => (await session.get("pendingReplace")).pendingReplace ?? null;
+  // The checked vault replacement (#25 V2, docs/PLAN-25-REPLACE-V2.md). storage.session holds
+  // "pendingReplace": the bindings (session id, key generation, revision, SHA-256 of the
+  // page's single-use token, creation and expiry time) and the backup's accounts sealed with
+  // a fresh random non-extractable key. That key lives only in the session record
+  // ("replaceKey"), so every lock or session end destroys it together with the session key,
+  // whether or not "pendingReplace" itself was removed yet. No password, no derived key and
+  // no plaintext entry is kept.
+  async function dropReplace() {
+    const e = epoch;
+    await session.remove("pendingReplace");
+    const { session: s } = await session.get("session");
+    if (!s?.replaceKey || e !== epoch) return; // a lock meanwhile removed the whole session
+    const { replaceKey: _drop, ...rest } = s;
+    await session.set({ session: rest }); // no await between the epoch check and this write
+  }
+  // Expired (or from the future: the clock moved back) never counts, on any read.
+  const loadReplace = async () => {
+    const p = (await session.get("pendingReplace")).pendingReplace ?? null;
+    const t = now();
+    return p && Number.isFinite(p.expiresAt) && p.createdAt <= t && t < p.expiresAt ? p : null;
+  };
   const exclusive = (fn) => { const run = chain.then(fn); chain = run.catch(() => {}); return run; };
 
   async function wipe() {
@@ -458,63 +482,64 @@ export function createService({ session, local, alarms, now = Date.now,
       });
     },
 
-    // Restore or replace from an encrypted backup (#25), step 1: the backup is opened with its
-    // export password and compared with the current vault. Writes nothing to the vault;
-    // stores only the binding (session id, revision, file hash) in storage.session. Not an
-    // activity: a preview never extends the session.
-    replacePreview({ text, password }) {
+    // Restore or replace from an encrypted backup (#25 V2), check: the master password (fresh
+    // proof against the current vault) and the export password are verified once, here. The
+    // backup's accounts are sealed with a new random key kept in the session record; the page
+    // receives a single-use token that alone authorizes replaceApply for REPLACE_TTL_MS. Not
+    // an activity: a check never extends the session.
+    replacePreview({ text, password, masterPassword }) {
       return exclusive(async () => {
         await dropReplace();
-        const ctx = await requireSession();
+        const auth = await authorizeSensitive(masterPassword);
         const incoming = await openBackup(text, password);
-        await recheck(ctx); // lock or expiry during PBKDF2 aborts
-        const { revision, accounts } = await readVault(ctx);
-        const fileHash = await sha256(text);
-        if (ctx.e !== epoch) throw new LockedError("changed");
-        await session.set({ pendingReplace: { sessionId: ctx.s.id, revision, fileHash, backupCount: incoming.length } });
+        if (incoming.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
+        await recheck(auth.ctx); // lock, expiry or re-unlock during PBKDF2 aborts
+        const { revision, accounts } = await readVault(auth.ctx);
+        if (revision !== auth.revision) throw new ConflictError();
+        const token = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+        const createdAt = now();
+        const pending = { sessionId: auth.ctx.s.id, generation: auth.ctx.s.generation, revision,
+          tokenHash: await sha256(token), createdAt, expiresAt: createdAt + REPLACE_TTL_MS, backupCount: incoming.length };
+        const replaceKey = await newAesKey();
+        pending.staged = await encryptJson(replaceKey, incoming, replaceAad(pending));
+        if (pending.staged.ct.length > MAX_STAGED_CHARS) throw new acc.InputError("replace-too-large");
+        const { session: cur } = await session.get("session");
+        if (auth.ctx.e !== epoch || cur?.id !== auth.ctx.s.id) throw new LockedError("changed");
+        await session.set({ session: { ...cur, replaceKey }, pendingReplace: pending }); // no await since the epoch check
+        await alarms.create("replace-expiry", { when: pending.expiresAt });
         const { vault_previous: kept } = await local.get("vault_previous");
-        return { revision, fileHash, ...replaceSummary(accounts, incoming),
+        return { token, expiresAt: pending.expiresAt, revision, ...replaceSummary(accounts, incoming),
           keptCopy: kept ? { exists: true, replacedAt: kept.replacedAt } : { exists: false } };
       });
     },
 
-    // Step 2: fresh master password of THIS vault, the same preview (session, revision, file
-    // hash; the file and export password are sent again), an explicit confirmation if the
-    // vault holds entries, a re-read right before the write. The destination keeps its master
-    // password and key generation: the backup's entries are sealed with the vault's own key.
-    replaceApply({ revision, fileHash, text, password, masterPassword, confirmed }) {
+    // Replace: only the token. It is consumed first (single use, whatever happens next); then
+    // every binding must still hold: same session and key generation, token, not expired,
+    // the sealed copy opens with its key and bindings, and the vault is still at the checked
+    // revision. The write itself is the existing path: verified previous copy, one commit,
+    // truthful outcome. The destination keeps its master password and key generation.
+    replaceApply({ token }) {
       return exclusive(async () => {
-        try {
-          const auth = await authorizeSensitive(masterPassword);
-          const pending = await loadReplace();
-          if (!pending || pending.sessionId !== auth.ctx.s.id || pending.fileHash !== fileHash
-            || pending.revision !== revision || auth.revision !== revision) throw new ConflictError();
-          if (await sha256(text) !== pending.fileHash) throw new ConflictError(); // not the previewed file
-          if (auth.payload.accounts.length && confirmed !== true) throw new acc.InputError("replace-confirmation");
-          // The export password is not kept after the preview (review A): it is entered again
-          // and re-authenticates the backup here. The file hash binds the ciphertext and
-          // AES-GCM its plaintext, so the contents are the previewed ones; the count is
-          // compared as well.
-          const next = await openBackup(text, password);
-          if (next.length !== pending.backupCount) throw new ConflictError();
-          if (next.length > MAX_IMPORT_ENTRIES) throw new acc.InputError("import-too-many");
-          await recheck(auth.ctx);
-          const current = await readVault(auth.ctx); // another writer may have changed the vault
-          if (current.revision !== revision) throw new ConflictError();
-          const r = await replaceContents(auth, next, revision);
-          await dropReplace(); // only after the commit; a failure that changed nothing may retry
-          return r;
-        } catch (e) {
-          // A fixable input (wrong password, missing confirmation, a failure that changed
-          // nothing) keeps the preview; a conflict, lock or unknown outcome makes it stale.
-          if (e?.code !== "invalid") await dropReplace();
-          throw e;
-        }
+        const ctx = await requireSession();
+        const raw = (await session.get("pendingReplace")).pendingReplace ?? null;
+        const pending = await loadReplace();
+        const key = ctx.s.replaceKey;
+        await dropReplace();
+        if (raw && !pending) throw new acc.InputError("replace-expired");
+        if (!pending || !key || pending.sessionId !== ctx.s.id || pending.generation !== ctx.s.generation
+          || typeof token !== "string" || await sha256(token) !== pending.tokenHash) throw new ConflictError();
+        let next;
+        try { next = await decryptJson(key, pending.staged, replaceAad(pending)); } catch { throw new ConflictError(); }
+        if (!Array.isArray(next) || next.length !== pending.backupCount || next.length > MAX_IMPORT_ENTRIES) throw new ConflictError();
+        await recheck(ctx);
+        const current = await readVault(ctx); // another writer may have changed the vault
+        if (current.revision !== pending.revision) throw new ConflictError();
+        return replaceContents({ ctx, key: ctx.s.key, payload: { accounts: current.accounts } }, next, pending.revision);
       });
     },
 
-    // The user cancelled the replacement preview.
-    async replaceCancel() { await dropReplace(); return {}; },
+    // The user cancelled the check, chose another file or left the preview.
+    replaceCancel() { return exclusive(async () => { await dropReplace(); return {}; }); },
 
     // The kept copy of the vault before the last replacement: time and number of entries.
     previousStatus() {
@@ -634,14 +659,9 @@ export function createService({ session, local, alarms, now = Date.now,
     },
     replacePreview: (m) => {
       if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
-      return { text: m.text, password: str(m.password) };
+      return { text: m.text, password: str(m.password), masterPassword: str(m.masterPassword) };
     },
-    replaceApply: (m) => {
-      if (typeof m.text !== "string" || m.text.length > MAX_EXPORT_BYTES) throw new acc.InputError("text");
-      if (typeof m.fileHash !== "string") throw new acc.InputError("file-hash");
-      return { revision: rev(m), fileHash: m.fileHash, text: m.text, password: str(m.password),
-        masterPassword: str(m.masterPassword), confirmed: m.confirmed === true };
-    },
+    replaceApply: (m) => ({ token: str(m.token) }),
     restorePrevious: (m) => ({ masterPassword: str(m.masterPassword), confirmed: m.confirmed === true }),
     discardPrevious: (m) => ({ masterPassword: str(m.masterPassword), confirmed: m.confirmed === true }),
     importApply: (m) => {
@@ -677,6 +697,12 @@ export function createService({ session, local, alarms, now = Date.now,
         const known = ["locked", "conflict", "invalid", "malformed", "unknown"].includes(e?.code);
         return { ok: false, error: known ? e.code : "internal", reason: known ? e.reason : undefined };
       }
+    },
+
+    // Alarm "replace-expiry": removes an expired checked replacement. Cleanup only; validity is
+    // decided by the expiry check on every read (loadReplace), never by this alarm.
+    onReplaceExpiry() {
+      return exclusive(async () => { if (!(await loadReplace())) await dropReplace(); });
     },
 
     async onAlarm() {

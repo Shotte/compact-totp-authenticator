@@ -744,35 +744,50 @@ vault already holds entries. The user never has to empty the vault by hand. Merg
 separate, post-1.0 feature (issue #17). Nothing is replaced automatically or as a side
 effect of a failed unlock or restore.
 
-**Flow** (service `replacePreview` → `replaceApply`; options page "Restore from an
-encrypted backup"):
+**Flow, version 2** (operator acceptance of 0.9.4 failed on usability; architecture
+approved as [PLAN-25-REPLACE-V2.md](PLAN-25-REPLACE-V2.md); service `replacePreview` →
+`replaceApply`; options page "Restore: replace the vault with an encrypted backup"):
 
-1. **Check.**
-   - The user chooses the file and enters its export password.
-   - The backup is parsed (bounded, before any PBKDF2) and opened with that password.
-   - A wrong password and a damaged file give the same answer, `import-decrypt`, because
+1. **Check (one request).**
+   - The user chooses the file and enters the export password and the master password once.
+   - The current vault's master password is verified fresh (`authorizeSensitive`); a wrong
+     one is `current-password` and is checked first.
+   - The backup is parsed (bounded, before any PBKDF2) and opened with the export password.
+     A wrong password and a damaged file give the same answer, `import-decrypt`, because
      AES-GCM cannot tell them apart.
-   - The preview returns counts and names only, never secrets: entries in the backup, in
-     the current vault, in both (identity = normalized secret and parameters), only in the
-     current vault, only in the backup.
-   - `storage.session` keeps only the binding `pendingReplace`: session id, revision,
-     SHA-256 of the file text, number of entries.
-   - **The export password is discarded after the check** (architecture review, condition
-     A). The page keeps only the `File` reference; no backup contents and no password.
-   - The preview says whether a kept previous vault exists, because the replacement would
-     overwrite it.
-   - The preview is not an activity and never extends the session.
-2. **Confirm.**
-   - The current vault's master password is verified fresh (`authorizeSensitive`).
-   - The binding must match: same session, same revision, same file hash. The page re-reads
-     the file. The user enters the export password again, and it re-authenticates the
-     backup. The file hash binds the ciphertext and AES-GCM its plaintext, so the contents
-     are the previewed ones; the number of entries is compared as well.
-   - A populated vault needs `confirmed: true`. The page shows a destructive warning with
-     the counts and the local-only names, and a required checkbox; otherwise
-     `replace-confirmation`, nothing written.
-   - The backup is opened again and the vault is re-read right before the write; another
-     revision is a `conflict`.
+   - The preview returns counts and names only, never secrets: entries in the backup, in the
+     current vault, in both (identity = normalized secret and parameters), only in the
+     current vault, only in the backup; and whether a kept previous vault would be
+     overwritten.
+   - **Pending replacement.** The backup's accounts are sealed (AES-GCM) with a fresh random
+     non-extractable key. That key is stored only in the session record (`replaceKey`), so
+     every lock or session end destroys it together with the session key, whether or not
+     the pending data itself was removed yet. `storage.session` keeps `pendingReplace`:
+     session id, key generation, revision, SHA-256 of a 128-bit single-use token, creation
+     and expiry time (creation + 180 s), entry count and the sealed accounts. All of these
+     bindings are the AES-GCM additional data, so a changed field makes the copy unusable.
+     A sealed copy above 2 MB is refused (`replace-too-large`).
+   - The page receives the token and keeps it only in a script variable. Both password
+     fields are cleared when the answer arrives. No password, derived key or plaintext
+     entry outlives the request.
+   - The check is not an activity and never extends the session.
+2. **Replace (one request, only the token).**
+   - The pending replacement is consumed first: single use, whatever happens next.
+   - It must be unexpired (checked on every read: `createdAt ≤ now < expiresAt`; an expired
+     one never becomes valid again, also if the clock goes back) → otherwise
+     `replace-expired`.
+   - Same session id and key generation, matching token hash, the key present in the
+     session record, and the sealed copy must open with its bindings, with the expected
+     count → otherwise `conflict`.
+   - The vault is re-read with the session key right before the write; another revision is
+     a `conflict`.
+   - The page asks for one explicit confirmation in a modal dialog for a populated vault
+     (initial focus on Cancel). Security does not depend on the dialog: without the token
+     and a valid pending replacement nothing is written.
+   - Cancel, choosing another file or editing the form, leaving the page (`pagehide`, best
+     effort; the token dies with the page anyway) and the expiry drop the pending
+     replacement. The alarm `replace-expiry` removes expired data; validity never depends on
+     that alarm.
 3. **Keep the previous vault, then write.**
    - For a populated vault, the store first writes the current vault, exactly as stored, as
      `vault_previous` (`keepPrevious`) and reads it back. The copy must equal what was
@@ -789,11 +804,13 @@ encrypted backup"):
 | Situation | Answer | Vault |
 |---|---|---|
 | success | `{ replaced, previous, keptPrevious, locked }` | new contents; previous kept |
-| wrong master password | `current-password` | unchanged; preview kept |
-| missing confirmation | `replace-confirmation` | unchanged; preview kept |
-| writing the copy failed, or the commit was rolled back | `replace-failed` | unchanged ("failed without data loss"); preview kept for a retry |
-| vault changed, another file, cancelled or reused preview | `conflict` | unchanged |
-| session expired or locked | `locked` | unchanged; preview binding wiped |
+| wrong master password (check) | `current-password` | unchanged; nothing pending |
+| wrong export password or damaged file (check) | `import-decrypt` | unchanged; nothing pending |
+| sealed copy above 2 MB (check) | `replace-too-large` | unchanged; nothing pending |
+| pending replacement expired (180 s) | `replace-expired` | unchanged; consumed |
+| writing the copy failed, or the commit was rolled back | `replace-failed` | unchanged ("failed without data loss"); a new check is needed |
+| vault changed, other session, wrong, missing or reused token, cancelled, tampered pending data | `conflict` | unchanged |
+| session expired or locked | `locked` | unchanged; pending data and key wiped |
 | store cannot tell whether the commit happened | `unknown` | the page reloads what storage holds |
 | locked during or after a committed write | `locked: true` next to the result | new contents |
 
@@ -840,21 +857,33 @@ Evidence:
     never.
 
 **Session expiry.** With a short automatic lock, the session can expire while the user reads
-the preview and types. The apply then answers `locked`, nothing is written, the binding is
-wiped, and nothing extends or revives the session. The page switches to the locked view:
-"the session expired or was locked; the action was not carried out" (feedback 02).
+the preview. The replacement then answers `locked`, nothing is written, the pending data and
+its key are wiped, and nothing extends or revives the session. The page switches to the
+locked view: "the session expired or was locked; the action was not carried out" (feedback
+02).
+
+**Trade-off of version 2.** The master password is verified at the check, at most 180 s before
+the write, not at the moment of writing. Within that time a person at the unlocked computer
+with that options tab open could confirm the replacement. Mitigations: the short lifetime,
+the token exists only in that tab, single use, any lock ends it, and the previous vault stays
+recoverable. In the same tab that person could already change entries without a password.
 
 The old command `importExport` (restore into an empty vault only, C4) stays unchanged for
 compatibility; the options page uses the new flow for both cases.
 
 Tests:
-- `test/replace.test.mjs` (13 tests): empty vault, populated vault, export password not
-  kept and needed again, wrong master or export password, damaged or malformed backup,
-  cancel, another file, changed vault, reused preview, session expiry after an event-page
-  restart, preview not an activity, storage failures, termination at every write boundary,
-  restore, discard, password change only with consent,
-  no secrets;
-- browser checks R-1, R-2 (real hard termination), C4-4, F2-2.
+- `test/replace.test.mjs` (21 tests): empty and populated vault; wrong, missing or both wrong
+  passwords; damaged, malformed and oversized backups (2 MB); expiry at 180 s, never valid
+  again (also with the clock set back); the expiry alarm only cleans up; lock, auto-lock,
+  idle lock, password change and a new unlock invalidate it; leftover pending data stays
+  unusable after a lock even without cleanup; wrong, missing and replayed tokens; cancel and
+  a new check; concurrent modification; two replace requests at once; an event-page restart
+  in between; tampered contents, bindings or expiry; the check is not an activity; storage
+  failures; termination at every write boundary; restore, discard, password change only with
+  consent; no password, token, secret or entry name in plain text;
+- browser checks R-1, R-2 (real hard termination), R-3 (real event-page suspension, lock,
+  cancel, another file, leaving the page, expiry, another tab), F2-2, F3-3, C4-4, and N4
+  (native Open dialog).
 
 ### 13.5 Download status with the current permissions
 
