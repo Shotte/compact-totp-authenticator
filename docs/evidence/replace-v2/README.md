@@ -21,7 +21,7 @@ signed, tagged or published.
 
 | Check | What it covers | Local | CI (5 platforms) |
 |---|---|---|---|
-| `npm test` | 244 unit tests, including 21 in `replace.test.mjs` (list below) | 244/244 PASS | PASS |
+| `npm test` | 245 unit tests, including 22 in `replace.test.mjs` (list below) | 245/245 PASS | PASS |
 | Lint | `web-ext lint` | 0 errors, 0 warnings | – |
 | R-1 | Replacement through the UI (see below) | PASS | PASS |
 | F3-3 | Focus, scrolling and dialog semantics (see below) | PASS | PASS |
@@ -95,7 +95,8 @@ Unrelated to #25.
 - Expiry:
   - valid at 179.999 s, refused at 180 s;
   - never valid again, also with the clock set back;
-  - a pending replacement from the future is refused.
+  - a pending replacement from the future is refused;
+  - checked again right before the write (expiring during the replacement writes nothing).
 - The expiry alarm only cleans up.
 - Lock, auto-lock, idle lock, password change and a new unlock each invalidate it.
 - Leftover pending data stays unusable after a lock even without cleanup, also with a forged
