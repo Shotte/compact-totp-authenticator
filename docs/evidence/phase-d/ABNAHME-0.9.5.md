@@ -12,8 +12,29 @@ Die Punkte unten prüfen gezielt die Probleme aus der Abnahme von 0.9.4:
 - überflüssiges Häkchen;
 - mehrere Meldungen gleichzeitig.
 
-Signierte Datei: `dist\signing\0.9.5\signed\…-0.9.5.xpi` (SHA-256 und Quellcommit werden nach der
-Signatur hier eingetragen).
+Signierte Datei: `dist\signing\0.9.5\signed\b6d63835a4834f55a37a-0.9.5.xpi`
+(SHA-256 `794d89fd2dc6e63cd6285e0af0e7c32fbb5c0d63ff8aac3a5776d00b95227946`, Quelle `9637b12`,
+`verify:signed` 6/6 OK).
+
+**Automatisch bereits bestanden** (Details in [signed-update-0.9.5/README.md](signed-update-0.9.5/README.md)):
+
+- Signiertes Update 0.9.4 → 0.9.5 über den echten Firefox-Update-Weg, mit Signaturprüfung:
+  - ID und UUID bleiben gleich, ebenso Einträge, Reihenfolge, Verschlüsselung und Einstellungen.
+  - Das Master-Passwort funktioniert, nach dem Neustart ist der Tresor gesperrt.
+  - Ergebnis: 11 PASS und 1 NOT_TESTED (U-S3, ohne geändertes Kürzel nicht prüfbar) bzw. 12/12
+    mit eigenem Kürzel. Ctrl+Shift+9 bleibt erhalten, Ctrl+Shift+2 öffnet dann nichts.
+- Ersetzen (V2) samt Wiederherstellen und Löschen des vorherigen Stands auf der aktualisierten
+  signierten Installation: PASS.
+- Die Dialoge zum vorherigen Tresorstand mit dem signierten Inhalt, in Deutsch und Englisch:
+  8/8 PASS. Geprüft wurden Zoom 100–200 %, hell und dunkel, schmales Fenster, Tastatur, falsches
+  Passwort und Doppelklick.
+
+**Offen, nur durch dich prüfbar:**
+- das Upgrade deines Profils `CTA-Test`;
+- der ganze Ablauf von Hand, mit dem Augenmerk auf die Probleme aus 0.9.4;
+- optional die Ausgabe eines Screenreaders.
+
+Genau das prüfen die Punkte unten.
 
 **Zwei Profile, nur Testdaten:**
 
