@@ -133,7 +133,7 @@ Firefox and is cleared on browser start (`onStartup`).
 **Bindings checked at the replacement.**
 - Session id and key generation.
 - Token hash.
-- `createdAt ≤ now < expiresAt`.
+- `createdAt ≤ now < expiresAt`, at the start and again right before the write.
 - The sealed copy authenticates under its key with all bindings as additional data.
 - The entry count.
 - The vault revision, read with the session key right before the write.
