@@ -6,19 +6,26 @@
   „Endgültig löschen“ bleibt rot.
 - **UX-3:** orangefarbener Hinweis, wenn der vorherige Tresorstand 30 Tage oder älter ist.
 
-Falls PR #43 (nur Desktop) vor dem Signieren gemergt ist, fehlt außerdem der Android-Eintrag im
-Manifest. Unter Windows ändert sich dadurch nichts.
+Dazu fehlt der Android-Eintrag im Manifest (PR #43, nur Desktop). Unter Windows ändert sich
+dadurch nichts.
 
 Krypto, Speicherformat, Ersetzen und Wiederherstellen sind unverändert. Deshalb gibt es hier
 **keinen** vollständigen Ersetzen-Test. Die Abnahme von #25 mit 0.9.5 gilt weiter.
 
-Signierte Datei: `dist\signing\0.9.6\signed\…-0.9.6.xpi`. SHA-256, Quelle und `verify:signed`
-trage ich nach dem Signieren ein. Signiert wird erst nach deiner Freigabe.
+Signierte Datei: `dist\signing\0.9.6\signed\b6d63835a4834f55a37a-0.9.6.xpi`
+(SHA-256 `c7000043e886da55e43f347f0a4af3bd724ae8908fb80cba1d223b6d6e8cd48f`, Quelle `d297a47`,
+`verify:signed` 6/6 OK).
 
-**Automatisch vor dieser Abnahme** (trage ich nach dem Signieren ein):
-- signiertes Update 0.9.5 → 0.9.6 über den echten Update-Weg, mit Standard- und eigenem Kürzel;
-- Browser-Suite auf `main` mit dem UX-Block: Bestätigung, Knopfarten, 30-Tage-Grenze bei
-  29 Tagen, 29 Tagen 23:59, 30 und 45 Tagen, Kontrast hell und dunkel.
+**Automatisch bereits bestanden** (Details in [signed-update-0.9.6/README.md](signed-update-0.9.6/README.md)):
+- Signiertes Update 0.9.5 → 0.9.6 über den echten Firefox-Update-Weg, mit Signaturprüfung:
+  - ID und UUID bleiben gleich, ebenso Einträge, Reihenfolge, Verschlüsselung und Einstellungen.
+  - Die Codes stimmen, nach dem Neustart ist der Tresor gesperrt.
+  - Ergebnis: 11 PASS und 1 NOT_TESTED (U-S3, ohne geändertes Kürzel nicht prüfbar) bzw. 12/12
+    mit eigenem Kürzel. Ctrl+Shift+9 bleibt erhalten, Ctrl+Shift+2 öffnet dann nichts.
+- Browser-Suite mit dem signierten Inhalt, Deutsch und Englisch: je 110 PASS, 0 FAIL.
+  - Der UX-Block prüft die grüne Bestätigung, die Knopfarten und die 30-Tage-Grenze (bei
+    29 Tagen und 29 Tagen 23:59 kein Hinweis, bei 30 und 45 Tagen sichtbar).
+  - Kontrast des Hinweises: hell 5,58:1, dunkel 7,15:1.
 
 **Zwei Profile, nur Testdaten, wie bei 0.9.5:**
 
