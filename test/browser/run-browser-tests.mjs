@@ -1629,6 +1629,9 @@ try {
       const shown = await evalJson(opt, `async () => { const h = document.getElementById("replacePreviewTitle"), r = h.getBoundingClientRect(), f = document.getElementById("restoreExportForm").elements;
         return { focus: document.activeElement?.id ?? null, inView: r.top >= 0 && r.bottom <= innerHeight,
           filled: [...document.querySelectorAll(".status")].filter((e) => e.textContent).map((e) => e.id),
+          verified: (() => { const st = document.getElementById("restoreStatus"), q = st.getBoundingClientRect();
+            return { text: st.textContent, kind: st.dataset.kind ?? null, inView: q.top >= 0 && q.bottom <= innerHeight, above: q.bottom <= r.top + 1,
+              want: browser.i18n.getMessage("replaceVerified") }; })(),
           alerts: document.querySelectorAll("[role=alert]").length, passwordsEmpty: f.password.value === "" && f.masterPassword.value === "", file: f.file.files.length,
           summary: document.getElementById("replaceSummary").textContent,
           lose: [...document.querySelectorAll("#replaceLoseList li")].map((li) => li.textContent),
@@ -1679,8 +1682,9 @@ try {
         replaced.kind === "ok" && replaced.area === "restoreStatus" && same(afterNames, expected.map((a) => a.name)) && !pendingAfter.pending && !pendingAfter.key &&
         changeWarn && /2/.test(prevShown || "") && back.kind === "ok" && same(backNames, ["Lokal Alpha", "Lokal Beta"]) && samePw,
         { check, shown, dialog, escaped, forged, replaced, afterNames: afterNames.length, pendingAfter, previous: prevShown, passwordChangeWarning: changeWarn, back, backNames, destinationPasswordUnchanged: samePw });
-      record("F3-3", "replacement flow (#25 V2): after the check the preview is in view with the focus on its heading, no other message, no role=alert, both password fields empty, file kept; the dialog is modal (role alertdialog, labelled and described) with the focus on Cancel; Escape returns the focus to \"Replace vault now\"; success: exactly one message below the check, in view, both counts, preview closed, focus on the section heading; the password-change hint is a neutral notice; restoring the previous state reports next to its buttons",
-        shown.focus === "replacePreviewTitle" && shown.inView && same(shown.filled, []) && shown.alerts === 0 && shown.passwordsEmpty && shown.file === 1 &&
+      record("F3-3", "replacement flow (#25 V2): after the check the preview is in view with the focus on its heading; exactly one message, the green \"backup verified, vault not changed\" in view right above the preview (UX-1); no role=alert, both password fields empty, file kept; the dialog is modal (role alertdialog, labelled and described) with the focus on Cancel; Escape returns the focus to \"Replace vault now\"; success: exactly one message below the check, in view, both counts, preview closed, focus on the section heading; the password-change hint is a neutral notice; restoring the previous state reports next to its buttons",
+        shown.focus === "replacePreviewTitle" && shown.inView && same(shown.filled, ["restoreStatus"]) && shown.verified.text === shown.verified.want &&
+        shown.verified.kind === "ok" && shown.verified.inView && shown.verified.above && shown.alerts === 0 && shown.passwordsEmpty && shown.file === 1 &&
         dialog.open && dialog.modal && dialog.role === "alertdialog" && dialog.focus === "replaceDialogCancel" && dialog.labelled.length > 0 && /2/.test(dialog.described) &&
         escaped.focus === "replaceButton" && escaped.previewShown &&
         done.focus === "restoreTitle" && done.inView && same(done.filled, ["restoreStatus"]) && done.previewHidden &&
@@ -1811,6 +1815,78 @@ try {
           out.discardDialog.focus === "previousDialogCancel" && out.discardDialog.confirm === want.discardConfirm && out.discardDialog.confirmClass === "danger" &&
           out.discarded.text === want.discarded && out.afterDiscard.box && out.afterDiscard.kept?.exists === false,
           out);
+      }
+
+      // UX (#25 polish):
+      // UX-1: the green "backup verified" message disappears as soon as the form changes.
+      // UX-2: the discard button in the box is neutral; the confirm button of its dialog stays red.
+      // UX-3: a reminder for a previous vault state of at least 30 days, not at 29 days or
+      //   29 days 23:59; orange per theme with at least 4.5:1; no box without a previous state.
+      //   replacedAt is moved in storage.local (plain metadata next to the encrypted copy).
+      {
+        await vaultWith([{ name: "Lokal Iota", secret: syntheticSecret(945) }], PW2);
+        await open(opt, "options/options.html");
+        await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        const ux = {};
+        await checkBackup(uniName, EXP);
+        const stat = () => evalJson(opt, `async () => ({ text: document.getElementById("restoreStatus").textContent, kind: document.getElementById("restoreStatus").dataset.kind ?? null,
+          previewHidden: document.getElementById("replacePreview").hidden })`);
+        ux.checked = await stat();
+        await evalJson(opt, `async () => { const f = document.getElementById("restoreExportForm").elements.password; f.value = "x"; f.dispatchEvent(new Event("input", { bubbles: true })); }`);
+        ux.edited = await stat();
+        ux.noPrevious = await evalJson(opt, `async () => document.getElementById("previousBox").hidden && document.getElementById("previousAge").hidden`);
+        await msg(opt, "replacePreview", { text: exportText, password: EXP, masterPassword: PW2 }).then((r) => msg(opt, "replaceApply", { token: r.result.token }));
+        const DAY = 86_400_000;
+        const hex = `(c) => "#" + c.match(/[0-9]+/g).slice(0, 3).map((v) => (+v).toString(16).padStart(2, "0")).join("")`;
+        const at = async (ms) => {
+          await evalJson(opt, `async () => { const { vault_previous: v } = await browser.storage.local.get("vault_previous"); v.replacedAt = Date.now() - ${ms}; await browser.storage.local.set({ vault_previous: v }); }`);
+          await open(opt, "options/options.html");
+          await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+          return evalJson(opt, `async () => { const a = document.getElementById("previousAge"), h = ${hex};
+            return { shown: !a.hidden, inBox: !a.closest("#previousBox").hidden, text: a.textContent, color: h(getComputedStyle(a).color), bg: h(getComputedStyle(document.body).backgroundColor) }; }`);
+        };
+        ux.d29 = await at(29 * DAY);
+        ux.d30minus1min = await at(30 * DAY - 60_000);
+        ux.d30 = await at(30 * DAY);
+        ux.d45 = await at(45 * DAY);
+        ux.want = await evalJson(opt, `async () => browser.i18n.getMessage("previousAgeNote")`);
+        const tc = (x) => +contrast(x.color, x.bg).toFixed(2);
+        ux.contrast = { auto: tc(ux.d45) };
+        if (CHROME_OK) { // both built-in themes through prefers-color-scheme (theme "auto")
+          for (const [name, v] of [["light", 1], ["dark", 0]]) {
+            await evalJson(chromeTop, `async () => ${SVC}.prefs.setIntPref("layout.css.prefers-color-scheme.content-override", ${v})`);
+            await open(opt, "options/options.html");
+            await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+            const m = await evalJson(opt, `async () => { const a = document.getElementById("previousAge"), h = ${hex}; a.scrollIntoView({ block: "center" });
+              return { color: h(getComputedStyle(a).color), bg: h(getComputedStyle(document.body).backgroundColor) }; }`);
+            ux.contrast[name] = { ...m, ratio: tc(m) };
+            await checkBackup(uniName, EXP); // UX-1 in this theme: the message and the preview heading
+            const vm = await evalJson(opt, `async () => { const st = document.getElementById("restoreStatus"), h = ${hex}, r = st.getBoundingClientRect(), t = document.getElementById("replacePreviewTitle").getBoundingClientRect();
+              return { color: h(getComputedStyle(st).color), bg: h(getComputedStyle(document.body).backgroundColor), box: { x: r.x - 8, y: r.y - 8, w: Math.max(r.width, 300) + 16, h: t.bottom - r.top + 16 } }; }`);
+            ux.contrast[name].verified = tc(vm);
+            const vs = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: Math.max(0, vm.box.x), y: Math.max(0, vm.box.y), width: vm.box.w, height: vm.box.h } });
+            writeFileSync(join(OUT, `ux-verified-${name}.png`), Buffer.from(vs.data, "base64"));
+            await msg(opt, "replaceCancel");
+            const box = await evalJson(opt, `async () => { const r = document.getElementById("previousBox").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }`);
+            const shot = await call("browsingContext.captureScreenshot", { context: opt, clip: { type: "box", x: box.x, y: box.y, width: box.w, height: box.h } });
+            writeFileSync(join(OUT, `ux-previous-age-${name}.png`), Buffer.from(shot.data, "base64"));
+          }
+          await evalJson(chromeTop, `async () => ${SVC}.prefs.clearUserPref("layout.css.prefers-color-scheme.content-override")`);
+          await open(opt, "options/options.html");
+          await waitFor(opt, "document.body.dataset.state === 'unlocked'");
+        }
+        ux.buttons = await evalJson(opt, `async () => { const b = document.getElementById("previousDiscardButton"), r = document.getElementById("previousRestoreButton");
+          return { className: b.className, sameLook: getComputedStyle(b).backgroundColor === getComputedStyle(r).backgroundColor && getComputedStyle(b).color === getComputedStyle(r).color }; }`);
+        await previousVia("discard", PW2, { confirm: false });
+        ux.dialogConfirm = await evalJson(opt, `async () => { const c = document.getElementById("previousDialogConfirm"); const v = c.className; document.getElementById("previousDialog").close(); return v; }`);
+        const want1 = await evalJson(opt, `async () => browser.i18n.getMessage("replaceVerified")`);
+        const themesOk = !CHROME_OK || (ux.contrast.light.ratio >= 4.5 && ux.contrast.dark.ratio >= 4.5 && ux.contrast.light.color !== ux.contrast.dark.color &&
+          ux.contrast.light.verified >= 4.5 && ux.contrast.dark.verified >= 4.5);
+        record("UX", "#25 polish: the green \"backup verified\" message after a check is cleared when the form changes (UX-1); the discard button in the box looks like the restore button, the dialog's confirm stays red (UX-2); the previous-vault reminder is shown from 30 days on, not at 29 days or 1 minute before 30, not without a previous state; text starts with the localized Hinweis/Note; orange per theme with contrast ≥ 4.5:1 (UX-3)",
+          ux.checked.text === want1 && ux.checked.kind === "ok" && !ux.checked.previewHidden && ux.edited.text === "" && ux.edited.previewHidden && ux.noPrevious &&
+          ux.buttons.className === "" && ux.buttons.sameLook && ux.dialogConfirm === "danger" &&
+          !ux.d29.shown && !ux.d30minus1min.shown && ux.d30.shown && ux.d45.shown && ux.d45.inBox && ux.d45.text === ux.want && /^(Hinweis|Note):/.test(ux.d45.text) &&
+          ux.contrast.auto >= 4.5 && themesOk, ux);
       }
 
       // R-2 (#25, review C): hard termination of Firefox at the write boundaries of a

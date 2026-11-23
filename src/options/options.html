@@ -279,12 +279,14 @@
           <div id="previousBox" data-status="previousStatus" hidden>
             <h3 data-i18n="previousTitle"></h3>
             <p id="previousText"></p>
+            <!-- UX-3: a reminder only, from 30 days on; nothing is deleted automatically. -->
+            <p id="previousAge" class="advisory" data-i18n="previousAgeNote" hidden></p>
             <!-- #25 V2 §7: master password once, then one dialog per action (no checkbox). -->
             <form id="previousForm" class="auth" autocomplete="off">
               <label><span data-i18n="currentPassword"></span>
                 <input name="masterPassword" type="password" required maxlength="1024" autocomplete="current-password" aria-describedby="previousStatus"></label>
               <div class="actions"><button id="previousRestoreButton" type="submit" name="action" value="restore" data-i18n="previousRestore"></button>
-                <button id="previousDiscardButton" type="submit" name="action" value="discard" class="danger" data-i18n="previousDiscard"></button></div>
+                <button id="previousDiscardButton" type="submit" name="action" value="discard" data-i18n="previousDiscard"></button></div>
             </form>
             <p id="previousStatus" class="status" role="status"></p>
           </div>
