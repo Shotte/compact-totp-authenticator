@@ -1,0 +1,236 @@
+{
+  "lang": "de",
+  "startedAt": "2026-11-22T17:35:32.777Z",
+  "browser": "160.0.1",
+  "uiLanguage": "de",
+  "shots": [
+    "previous-restore-light-1280px-100pct-de.png",
+    "previous-discard-light-1280px-100pct-de.png",
+    "previous-restore-dark-1280px-100pct-de.png",
+    "previous-discard-dark-1280px-100pct-de.png",
+    "previous-restore-light-520px-200pct-de.png",
+    "previous-discard-light-520px-200pct-de.png",
+    "previous-restore-focus-cancel-de.png",
+    "previous-discard-focus-confirm-de.png",
+    "previous-wrong-password-de.png"
+  ],
+  "finishedAt": "2026-11-22T17:35:44.412Z",
+  "checks": [
+    {
+      "id": "V-1",
+      "name": "both dialogs at 1280 and 520 px window width, real zoom 100/150/200 %, light and dark: open, nothing clipped, no horizontal overflow, confirm button reachable, text and button contrast ≥ 4.5 (24 combinations)",
+      "verdict": "PASS",
+      "details": {
+        "combinations": 24,
+        "failures": [],
+        "notInViewportButScrollable": [],
+        "realZoomDpr": [
+          1,
+          1.5,
+          2
+        ]
+      }
+    },
+    {
+      "id": "V-2",
+      "name": "dialog texts: restore names both counts (current 3, previous 2) and that nothing is lost; discard names the count and that it cannot be undone; discard confirm is red (error colour, differs from Cancel) in light and dark, restore confirm is the primary button",
+      "verdict": "PASS",
+      "details": {
+        "restore": {
+          "title": "Vorherigen Tresorstand zurückholen?",
+          "text": "Dein aktueller Stand (3 Einträge) und der vorherige Tresorstand vom 22.11.2026, 18:35:35 (2 Einträge) werden getauscht. Es geht nichts verloren: Dein aktueller Stand wird danach als vorheriger Tresorstand aufbewahrt.",
+          "confirm": "Tauschen",
+          "cancel": "Abbrechen"
+        },
+        "discard": {
+          "title": "Vorherigen Tresorstand endgültig löschen?",
+          "text": "Die verschlüsselte Kopie vom 22.11.2026, 18:35:35 mit 2 Einträgen wird gelöscht. Das lässt sich nicht rückgängig machen. Deine aktuellen Einträge bleiben unverändert.",
+          "confirm": "Endgültig löschen"
+        },
+        "discardColors": {
+          "light": {
+            "bg": "#ffffff",
+            "fg": "#0c0c0d",
+            "cancelFg": "#0c0c0d",
+            "cancelBg": "#e7e7e7",
+            "confirmFg": "#ffffff",
+            "confirmBg": "#cf222e",
+            "confirmBorder": "#cf222e",
+            "cancelBorder": "#d3d3d3"
+          },
+          "dark": {
+            "bg": "#1c1b22",
+            "fg": "#e8e6e3",
+            "cancelFg": "#e8e6e3",
+            "cancelBg": "#302f35",
+            "confirmFg": "#1c1b22",
+            "confirmBg": "#f85149",
+            "confirmBorder": "#f85149",
+            "cancelBorder": "#414045"
+          }
+        }
+      }
+    },
+    {
+      "id": "K-1",
+      "name": "keyboard only: Enter on the button opens the dialog; focus starts on Cancel with a visible 2 px ring; Tab reaches the confirm button (ring visible); Shift+Tab returns to Cancel; Escape closes and returns the focus to the opening button",
+      "verdict": "PASS",
+      "details": {
+        "restore": {
+          "onButton": {
+            "id": "previousRestoreButton",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "initial": {
+            "id": "previousDialogCancel",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "tab": {
+            "id": "previousDialogConfirm",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "back": {
+            "id": "previousDialogCancel",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "afterEscape": {
+            "id": "previousRestoreButton",
+            "visible": true,
+            "outline": "solid 2px"
+          }
+        },
+        "discard": {
+          "onButton": {
+            "id": "previousDiscardButton",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "initial": {
+            "id": "previousDialogCancel",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "tab": {
+            "id": "previousDialogConfirm",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "back": {
+            "id": "previousDialogCancel",
+            "visible": true,
+            "outline": "solid 2px"
+          },
+          "afterEscape": {
+            "id": "previousDiscardButton",
+            "visible": true,
+            "outline": "solid 2px"
+          }
+        }
+      }
+    },
+    {
+      "id": "A-1",
+      "name": "roles and names: alertdialog with label and description; dialog buttons and form buttons have non-empty names; password field has a label; no checkbox",
+      "verdict": "PASS",
+      "details": {
+        "role": "alertdialog",
+        "labelledby": true,
+        "describedby": true,
+        "buttons": [
+          {
+            "id": "previousDialogCancel",
+            "name": "Abbrechen",
+            "type": "button"
+          },
+          {
+            "id": "previousDialogConfirm",
+            "name": "Endgültig löschen",
+            "type": "button"
+          }
+        ],
+        "formButtons": [
+          "Vorherigen Tresor wiederherstellen",
+          "Vorherigen Tresorstand löschen"
+        ],
+        "passwordLabelled": true,
+        "checkboxes": 0
+      }
+    },
+    {
+      "id": "F-1",
+      "name": "wrong master password: neither vault state changes; exactly one visible message, directly below the buttons and in view; field cleared, focused and aria-invalid",
+      "verdict": "PASS",
+      "details": {
+        "filled": [
+          "previousStatus"
+        ],
+        "alerts": 0,
+        "inView": true,
+        "gapToButtons": 14,
+        "focus": true,
+        "empty": true,
+        "invalid": "true",
+        "unchanged": true
+      }
+    },
+    {
+      "id": "D-1",
+      "name": "real double click on the confirm button: one swap (current = the 2 previous entries, previous = 3), dialog stays closed; exactly one visible success message in view; focus back on the restore button",
+      "verdict": "PASS",
+      "details": {
+        "swapped": {
+          "names": [
+            "Lokal Eta",
+            "Lokal Theta"
+          ],
+          "previous": {
+            "exists": true,
+            "replacedAt": 1795368943672,
+            "count": 3
+          }
+        },
+        "success": {
+          "focus": "previousRestoreButton",
+          "dialogOpen": false,
+          "filled": [
+            "previousStatus"
+          ],
+          "statusInView": true
+        }
+      }
+    },
+    {
+      "id": "C-1",
+      "name": "change in another tab while the restore dialog is open: no entry is lost (the changed state becomes the previous state)",
+      "verdict": "PASS",
+      "details": {
+        "kind": "ok",
+        "names": [
+          "Sicherung Alpha",
+          "Sicherung Beta",
+          "Sicherung Gamma"
+        ],
+        "previous": {
+          "exists": true,
+          "replacedAt": 1795368944271,
+          "count": 3
+        }
+      }
+    },
+    {
+      "id": "F-2",
+      "name": "discard via the dialog: previous state deleted, box closes, exactly one visible message; current entries unchanged",
+      "verdict": "PASS",
+      "details": {
+        "focus": "restoreTitle",
+        "filled": [
+          "restoreStatus"
+        ]
+      }
+    }
+  ]
+}
