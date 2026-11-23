@@ -10,7 +10,7 @@
 //
 // Output: dist/signing/<version>/source (manifest with version and update_url), a SHA-256
 // list of every file, and the signing command to run by hand (docs/SIGNING.md). Then:
-// web-ext lint --self-hosted and scripts/check-release.mjs on the result.
+// scripts/lint.mjs (web-ext lint --self-hosted) and scripts/check-release.mjs on the result.
 import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -47,8 +47,8 @@ else delete m.browser_specific_settings.gecko.update_url;
 writeFileSync(join(out, "manifest.json"), JSON.stringify(m, null, 2) + "\n");
 
 const run = (cmd, args) => spawnSync(cmd, args, { cwd: root, encoding: "utf8" });
-const lint = run(process.execPath, [join(root, "node_modules/web-ext/bin/web-ext.js"), "lint", "--source-dir", out, "--self-hosted", "--warnings-as-errors"]);
-process.stdout.write(lint.stdout.split("\n").filter((l) => /errors|warnings|notices/.test(l)).join("\n") + "\n");
+const lint = run(process.execPath, [join(root, "scripts/lint.mjs"), out, "--self-hosted"]);
+process.stdout.write(lint.stdout);
 if (lint.status !== 0) fail(`web-ext lint --self-hosted failed:\n${lint.stdout}${lint.stderr}`);
 const audit = run(process.execPath, [join(root, "scripts/check-release.mjs"), out]);
 process.stdout.write(audit.stdout.split("\n").filter((l) => /FAIL|checks OK/.test(l)).join("\n") + "\n");

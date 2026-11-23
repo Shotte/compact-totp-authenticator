@@ -20,6 +20,8 @@ test("manifest: MV3, approved ID, minimal permissions, no remote surface", () =>
   assert.equal(m.manifest_version, 3);
   assert.equal(m.browser_specific_settings.gecko.id, "{f587432b-b553-483e-b08d-4feac6378113}");
   assert.deepEqual(m.browser_specific_settings.gecko.data_collection_permissions, { required: ["none"] });
+  assert.deepEqual(Object.keys(m.browser_specific_settings), ["gecko"], "desktop only: AMO lists Android only with gecko_android");
+  assert.equal(m.browser_specific_settings.gecko.strict_min_version, "140.0");
   assert.deepEqual([...m.permissions].sort(), ["activeTab", "alarms", "storage"]);
   assert.deepEqual(m.optional_permissions, ["idle"], "C3.4: only the optional idle lock; no host permissions");
   for (const k of ["host_permissions", "content_scripts", "web_accessible_resources",

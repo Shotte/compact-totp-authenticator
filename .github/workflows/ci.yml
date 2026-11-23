@@ -36,7 +36,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
-      - run: npm run lint -- --warnings-as-errors
+      - run: npm run lint
       - run: npm run build
       - run: npm run check:release
 
@@ -58,7 +58,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
-      - run: npm run lint -- --warnings-as-errors
+      - run: npm run lint
 
   browser:
     name: browser (${{ matrix.os }}, firefox ${{ matrix.firefox }}, headless)

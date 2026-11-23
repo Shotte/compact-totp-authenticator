@@ -29,12 +29,27 @@ test("release audit passes on src/", () => {
   assert.equal(r.status, 0, r.stdout);
 });
 
+const lint = (dir) => spawnSync(process.execPath, [join(root, "scripts/lint.mjs"), dir], { encoding: "utf8" });
+
+test("lint accepts only the desktop-only Android note", () => {
+  const ok = lint(join(root, "src"));
+  assert.equal(ok.status, 0, ok.stdout);
+  assert.match(ok.stdout, /accepted: 1/);
+  const other = copy((d) => append(d, "lib/ui.js", "\neval(\"1\");\n"));
+  try {
+    const r = lint(other);
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stdout, /FAIL DANGEROUS_EVAL/);
+  } finally { rmSync(other, { recursive: true, force: true }); }
+});
+
 const CASES = [
   ["changed extension ID", (d) => manifest(d, (m) => { m.browser_specific_settings.gecko.id = "other@example"; }), /FAIL\s+extension ID/],
   ["extra permission", (d) => manifest(d, (m) => { m.permissions.push("tabs"); }), /FAIL\s+permissions exactly/],
   ["host permissions", (d) => manifest(d, (m) => { m.host_permissions = ["<all_urls>"]; }), /FAIL\s+no host_permissions/],
   ["plain-http update_url", (d) => manifest(d, (m) => { m.browser_specific_settings.gecko.update_url = "http://example.org/u.json"; }), /FAIL\s+update_url/],
   ["lower strict_min_version", (d) => manifest(d, (m) => { m.browser_specific_settings.gecko.strict_min_version = "128.0"; }), /FAIL\s+strict_min_version/],
+  ["Android declaration", (d) => manifest(d, (m) => { m.browser_specific_settings.gecko_android = {}; }), /FAIL\s+desktop only/],
   ["console call", (d) => append(d, "lib/ui.js", "\nconsole.log(1);\n"), /FAIL\s+no console/],
   ["remote fetch", (d) => append(d, "lib/ui.js", "\nfetch(\"https://example.org\");\n"), /FAIL\s+no remote resources/],
   ["Base32 secret in code", (d) => append(d, "lib/ui.js", `\nconst s = "${"MZXW6YTB".repeat(3)}";\n`), /FAIL\s+no Base32/],
