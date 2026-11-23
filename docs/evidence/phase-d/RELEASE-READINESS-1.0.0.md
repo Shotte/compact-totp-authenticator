@@ -4,8 +4,32 @@ Status: read-only assessment, 2026-11-23. **Not a release authorization.** A gre
 authorize a release. Signing and the listed AMO submission each need the operator's explicit
 approval (RELEASE.md §4, SIGNING.md §8).
 
-**Verdict: not ready for signing 1.0.0 yet.** One release blocker (#6) is open, and a few
-release-checklist items are unverified. The steps below close them.
+**Verdict (updated 2026-11-23, after the operator's approvals): not ready for signing 1.0.0
+yet.** No release blocker issue is open any more. The remaining gates are listed in §0.
+Sections 1–9 are the original assessment from earlier the same day.
+
+## 0. Status update after the approvals
+
+| Gate | State | Evidence |
+|---|---|---|
+| PRs #39–#42 | **merged** | `main` = `be1a5cb`, CI run 45220906518 8/8 green |
+| #6 toolbar placement and shortcut | **closed (completed)** | operator acceptance on Windows (Ctrl+Shift+2, text field, no conflict, Alt+Shift+A inactive, survives the signed update, custom Ctrl+Shift+9 kept) plus U-S1–U-S3; comment on #6. macOS and Linux keyboards are not tested |
+| Milestone 1.0.0 | 5 closed, 0 open | #2, #3, #6, #21, #25 |
+| Android | **decided: desktop only.** PR #43 removes `gecko_android`, **waiting for approval** | PR #43 |
+| Signed 0.9.6 test build | signing source **prepared, not signed** (`be1a5cb`, without #43) | `dist/signing/0.9.6/` (local); checklist [ABNAHME-0.9.6.md](ABNAHME-0.9.6.md) |
+| Linux and ESR 140, by hand | procedure ready, **not done** | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
+| AMO material | **drafts for review**: screenshots (to recreate from the 1.0.0 source), privacy text, permission reasons, reviewer notes, platforms, release notes | [AMO-LISTING.md](../../AMO-LISTING.md), CHANGELOG |
+
+Remaining before signing 1.0.0, in order:
+1. Approve and merge #43. Then re-prepare 0.9.6 from the new `main` if it should include the
+   change; the source is not signed yet, so re-preparing is safe.
+2. Operator: sign 0.9.6 unlisted. Then the signed update test 0.9.5 → 0.9.6 and ABNAHME-0.9.6.
+3. Operator: the Linux and ESR 140 procedure, or a recorded decision that the CI evidence on
+   ESR 140 is enough.
+4. Review the AMO material.
+5. The 1.0.0 PR: version, removal of the development notice, final screenshots from the
+   release source. Then `release:source --no-update-url`.
+6. The operator's explicit release approval and the listed submission by the operator.
 
 ## 1. Release blockers and open issues
 
