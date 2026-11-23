@@ -297,8 +297,11 @@ No new permission is needed.
 
 **Approved and implemented in PR #38.** Evidence: [evidence/previous-dialogs/](evidence/previous-dialogs/README.md).
 Deviations: the dialog texts give the date and both counts; after a successful restore the
-focus returns to the restore button (the message is in view); the discard button in the box
-is also styled as destructive.
+focus returns to the restore button (the message is in view). After the 0.9.5 acceptance
+(UX polish): the discard button in the box is neutral, only the dialog's "Endgültig löschen"
+is red; a successful check shows "Sicherung erfolgreich geprüft …" above the preview; from
+30 days on, the box shows an orange "Hinweis" about the age of the previous state (it is
+never deleted automatically).
 
 Today both actions share one form: a checkbox ("I understand: restoring replaces …;
 discarding deletes … for good"), the master password, and two submit buttons. That repeats

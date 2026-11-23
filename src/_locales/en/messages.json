@@ -857,5 +857,11 @@
   },
   "previousDiscardConfirm": {
     "message": "Delete permanently"
+  },
+  "replaceVerified": {
+    "message": "Backup verified successfully. Your vault has not been changed."
+  },
+  "previousAgeNote": {
+    "message": "Note: Your previous vault state is more than 30 days old. You can still restore or delete it if you no longer need it."
   }
 }

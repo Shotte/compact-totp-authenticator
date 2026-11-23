@@ -10,6 +10,9 @@ h2 { font-size: 16px; margin: 24px 0 8px; }
 .status[data-kind="error"] { color: var(--err); }
 .status[data-kind="ok"] { color: var(--ok); }
 .status[data-kind="progress"] { color: var(--muted); }
+/* UX-3: a reminder, not an error. Orange per theme via the active color-scheme (built-in
+   themes: 5.6:1 on white, 7.2:1 on #1c1b22); the word "Hinweis"/"Note" carries the meaning. */
+.advisory { color: light-dark(#a35200, #e8953a); margin: 4px 0 8px; }
 .warning { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--err); border-radius: 6px; background: var(--hover); }
 /* A conditional hint (e.g. what a future password change would delete): not an error. */
 .notice { margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--hover); }

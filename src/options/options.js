@@ -519,6 +519,9 @@ function clearReplace(tellService = false) {
   if ($("replaceDialog").open) $("replaceDialog").close();
   $("replacePreview").hidden = true;
   for (const id of ["replaceLoseList", "replaceGainList"]) $(id).replaceChildren();
+  // UX-1: "checked" no longer holds once the preview is gone (changed input, page left)
+  const s = $("restoreStatus");
+  if (s.textContent === t("replaceVerified")) { s.textContent = ""; delete s.dataset.kind; }
 }
 
 // An error of the check: shown in view, the field at fault cleared and focused, the file kept.
@@ -581,9 +584,10 @@ function showReplacePreview(p) {
   if (populated && p.keptCopy.exists) $("replaceOverwritesCopy").textContent = t("replaceOverwritesCopy", [when(p.keptCopy.replacedAt)]);
   $("replaceButton").textContent = t(populated ? "replaceNow" : "restoreExportButton");
   $("replacePreview").hidden = false;
-  for (const el of document.querySelectorAll(".status")) { el.textContent = ""; delete el.dataset.kind; } // the preview is the answer
+  say(t("replaceVerified"), "ok", "restoreStatus"); // UX-1: the only message; it sits right above the preview
   replaceTimer = setTimeout(replaceExpired, Math.max(0, p.expiresAt - Date.now()));
-  reveal($("replacePreviewTitle"));
+  $("replacePreviewTitle").focus({ preventScroll: true });
+  $("restoreStatus").scrollIntoView({ block: "start" }); // message and preview heading both in view
 }
 
 function replaceExpired() {
@@ -629,6 +633,7 @@ async function applyReplace() {
 }
 
 let previousInfo = null; // what the box shows: time and count of the kept copy
+const PREVIOUS_AGE_NOTE_MS = 30 * 24 * 60 * 60 * 1000; // UX-3: reminder from 30 days on
 async function showPrevious() {
   let p = { exists: false };
   try { p = await call("previousStatus"); } catch { /* locked: the box stays hidden */ }
@@ -639,6 +644,7 @@ async function showPrevious() {
   $("changeForm").elements.discardPrevious.required = p.exists;
   if (p.exists) {
     $("previousText").textContent = t("previousText", [when(p.replacedAt), p.count === null ? "?" : String(p.count)]);
+    $("previousAge").hidden = !(Date.now() - p.replacedAt >= PREVIOUS_AGE_NOTE_MS);
     $("changePreviousText").textContent = t("changePreviousText", [when(p.replacedAt)]);
   }
 }

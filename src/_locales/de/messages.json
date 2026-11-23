@@ -857,5 +857,11 @@
   },
   "previousDiscardConfirm": {
     "message": "Endgültig löschen"
+  },
+  "replaceVerified": {
+    "message": "Sicherung erfolgreich geprüft. Dein Tresor wurde noch nicht verändert."
+  },
+  "previousAgeNote": {
+    "message": "Hinweis: Dein vorheriger Tresorstand ist älter als 30 Tage. Du kannst ihn weiterhin wiederherstellen oder löschen, wenn du ihn nicht mehr benötigst."
   }
 }
