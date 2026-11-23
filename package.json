@@ -9,7 +9,7 @@
     "test": "node --test \"test/**/*.test.mjs\" \"spikes/**/*.test.mjs\"",
     "test:browser": "node test/browser/run-browser-tests.mjs",
     "test:browser:os": "node test/browser/run-browser-tests.mjs --os-input",
-    "lint": "web-ext lint --source-dir src",
+    "lint": "node scripts/lint.mjs src",
     "start": "web-ext run --source-dir src",
     "build": "web-ext build --source-dir src --overwrite-dest && node scripts/check-package.mjs",
     "spike:b0": "node spikes/b0-cryptokey/run-spike.mjs",

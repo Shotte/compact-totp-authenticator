@@ -22,6 +22,7 @@ It is an independent project and not the original "Authenticator" extension.
 - Import from the original extension's `totp.json` and from CTA's unencrypted export, with
   a preview and duplicate detection. Existing accounts are never overwritten.
 - German and English user interface.
+- Firefox for desktop only (Windows, macOS, Linux), Firefox 140 or newer.
 
 Known limitations:
 - A forgotten master password cannot be recovered without an export.

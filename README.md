@@ -17,6 +17,9 @@ under a master password. If the master password is forgotten, the accounts can o
 restored from an export made before. User guide: [docs/USER-GUIDE.md](docs/USER-GUIDE.md);
 release preparation: [docs/SIGNING.md](docs/SIGNING.md), [CHANGELOG.md](CHANGELOG.md).
 
+Platform: Firefox for desktop (Windows, macOS, Linux), version 140 or newer. Firefox for
+Android is not supported.
+
 Implemented (Phase B):
 
 - Compact popup (270 px, one 25 px row per account, click to copy, fixed footer,

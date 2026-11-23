@@ -28,6 +28,7 @@ check("manifest_version 3", m.manifest_version === 3);
 check("extension ID unchanged", g.id === EXT_ID, g.id);
 check("version is numeric major.minor.patch", /^\d+\.\d+\.\d+$/.test(m.version), m.version);
 check("strict_min_version 140.0 (data_collection_permissions needs 140)", g.strict_min_version === "140.0", g.strict_min_version);
+check("desktop only: no gecko_android (Android is not supported)", !("gecko_android" in (m.browser_specific_settings ?? {})));
 check("data_collection_permissions: required none", JSON.stringify(g.data_collection_permissions) === JSON.stringify({ required: ["none"] }));
 check("permissions exactly storage, alarms, activeTab", JSON.stringify(m.permissions) === JSON.stringify(["storage", "alarms", "activeTab"]), JSON.stringify(m.permissions));
 check("optional_permissions exactly idle", JSON.stringify(m.optional_permissions ?? []) === JSON.stringify(["idle"]));

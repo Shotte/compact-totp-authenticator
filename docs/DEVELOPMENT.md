@@ -27,7 +27,7 @@ on pushes to `main`:
 
 | Job | Runner | Content |
 |---|---|---|
-| `test` (required check) | Ubuntu | `npm ci`, `npm test` (unit, regression, static, crypto, portability), `web-ext lint --warnings-as-errors`, `npm run build` |
+| `test` (required check) | Ubuntu | `npm ci`, `npm test` (unit, regression, static, crypto, portability), `npm run lint` (`scripts/lint.mjs`: web-ext lint, every warning fails except the desktop-only Android note), `npm run build` |
 | `unit` | Windows, macOS | `npm test`, lint |
 | `browser` (headless) | Ubuntu: Firefox release, current ESR, final ESR 140 (140.17.0esr = `strict_min_version`); Windows and macOS: Firefox release | WebDriver BiDi integration suite; results uploaded as artifacts (`browser-results-*`) |
 
@@ -49,7 +49,12 @@ lag one version behind); ESR builds come directly from Mozilla.
 | Browser restart, persistent encrypted storage (real kill/restart) | C2 browser tests (operator) | C6 | C6 |
 | PBKDF2 unlock latency on representative hardware | C2 (operator machine) | C6 | C6 |
 
-Android: not tested, no support claimed. iOS/iPadOS: out of scope.
+Supported platform: **Firefox for desktop only** (Windows, macOS, Linux; Firefox 140 or newer).
+
+- Android: not tested and not supported. The manifest has no `gecko_android` key, so AMO
+  does not list CTA for Firefox for Android. `check:release` and `test/static.test.mjs`
+  fail if the key comes back. Android support would need its own tests and decision.
+- iOS/iPadOS: out of scope.
 
 - Trigger is `pull_request`, never `pull_request_target`: workflows from forks run with a
   read-only token and without secrets. Default workflow token permission is read-only.
