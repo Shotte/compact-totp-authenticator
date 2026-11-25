@@ -88,8 +88,9 @@ the `CTA-SYNTHETIC-*` test secrets.
 | `<lang>-3-accounts.png` | Manage, edit and reorder your accounts. | Konten verwalten, bearbeiten und sortieren. |
 | `<lang>-4-appearance.png` | Theme, colours with contrast check, font size and row height. | Design, Farben mit Kontrastprüfung, Schriftgröße und Zeilenhöhe. |
 
-- **Before upload, recreate 3 and 4 from the 1.0.0 release source.** The drafts still show the
-  0.x development notice:
+- **Before upload, recreate all four from the 1.0.0 release source.** Images 1 and 2 show the old
+  settings symbol (the gear is mandatory for 1.0.0). Images 3 and 4 still show the 0.x development
+  notice:
   `node test/browser/amo-screenshots.mjs --lang=en --src=dist/signing/1.0.0/source`, the same
   with `--lang=de`.
 - Popups 1 and 2 show the popup document at 150 % on a plain backdrop. They are not a capture of
