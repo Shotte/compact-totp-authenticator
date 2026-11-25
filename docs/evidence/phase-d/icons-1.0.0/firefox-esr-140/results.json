@@ -1,0 +1,36 @@
+{
+  "label": "firefox-esr-140",
+  "src": "src",
+  "themes": {
+    "light": {
+      "browser": "140.17.0",
+      "settingsButton": {
+        "focused": true,
+        "focusVisible": true,
+        "title": "Settings",
+        "ariaLabel": "Settings",
+        "background": "rgb(231, 231, 231)",
+        "color": "rgb(12, 12, 13)",
+        "svgHidden": "true",
+        "tabPresses": 5,
+        "enterOpensOptions": true
+      },
+      "window": "1282 x 1041"
+    },
+    "dark": {
+      "browser": "140.17.0",
+      "settingsButton": {
+        "focused": true,
+        "focusVisible": true,
+        "title": "Settings",
+        "ariaLabel": "Settings",
+        "background": "rgb(48, 47, 53)",
+        "color": "rgb(232, 230, 227)",
+        "svgHidden": "true",
+        "tabPresses": 5,
+        "enterOpensOptions": true
+      },
+      "window": "1282 x 1041"
+    }
+  }
+}
