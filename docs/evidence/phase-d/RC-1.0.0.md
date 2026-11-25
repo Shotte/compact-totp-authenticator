@@ -10,7 +10,7 @@ SIGNING.md §8). A green CI does not authorize a release.
 |---|---|
 | `main` before the candidate | `29c18df` (merge of PR #47; PR #45 merged as `e5a861a`). CI run 45678207682: 8/8 green |
 | Candidate source change (version 1.0.0, development notice removed, toolbar glyph tone) | `ea9f976` on branch `rc/1.0.0` |
-| Candidate PR | branch `rc/1.0.0` (this report, screenshots, listing); not merged |
+| Candidate PR | #48, branch `rc/1.0.0` (this report, screenshots, listing); not merged |
 
 The signing source was prepared from `ea9f976`, with no uncommitted `src/` changes. The later
 commits on `rc/1.0.0` change only `docs/` (`git diff ea9f976 HEAD -- src` is empty).
