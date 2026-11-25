@@ -334,9 +334,6 @@
   "setupWarning": {
     "message": "Deine 2FA-Einträge werden mit diesem Passwort verschlüsselt. Es gibt keine Möglichkeit, es wiederherzustellen: Wenn du es vergisst, sind deine 2FA-Einträge verloren. Bewahre es sicher auf, z. B. in einem Passwort-Manager."
   },
-  "devNotice": {
-    "message": "Entwicklungsversion (0.x), nicht für den produktiven Einsatz. Wenn du das Master-Passwort vergisst, lassen sich deine 2FA-Einträge nur aus einem zuvor erstellten Export wiederherstellen."
-  },
   "newPassword": {
     "message": "Neues Master-Passwort"
   },

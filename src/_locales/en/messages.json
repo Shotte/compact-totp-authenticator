@@ -334,9 +334,6 @@
   "setupWarning": {
     "message": "Your 2FA entries are encrypted with this password. There is no way to recover it: if you forget it, your 2FA entries are lost. Store it safely, e.g. in a password manager."
   },
-  "devNotice": {
-    "message": "Development build (0.x), not for production use. If you forget the master password, your 2FA entries can only be restored from an export you made before."
-  },
   "newPassword": {
     "message": "New master password"
   },

@@ -4,9 +4,10 @@ Version numbers: numeric `major.minor.patch`. Each version can be signed by AMO 
 0.9.x is reserved for the signed update test builds (docs/SIGNING.md); 1.0.0 is the first
 distribution release.
 
-## Unreleased – draft release notes for 1.0.0
+## 1.0.0 – release candidate (not released)
 
-Not released. These notes become final with the release decision (RELEASE.md §5).
+Release candidate for the operator's approval. Not signed, not submitted. The date is set on
+release.
 
 **Compact TOTP Authenticator 1.0.0**: a compact, offline TOTP authenticator for Firefox.
 It is an independent project and not the original "Authenticator" extension.
@@ -28,17 +29,22 @@ It is an independent project and not the original "Authenticator" extension.
   a preview and duplicate detection. Existing accounts are never overwritten.
 - German and English user interface.
 - Firefox for desktop only (Windows, macOS, Linux), Firefox 140 or newer.
+- The 0.x development notice is removed from the options page. The setup page keeps the warning
+  that a forgotten master password cannot be recovered.
 
 Known limitations:
 - A forgotten master password cannot be recovered without an export.
 - Download success is visible only in Firefox's downloads panel.
 - Importing an encrypted export into a vault that already has accounts is not supported
   yet (issue #17).
-- Real keyboard and native file dialogs are verified on Windows; macOS and Linux are covered
-  by the automated headless suite only, unless a manual check is recorded. Screen-reader
-  output is not verified (roles and labels are checked).
+- Real keyboard and clipboard are verified by hand on Windows and, with 0.9.6, on Debian 13
+  (Firefox ESR 153 and ESR 140). Native file dialogs are verified on Windows. macOS is covered
+  by the automated headless suite only. Screen-reader output is not verified (roles and labels
+  are checked).
+- Firefox 161 shows the light-theme toolbar icon in the dark extensions menu (Firefox
+  behaviour; ESR 140 picks the right one). The icon uses a mid-grey there that stays legible.
 
-Before 1.0.0: see docs/evidence/phase-d/RELEASE-READINESS-1.0.0.md. 1.0.0 is distributed
+Release candidate report: docs/evidence/phase-d/RC-1.0.0.md. 1.0.0 is distributed
 through AMO listed, with Mozilla-managed updates and no `update_url`, only after the
 operator's explicit release approval.
 

@@ -60,7 +60,11 @@ test("release gate: 0.x shows the development notice (with the export-only recov
   const major = Number(json("manifest.json").version.split(".")[0]);
   const html = code.find(([f]) => f === "options/options.html")[1];
   const notice = html.match(/<p id="devNotice"[^>]*>/)?.[0];
-  if (major >= 1) return; // removing it is part of the 1.0 release decision
+  if (major >= 1) { // removed by the 1.0 release decision, with its strings
+    assert.equal(notice, undefined, "1.x: no devNotice");
+    for (const l of ["en", "de"]) assert.equal("devNotice" in json(`_locales/${l}/messages.json`), false, `${l}: devNotice string removed`);
+    return;
+  }
   assert.ok(notice && !/\bhidden\b/.test(notice), "devNotice present and not hidden");
   assert.ok(html.indexOf(notice) < html.indexOf("<section"), "devNotice sits outside the state sections");
   assert.doesNotMatch(readFileSync(join(SRC, "options/options.js"), "utf8"), /devNotice/, "options.js never toggles it");
@@ -102,7 +106,10 @@ test("icons: transparent shield, theme variants for the toolbar, neutral icon fo
   assert.equal(m.action.default_icon, "icons/shield-dark.svg");
   assert.deepEqual(m.icons, { 48: "icons/icon.svg", 96: "icons/icon.svg" });
   const LIGHT_BAR = "#f9f9fb", DARK_BAR = "#2b2a33"; // Firefox default toolbar backgrounds
-  for (const [file, bg] of [["icons/shield-dark.svg", LIGHT_BAR], ["icons/shield-light.svg", DARK_BAR]]) {
+  // Firefox 161 shows the "dark" variant also in the dark extensions panel (#171519), so the
+  // glyph for light themes is a mid-grey that reads on both.
+  const DARK_PANEL = "#171519";
+  for (const [file, bg] of [["icons/shield-dark.svg", LIGHT_BAR], ["icons/shield-dark.svg", DARK_PANEL], ["icons/shield-light.svg", DARK_BAR]]) {
     assert.doesNotMatch(svg(file), /<rect/, `${file}: transparent, no tile`);
     const [c, ...rest] = colours(file);
     assert.equal(rest.length, 0, `${file}: monochrome`);

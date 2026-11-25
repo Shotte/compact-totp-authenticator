@@ -4,38 +4,30 @@ Status: read-only assessment, 2026-11-23. **Not a release authorization.** A gre
 authorize a release. Signing and the listed AMO submission each need the operator's explicit
 approval (RELEASE.md §4, SIGNING.md §8).
 
-**Verdict (updated 2026-11-25): not ready for signing 1.0.0 yet.** No release blocker issue is
-open, but the icon redesign is a mandatory release requirement (§0). The remaining gates are listed in §0.
-Sections 1–9 are the original assessment from 2026-11-23.
+**Verdict (updated 2026-11-25, evening): release candidate prepared, waiting for the owner's
+review and explicit approval.** Details, hashes and the owner's remaining actions:
+[RC-1.0.0.md](RC-1.0.0.md). Sections 1–9 are the original assessment from 2026-11-23.
 
 ## 0. Status update after the approvals
 
 | Gate | State | Evidence |
 |---|---|---|
-| PRs #39–#44 | **merged** | `main` = `d297a47` |
+| PRs #39–#45, #47 | **merged** | `main` = `29c18df`, CI run 45678207682 8/8 green |
 | #6 toolbar placement and shortcut | **closed (completed)** | operator acceptance on Windows (Ctrl+Shift+2, text field, no conflict, Alt+Shift+A inactive, survives the signed update, custom Ctrl+Shift+9 kept) plus U-S1–U-S3; comment on #6. macOS and Linux keyboards are not tested |
 | Milestone 1.0.0 | 5 closed, 0 open | #2, #3, #6, #21, #25 |
 | Android | **decided and merged: desktop only** (PR #43, no `gecko_android`) | PR #43 |
 | Signed 0.9.6 test build | **signed (unlisted) and accepted on Windows**, 2026-11-24, Firefox 160.0.1. Source `d297a47`, SHA-256 `c7000043e886da55e43f347f0a4af3bd724ae8908fb80cba1d223b6d6e8cd48f`, `verify:signed` 6/6 | automated: [signed-update-0.9.6](signed-update-0.9.6/README.md) (update 11 PASS + 1 NOT_TESTED by design, 12/12 with a custom shortcut; suite de/en 110 PASS, 0 FAIL each). Operator: [ABNAHME-0.9.6.md](ABNAHME-0.9.6.md), all executed checks PASS; screenshots reviewed in chat, not committed |
-| Debian 13 and ESR 140, by hand | German procedure finalized 2026-11-24 (physical keyboard, popup unlock, focus, light/dark, ESR 140 as a separate archive), **not done** | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
-| AMO material | **drafts for review**: screenshots (to recreate from the 1.0.0 source), privacy text, permission reasons, reviewer notes, platforms, release notes | [AMO-LISTING.md](../../AMO-LISTING.md), CHANGELOG |
-| **Icons (mandatory for 1.0.0, operator requirement 2026-11-25)** | **open.** (1) popup settings button: replace the star-like symbol with a conventional gear, keeping function, tooltip, keyboard access and focus; (2) toolbar icon: replace the clock with a transparent authenticator symbol, light and dark toolbar variants, legible at 16 px. Concepts A shield + code, B padlock + code, C countdown ring + keyhole presented; **owner's selection pending** | operator message; implementation and theme-aware mechanism (`action.theme_icons` or an SVG colour-scheme query) to be verified in Firefox 140 and current |
+| Debian 13, ESR 153 and ESR 140, by hand | **done with 0.9.6** (operator): ESR 153.7.0 L-1–L-28 PASS, ESR 140.17.0 E-1–E-16 PASS; real keyboard, Ctrl+Shift+2, Tab navigation, clipboard. A temporary focus anomaly under ESR 140 did not reproduce after reopening the popup. Not repeated with the 1.0.0 source; automated ESR 140 checks for 1.0.0 passed | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
+| AMO material | **final, for approval**: screenshots from the 1.0.0 source, privacy text, permission reasons, reviewer notes, platforms, release notes | [AMO-LISTING.md](../../AMO-LISTING.md), CHANGELOG |
+| 1.0.0 release candidate | **prepared**: version 1.0.0, development notice removed, signing source `SHA256SUMS` `720557c2…` from `ea9f976` | [RC-1.0.0.md](RC-1.0.0.md) |
+| **Icons (mandatory for 1.0.0)** | **done and visually accepted** (PR #47): shield with theme variants, gear. The release candidate lightens the light-theme glyph to `#7a7a85` because Firefox 161 uses it in the dark extensions menu | [icons-1.0.0](icons-1.0.0/README.md) |
 | Arrow-key navigation in the popup | enhancement for a later version, **not a 1.0.0 blocker**, not in the 1.0.0 milestone | #46 (operator suggestion from the 0.9.6 acceptance) |
 
-Still not tested by hand: screen-reader speech, real key events on macOS, Debian and Firefox
-ESR 140.
+Still not tested by hand: screen-reader speech, real key events on macOS. The Linux and ESR 140
+manual acceptance was done with 0.9.6, not with the 1.0.0 source. §3 below is the original
+assessment from 2026-11-23 and predates it.
 
-Remaining before signing 1.0.0, in order:
-1. Icons: the owner selects the toolbar concept; both icon changes implemented and verified
-   (automated tests, release checks, both icons in light and dark, settings button focus and
-   activation, packaged and signed build). The AMO screenshots are made after this change.
-2. Operator: the Debian 13 and ESR 140 procedure, or a recorded decision that the CI evidence on
-   ESR 140 is enough.
-3. Review the AMO material.
-4. The 1.0.0 PR: version, removal of the development notice, final screenshots from the
-   release source. Then `release:source --no-update-url`.
-5. The owner's review and explicit approval of the final release candidate, then the listed
-   submission by the operator.
+Remaining owner actions: [RC-1.0.0.md](RC-1.0.0.md) §8.
 
 ## 1. Release blockers and open issues
 
