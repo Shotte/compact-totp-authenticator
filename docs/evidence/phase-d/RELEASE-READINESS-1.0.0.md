@@ -4,32 +4,38 @@ Status: read-only assessment, 2026-11-23. **Not a release authorization.** A gre
 authorize a release. Signing and the listed AMO submission each need the operator's explicit
 approval (RELEASE.md §4, SIGNING.md §8).
 
-**Verdict (updated 2026-11-23, after the operator's approvals): not ready for signing 1.0.0
-yet.** No release blocker issue is open any more. The remaining gates are listed in §0.
-Sections 1–9 are the original assessment from earlier the same day.
+**Verdict (updated 2026-11-25): not ready for signing 1.0.0 yet.** No release blocker issue is
+open, but the icon redesign is a mandatory release requirement (§0). The remaining gates are listed in §0.
+Sections 1–9 are the original assessment from 2026-11-23.
 
 ## 0. Status update after the approvals
 
 | Gate | State | Evidence |
 |---|---|---|
-| PRs #39–#42 | **merged** | `main` = `be1a5cb`, CI run 45220906518 8/8 green |
+| PRs #39–#44 | **merged** | `main` = `d297a47` |
 | #6 toolbar placement and shortcut | **closed (completed)** | operator acceptance on Windows (Ctrl+Shift+2, text field, no conflict, Alt+Shift+A inactive, survives the signed update, custom Ctrl+Shift+9 kept) plus U-S1–U-S3; comment on #6. macOS and Linux keyboards are not tested |
 | Milestone 1.0.0 | 5 closed, 0 open | #2, #3, #6, #21, #25 |
-| Android | **decided: desktop only.** PR #43 removes `gecko_android`, **waiting for approval** | PR #43 |
-| Signed 0.9.6 test build | signing source **prepared, not signed** (`be1a5cb`, without #43) | `dist/signing/0.9.6/` (local); checklist [ABNAHME-0.9.6.md](ABNAHME-0.9.6.md) |
-| Linux and ESR 140, by hand | procedure ready, **not done** | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
+| Android | **decided and merged: desktop only** (PR #43, no `gecko_android`) | PR #43 |
+| Signed 0.9.6 test build | **signed (unlisted) and accepted on Windows**, 2026-11-24, Firefox 160.0.1. Source `d297a47`, SHA-256 `c7000043e886da55e43f347f0a4af3bd724ae8908fb80cba1d223b6d6e8cd48f`, `verify:signed` 6/6 | automated: [signed-update-0.9.6](signed-update-0.9.6/README.md) (update 11 PASS + 1 NOT_TESTED by design, 12/12 with a custom shortcut; suite de/en 110 PASS, 0 FAIL each). Operator: [ABNAHME-0.9.6.md](ABNAHME-0.9.6.md), all executed checks PASS; screenshots reviewed in chat, not committed |
+| Debian 13 and ESR 140, by hand | German procedure finalized 2026-11-24 (physical keyboard, popup unlock, focus, light/dark, ESR 140 as a separate archive), **not done** | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
 | AMO material | **drafts for review**: screenshots (to recreate from the 1.0.0 source), privacy text, permission reasons, reviewer notes, platforms, release notes | [AMO-LISTING.md](../../AMO-LISTING.md), CHANGELOG |
+| **Icons (mandatory for 1.0.0, operator requirement 2026-11-25)** | **open.** (1) popup settings button: replace the star-like symbol with a conventional gear, keeping function, tooltip, keyboard access and focus; (2) toolbar icon: replace the clock with a transparent authenticator symbol, light and dark toolbar variants, legible at 16 px. Concepts A shield + code, B padlock + code, C countdown ring + keyhole presented; **owner's selection pending** | operator message; implementation and theme-aware mechanism (`action.theme_icons` or an SVG colour-scheme query) to be verified in Firefox 140 and current |
+| Arrow-key navigation in the popup | enhancement for a later version, **not a 1.0.0 blocker**, not in the 1.0.0 milestone | #46 (operator suggestion from the 0.9.6 acceptance) |
+
+Still not tested by hand: screen-reader speech, real key events on macOS, Debian and Firefox
+ESR 140.
 
 Remaining before signing 1.0.0, in order:
-1. Approve and merge #43. Then re-prepare 0.9.6 from the new `main` if it should include the
-   change; the source is not signed yet, so re-preparing is safe.
-2. Operator: sign 0.9.6 unlisted. Then the signed update test 0.9.5 → 0.9.6 and ABNAHME-0.9.6.
-3. Operator: the Linux and ESR 140 procedure, or a recorded decision that the CI evidence on
+1. Icons: the owner selects the toolbar concept; both icon changes implemented and verified
+   (automated tests, release checks, both icons in light and dark, settings button focus and
+   activation, packaged and signed build). The AMO screenshots are made after this change.
+2. Operator: the Debian 13 and ESR 140 procedure, or a recorded decision that the CI evidence on
    ESR 140 is enough.
-4. Review the AMO material.
-5. The 1.0.0 PR: version, removal of the development notice, final screenshots from the
+3. Review the AMO material.
+4. The 1.0.0 PR: version, removal of the development notice, final screenshots from the
    release source. Then `release:source --no-update-url`.
-6. The operator's explicit release approval and the listed submission by the operator.
+5. The owner's review and explicit approval of the final release candidate, then the listed
+   submission by the operator.
 
 ## 1. Release blockers and open issues
 

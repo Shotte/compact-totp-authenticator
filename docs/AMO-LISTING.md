@@ -91,8 +91,8 @@ the `CTA-SYNTHETIC-*` test secrets.
 
 - Images 1 and 2 were recreated with the 1.0.0 icons (gear in the popup footer), see
   [icons-1.0.0](evidence/phase-d/icons-1.0.0/README.md).
-- **Before upload, recreate 3 and 4 from the 1.0.0 release source.** The drafts still show the
-  0.x development notice:
+- **Before upload, recreate all four from the 1.0.0 release source**, so that every image comes
+  from the release build; images 3 and 4 still show the 0.x development notice:
   `node test/browser/amo-screenshots.mjs --lang=en --src=dist/signing/1.0.0/source`, the same
   with `--lang=de`.
 - Popups 1 and 2 show the popup document at 150 % on a plain backdrop. They are not a capture of
