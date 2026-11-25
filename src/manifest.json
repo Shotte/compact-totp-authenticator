@@ -17,7 +17,11 @@
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "__MSG_extName__",
-    "default_icon": "icons/icon.svg",
+    "default_icon": "icons/shield-dark.svg",
+    "theme_icons": [
+      { "light": "icons/shield-light.svg", "dark": "icons/shield-dark.svg", "size": 16 },
+      { "light": "icons/shield-light.svg", "dark": "icons/shield-dark.svg", "size": 32 }
+    ],
     "default_area": "navbar"
   },
   "options_ui": { "page": "options/options.html", "open_in_tab": true },

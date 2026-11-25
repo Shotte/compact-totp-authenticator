@@ -91,3 +91,34 @@ test("licensing: the package ships the root MIT LICENSE unchanged", () => {
   assert.match(root, /Copyright \(c\) 2017 Rayquaza01/, "original project's notice preserved");
   assert.equal(JSON.parse(readFileSync(join(SRC, "..", "package.json"), "utf8")).license, "MIT");
 });
+
+test("icons: transparent shield, theme variants for the toolbar, neutral icon for about:addons and AMO", async () => {
+  const { contrast, UI_CONTRAST } = await import("../src/lib/appearance.js");
+  const m = json("manifest.json");
+  const svg = (p) => readFileSync(join(SRC, p), "utf8");
+  const colours = (p) => [...new Set(svg(p).match(/#[0-9a-f]{6}/gi))];
+  // MDN: "light" is the icon for dark themes, "dark" the one for light themes.
+  assert.deepEqual(m.action.theme_icons, [16, 32].map((size) => ({ light: "icons/shield-light.svg", dark: "icons/shield-dark.svg", size })));
+  assert.equal(m.action.default_icon, "icons/shield-dark.svg");
+  assert.deepEqual(m.icons, { 48: "icons/icon.svg", 96: "icons/icon.svg" });
+  const LIGHT_BAR = "#f9f9fb", DARK_BAR = "#2b2a33"; // Firefox default toolbar backgrounds
+  for (const [file, bg] of [["icons/shield-dark.svg", LIGHT_BAR], ["icons/shield-light.svg", DARK_BAR]]) {
+    assert.doesNotMatch(svg(file), /<rect/, `${file}: transparent, no tile`);
+    const [c, ...rest] = colours(file);
+    assert.equal(rest.length, 0, `${file}: monochrome`);
+    assert.ok(contrast(c, bg) >= UI_CONTRAST, `${file}: ${c} on ${bg}`);
+  }
+  const [n, ...rest] = colours("icons/icon.svg");
+  assert.equal(rest.length, 0, "icon.svg: one neutral colour");
+  for (const bg of ["#ffffff", LIGHT_BAR, DARK_BAR, "#1c1b22"]) assert.ok(contrast(n, bg) >= UI_CONTRAST, `icon.svg: ${n} on ${bg}`);
+});
+
+test("popup settings button: gear icon, keeps its label, tooltip and button semantics", () => {
+  const html = readFileSync(join(SRC, "popup/popup.html"), "utf8");
+  const btn = html.match(/<button id="settings"[^>]*>([\s\S]*?)<\/button>/);
+  assert.ok(btn, "settings button");
+  assert.match(btn[0], /class="icon-btn" type="button" data-i18n-attr="title:settings;aria-label:settings"/);
+  assert.match(btn[1], /aria-hidden="true"/);
+  assert.match(btn[1], /fill-rule="evenodd"/, "gear with a hole");
+  assert.equal((btn[1].match(/L/g) ?? []).length, 23, "six teeth: 24 outline points");
+});

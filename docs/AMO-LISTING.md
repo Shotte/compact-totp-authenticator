@@ -16,6 +16,7 @@ after the operator's explicit release approval. Screenshots use synthetic accoun
 | Source code | public repository above; unminified, no build step, so no source upload |
 | Data collection | none (`data_collection_permissions: none`); no network access |
 | Permissions shown to users | storage, alarms, activeTab; optional idle |
+| Icon | from the manifest: `icons/icon.svg`, a neutral grey shield with three code dots (48/96). Check the Developer Hub preview before submitting |
 | Platforms | Firefox for desktop only (Windows, macOS, Linux), Firefox 140 or newer. No `gecko_android` in the manifest (PR #43), so AMO does not offer it on Android. In the Developer Hub, leave "Firefox for Android" unchecked |
 
 ## Summary (max. 250 characters)
@@ -88,9 +89,10 @@ the `CTA-SYNTHETIC-*` test secrets.
 | `<lang>-3-accounts.png` | Manage, edit and reorder your accounts. | Konten verwalten, bearbeiten und sortieren. |
 | `<lang>-4-appearance.png` | Theme, colours with contrast check, font size and row height. | Design, Farben mit Kontrastprüfung, Schriftgröße und Zeilenhöhe. |
 
-- **Before upload, recreate all four from the 1.0.0 release source.** Images 1 and 2 show the old
-  settings symbol (the gear is mandatory for 1.0.0). Images 3 and 4 still show the 0.x development
-  notice:
+- Images 1 and 2 were recreated with the 1.0.0 icons (gear in the popup footer), see
+  [icons-1.0.0](evidence/phase-d/icons-1.0.0/README.md).
+- **Before upload, recreate all four from the 1.0.0 release source**, so that every image comes
+  from the release build; images 3 and 4 still show the 0.x development notice:
   `node test/browser/amo-screenshots.mjs --lang=en --src=dist/signing/1.0.0/source`, the same
   with `--lang=de`.
 - Popups 1 and 2 show the popup document at 150 % on a plain backdrop. They are not a capture of

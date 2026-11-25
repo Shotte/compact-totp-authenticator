@@ -11,6 +11,8 @@ Not released. These notes become final with the release decision (RELEASE.md §5
 **Compact TOTP Authenticator 1.0.0**: a compact, offline TOTP authenticator for Firefox.
 It is an independent project and not the original "Authenticator" extension.
 
+- New icons: a shield with three code dots in the toolbar, with light and dark variants for
+  Firefox's light and dark themes, and a gear for the settings button in the popup.
 - Compact toolbar popup: one 25 px row per account, click or keyboard to copy, highlight
   for the current website, light/dark/automatic theme and custom colours.
 - TOTP per RFC 6238: SHA-1/256/512, 6–8 digits, custom periods.
