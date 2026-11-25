@@ -113,8 +113,8 @@ All of it is in [AMO-LISTING.md](../../AMO-LISTING.md):
 | AMO Developer Hub: icon preview and listing preview | **owner**, before submitting (`manual_review`) |
 | Signed 1.0.0: `verify:signed` | after signing, which needs the release approval |
 | Real update to 1.0.0 | `not_tested` for 1.0.0 itself. The listed 1.0.0 has no `update_url`; Mozilla delivers it. The update path with the same ID and storage was verified signed for 0.9.5 → 0.9.6. 1.0.0 adds only the version, the removed notice and the icons |
-| Debian 13 / Firefox ESR 140 by hand | **not done.** Procedure ready ([ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md)); CI runs ESR 140 headless on Linux. Owner decides: do it, or accept the CI evidence |
-| Real keys and native dialogs on macOS and Linux | not verified (known limitation, in the CHANGELOG) |
+| Debian 13 / Firefox ESR 153 and ESR 140 by hand | Manual acceptance of **0.9.6** on Debian 13 by the operator: Firefox ESR 153.7.0, L-1–L-28 PASS; Firefox ESR 140.17.0, E-1–E-16 PASS. Covered: real keyboard, Ctrl+Shift+2, Tab navigation, clipboard. A temporary focus anomaly under ESR 140 did not reproduce after reopening the popup. Not repeated with the 1.0.0 source; the automated ESR 140 checks for 1.0.0 passed (CI). Procedure: [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) (operator-reported results; the detailed result lists are not in the repository) |
+| Real keys and native dialogs on macOS | not verified (known limitation, in the CHANGELOG). Native file dialogs on Linux: not reported separately |
 | Screen-reader speech | not verified; roles and labels are checked in the DOM |
 | Third-party themes for the toolbar icon | not tested |
 | #46 arrow-key navigation | outside 1.0.0 |
@@ -125,11 +125,10 @@ All of it is in [AMO-LISTING.md](../../AMO-LISTING.md):
    - the PR with the version and notice removal;
    - the toolbar glyph tone `#7a7a85`;
    - screenshots, listing, privacy text, permission reasons, reviewer notes, release notes.
-2. Decide on the Debian 13 / ESR 140 manual pass: run it or accept the CI evidence.
-3. Approve the merge of the candidate PR. Then I prepare the source again from `main` and confirm
+2. Approve the merge of the candidate PR. Then I prepare the source again from `main` and confirm
    that the hashes are identical.
-4. Give the explicit release approval. Then sign listed with your own credentials (command in
+3. Give the explicit release approval. Then sign listed with your own credentials (command in
    §2); signing is the public submission. Fill in the listing in the Developer Hub and check the
    icon and listing preview there.
-5. After signing: `verify:signed`, then tag and GitHub release with the signed XPI (RELEASE.md §5),
+4. After signing: `verify:signed`, then tag and GitHub release with the signed XPI (RELEASE.md §5),
    each only with your approval.

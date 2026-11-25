@@ -17,14 +17,15 @@ review and explicit approval.** Details, hashes and the owner's remaining action
 | Milestone 1.0.0 | 5 closed, 0 open | #2, #3, #6, #21, #25 |
 | Android | **decided and merged: desktop only** (PR #43, no `gecko_android`) | PR #43 |
 | Signed 0.9.6 test build | **signed (unlisted) and accepted on Windows**, 2026-11-24, Firefox 160.0.1. Source `d297a47`, SHA-256 `c7000043e886da55e43f347f0a4af3bd724ae8908fb80cba1d223b6d6e8cd48f`, `verify:signed` 6/6 | automated: [signed-update-0.9.6](signed-update-0.9.6/README.md) (update 11 PASS + 1 NOT_TESTED by design, 12/12 with a custom shortcut; suite de/en 110 PASS, 0 FAIL each). Operator: [ABNAHME-0.9.6.md](ABNAHME-0.9.6.md), all executed checks PASS; screenshots reviewed in chat, not committed |
-| Debian 13 and ESR 140, by hand | German procedure finalized 2026-11-24 (physical keyboard, popup unlock, focus, light/dark, ESR 140 as a separate archive), **not done** | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
+| Debian 13, ESR 153 and ESR 140, by hand | **done with 0.9.6** (operator): ESR 153.7.0 L-1–L-28 PASS, ESR 140.17.0 E-1–E-16 PASS; real keyboard, Ctrl+Shift+2, Tab navigation, clipboard. A temporary focus anomaly under ESR 140 did not reproduce after reopening the popup. Not repeated with the 1.0.0 source; automated ESR 140 checks for 1.0.0 passed | [ABNAHME-LINUX-ESR.md](ABNAHME-LINUX-ESR.md) |
 | AMO material | **final, for approval**: screenshots from the 1.0.0 source, privacy text, permission reasons, reviewer notes, platforms, release notes | [AMO-LISTING.md](../../AMO-LISTING.md), CHANGELOG |
 | 1.0.0 release candidate | **prepared**: version 1.0.0, development notice removed, signing source `SHA256SUMS` `720557c2…` from `ea9f976` | [RC-1.0.0.md](RC-1.0.0.md) |
 | **Icons (mandatory for 1.0.0)** | **done and visually accepted** (PR #47): shield with theme variants, gear. The release candidate lightens the light-theme glyph to `#7a7a85` because Firefox 161 uses it in the dark extensions menu | [icons-1.0.0](icons-1.0.0/README.md) |
 | Arrow-key navigation in the popup | enhancement for a later version, **not a 1.0.0 blocker**, not in the 1.0.0 milestone | #46 (operator suggestion from the 0.9.6 acceptance) |
 
-Still not tested by hand: screen-reader speech, real key events on macOS, Debian and Firefox
-ESR 140.
+Still not tested by hand: screen-reader speech, real key events on macOS. The Linux and ESR 140
+manual acceptance was done with 0.9.6, not with the 1.0.0 source. §3 below is the original
+assessment from 2026-11-23 and predates it.
 
 Remaining owner actions: [RC-1.0.0.md](RC-1.0.0.md) §8.
 

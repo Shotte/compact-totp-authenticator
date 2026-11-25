@@ -1,7 +1,17 @@
 # Abnahme auf Debian 13 (Linux) und Firefox ESR 140 – kurze Anleitung für Ralf
 
-Status: **vorbereitet, noch nicht durchgeführt.** Die Ergebnisse trage ich erst nach deiner
-Rückmeldung ein.
+Status: **mit 0.9.6 von Ralf durchgeführt** (Debian 13), laut seiner Rückmeldung:
+- Firefox ESR 153.7.0: L-1 bis L-28 PASS;
+- Firefox ESR 140.17.0: E-1 bis E-16 PASS;
+- geprüft wurden die echte Tastatur, Strg+Umschalt+2, die Tab-Navigation und die
+  Zwischenablage;
+- eine vorübergehende Fokus-Auffälligkeit unter ESR 140 trat nach erneutem Öffnen des Popups
+  nicht mehr auf.
+
+Die Nummerierung der Rückmeldung (L-1 bis L-28, E-1 bis E-16) ist ausführlicher als die Liste
+unten. Die Einzelergebnisse liegen nicht im Repository. Mit der Quelle von 1.0.0 wurde die
+Abnahme von Hand nicht wiederholt; die automatischen ESR-140-Prüfungen für 1.0.0 sind bestanden
+(CI).
 
 Zweck:
 - echte Tastatur, Zwischenablage, Dateidialog und Darstellung unter Linux prüfen;

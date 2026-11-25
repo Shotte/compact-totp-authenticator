@@ -37,9 +37,10 @@ Known limitations:
 - Download success is visible only in Firefox's downloads panel.
 - Importing an encrypted export into a vault that already has accounts is not supported
   yet (issue #17).
-- Real keyboard and native file dialogs are verified on Windows; macOS and Linux are covered
-  by the automated headless suite only, unless a manual check is recorded. Screen-reader
-  output is not verified (roles and labels are checked).
+- Real keyboard and clipboard are verified by hand on Windows and, with 0.9.6, on Debian 13
+  (Firefox ESR 153 and ESR 140). Native file dialogs are verified on Windows. macOS is covered
+  by the automated headless suite only. Screen-reader output is not verified (roles and labels
+  are checked).
 - Firefox 161 shows the light-theme toolbar icon in the dark extensions menu (Firefox
   behaviour; ESR 140 picks the right one). The icon uses a mid-grey there that stays legible.
 
