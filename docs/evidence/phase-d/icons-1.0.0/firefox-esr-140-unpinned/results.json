@@ -1,0 +1,14 @@
+{
+  "label": "firefox-esr-140-unpinned",
+  "src": "src (copy with default_area menupanel)",
+  "themes": {
+    "light": {
+      "browser": "140.17.0",
+      "window": "1282 x 1041"
+    },
+    "dark": {
+      "browser": "140.17.0",
+      "window": "1282 x 1041"
+    }
+  }
+}

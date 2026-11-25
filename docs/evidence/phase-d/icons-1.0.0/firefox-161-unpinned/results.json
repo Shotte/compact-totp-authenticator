@@ -1,0 +1,14 @@
+{
+  "label": "firefox-161-unpinned",
+  "src": "src (copy with default_area menupanel)",
+  "themes": {
+    "light": {
+      "browser": "161.0",
+      "window": "1282 x 1041"
+    },
+    "dark": {
+      "browser": "161.0",
+      "window": "1282 x 1041"
+    }
+  }
+}

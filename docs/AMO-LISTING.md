@@ -1,7 +1,9 @@
-# AMO listing draft for 1.0.0 (German and English)
+# AMO listing for 1.0.0 (German and English)
 
-Status: **draft, not submitted.** It is used for the listed 1.0.0 submission (SIGNING.md §8)
-after the operator's explicit release approval. Screenshots use synthetic accounts only.
+Status: **final text for the operator's approval, not submitted** (release candidate,
+[RC-1.0.0.md](evidence/phase-d/RC-1.0.0.md)). It is used for the listed 1.0.0 submission
+(SIGNING.md §8) only after the operator's explicit release approval. Screenshots use synthetic
+accounts only.
 
 ## Fixed fields
 
@@ -16,7 +18,7 @@ after the operator's explicit release approval. Screenshots use synthetic accoun
 | Source code | public repository above; unminified, no build step, so no source upload |
 | Data collection | none (`data_collection_permissions: none`); no network access |
 | Permissions shown to users | storage, alarms, activeTab; optional idle |
-| Icon | from the manifest: `icons/icon.svg`, a neutral grey shield with three code dots (48/96). Check the Developer Hub preview before submitting |
+| Icon | from the manifest: `icons/icon.svg`, a neutral grey shield with three code dots (48/96). Check the Developer Hub preview before submitting. If AMO shows no icon or asks for an upload, use [`amo/icon-128.png`](amo/icon-128.png) (the same SVG rendered at 128 × 128, transparent) |
 | Platforms | Firefox for desktop only (Windows, macOS, Linux), Firefox 140 or newer. No `gecko_android` in the manifest (PR #43), so AMO does not offer it on Android. In the Developer Hub, leave "Firefox for Android" unchecked |
 
 ## Summary (max. 250 characters)
@@ -76,11 +78,12 @@ Based on the interface concept of Rayquaza01/authenticator (MIT), discontinued i
 security and storage architecture is newly written. Independent project, not affiliated
 with the original author. Source code: GitHub (link above).
 
-## Screenshots (draft, synthetic data only)
+## Screenshots (final, synthetic data only)
 
-Draft images in [`amo/screenshots/`](amo/screenshots/), 1280 × 800, one set per language.
-`test/browser/amo-screenshots.mjs` created them in a temporary profile, with fictional names and
-the `CTA-SYNTHETIC-*` test secrets.
+Images in [`amo/screenshots/`](amo/screenshots/), 1280 × 800, one set per language, created from
+the 1.0.0 signing source (`dist/signing/1.0.0/source`, no development notice, new icons) with
+`test/browser/amo-screenshots.mjs --src=dist/signing/1.0.0/source`. They come from a temporary
+profile, with fictional names and the `CTA-SYNTHETIC-*` test secrets.
 
 | File | Caption (en) | Caption (de) |
 |---|---|---|
@@ -89,12 +92,6 @@ the `CTA-SYNTHETIC-*` test secrets.
 | `<lang>-3-accounts.png` | Manage, edit and reorder your accounts. | Konten verwalten, bearbeiten und sortieren. |
 | `<lang>-4-appearance.png` | Theme, colours with contrast check, font size and row height. | Design, Farben mit Kontrastprüfung, Schriftgröße und Zeilenhöhe. |
 
-- Images 1 and 2 were recreated with the 1.0.0 icons (gear in the popup footer), see
-  [icons-1.0.0](evidence/phase-d/icons-1.0.0/README.md).
-- **Before upload, recreate all four from the 1.0.0 release source**, so that every image comes
-  from the release build; images 3 and 4 still show the 0.x development notice:
-  `node test/browser/amo-screenshots.mjs --lang=en --src=dist/signing/1.0.0/source`, the same
-  with `--lang=de`.
 - Popups 1 and 2 show the popup document at 150 % on a plain backdrop. They are not a capture of
   the browser toolbar.
 
@@ -145,6 +142,29 @@ No network requests are made. Desktop only; Firefox for Android is not supported
 
 ## Release notes
 
-The draft 1.0.0 notes are in [CHANGELOG.md](../CHANGELOG.md), section "Unreleased". AMO's
-"Release notes" field takes the user-facing part: the list of features and the known
-limitations.
+For AMO's "Release notes" field (version 1.0.0). The full notes are in
+[CHANGELOG.md](../CHANGELOG.md).
+
+**de:**
+
+```text
+Erste Veröffentlichung.
+- Kompaktes Popup: eine Zeile pro Konto, Klick oder Tastatur kopiert den Code; Strg+Umschalt+2 öffnet das Popup.
+- Verschlüsselter Tresor (AES-256-GCM) unter einem Master-Passwort; automatische Sperre, gesperrt nach dem Neustart des Browsers.
+- Verschlüsselte Sicherung; Wiederherstellen erst nach Prüfung und Vorschau, der vorherige Stand bleibt als verschlüsselte Kopie.
+- Import aus dem eingestellten Add-on „Authenticator“ (totp.json).
+- Hell, dunkel oder automatisch; Deutsch und Englisch.
+Bekannte Einschränkungen: Ein vergessenes Master-Passwort lässt sich nicht wiederherstellen, nur ein zuvor erstellter Export hilft. Eine verschlüsselte Sicherung lässt sich noch nicht in einen Tresor mit vorhandenen Einträgen importieren.
+```
+
+**en:**
+
+```text
+First release.
+- Compact popup: one row per account, click or keyboard copies the code; Ctrl+Shift+2 opens the popup.
+- Encrypted vault (AES-256-GCM) under a master password; auto-lock, locked after a browser restart.
+- Encrypted backup; restoring happens only after a check and a preview, the previous state stays as an encrypted copy.
+- Import from the discontinued "Authenticator" add-on (totp.json).
+- Light, dark or automatic theme; German and English.
+Known limitations: a forgotten master password cannot be recovered; only an export made before helps. An encrypted backup cannot yet be imported into a vault that already has entries.
+```
