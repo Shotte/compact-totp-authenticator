@@ -56,12 +56,12 @@ const CASES = [
   ["synthetic fixture marker", (d) => append(d, "lib/ui.js", "\n// CTA-SYNTHETIC-000001\n"), /FAIL\s+no synthetic test markers/],
   ["test file in the package", (d) => { mkdirSync(join(d, "test")); writeFileSync(join(d, "test/a.test.js"), ""); }, /FAIL\s+no test, fixture/],
   ["changed LICENSE", (d) => append(d, "LICENSE", "\nextra\n"), /FAIL\s+LICENSE identical/],
-  ["development notice removed in 0.x", (d) => writeFileSync(join(d, "options/options.html"),
-    readFileSync(join(d, "options/options.html"), "utf8").replace(/<p id="devNotice"[^>]*><\/p>/, "")), /FAIL\s+0\.x: development notice/],
+  ["0.x without the development notice", (d) => manifest(d, (m) => { m.version = "0.9.9"; }), /FAIL\s+0\.x: development notice/],
   ["1.0 with the localhost test update_url", (d) => manifest(d, (m) => { m.version = "1.0.0"; m.browser_specific_settings.gecko.update_url = "https://127.0.0.1:47811/updates.json"; }), /FAIL\s+1\.x: no update_url/],
   ["1.0 with any self-hosted update_url", (d) => manifest(d, (m) => { m.version = "1.0.0"; m.browser_specific_settings.gecko.update_url = "https://example.org/u.json"; }), /FAIL\s+1\.x: no update_url/],
   ["embedded certificate", (d) => append(d, "lib/ui.js", "\n// -----BEGIN CERTIFICATE-----\n"), /FAIL\s+no keys, certificates/],
-  ["1.0 with the development notice still present", (d) => manifest(d, (m) => { m.version = "1.0.0"; }), /FAIL\s+1\.x: development notice/],
+  ["1.0 with the development notice still present", (d) => writeFileSync(join(d, "options/options.html"),
+    readFileSync(join(d, "options/options.html"), "utf8").replace("</header>", "</header>\n    <p id=\"devNotice\" class=\"note\" data-i18n=\"devNotice\"></p>")), /FAIL\s+1\.x: development notice/],
 ];
 for (const [label, mutate, expected] of CASES) {
   test(`release audit fails: ${label}`, () => {
@@ -130,15 +130,15 @@ test("release:source refuses unsafe parameters and never signs", () => {
     assert.match(r.stderr, msg, args.join(" "));
   }
   // Signed artifacts of a version are never deleted by preparing it again.
-  const signedDir = join(root, "dist/signing/0.9.99/signed");
+  const signedDir = join(root, "dist/signing/9.9.99/signed");
   mkdirSync(signedDir, { recursive: true });
   writeFileSync(join(signedDir, "keep.xpi"), "signed");
   try {
-    const r = run("--version", "0.9.99", "--test-update");
+    const r = run("--version", "9.9.99", "--no-update-url");
     assert.equal(r.status, 1);
     assert.match(r.stderr, /signed artifacts are kept/);
     assert.equal(readFileSync(join(signedDir, "keep.xpi"), "utf8"), "signed");
-  } finally { rmSync(join(root, "dist/signing/0.9.99"), { recursive: true, force: true }); }
+  } finally { rmSync(join(root, "dist/signing/9.9.99"), { recursive: true, force: true }); }
   const src = readFileSync(join(root, "scripts/release-source.mjs"), "utf8");
   assert.doesNotMatch(src.replace(/console\.log\([^)]*\);/g, ""), /web-ext\.js"\),?\s*"sign"|\["sign"/, "the script itself never runs web-ext sign");
 });
